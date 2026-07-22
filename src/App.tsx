@@ -68,7 +68,6 @@ export default function App() {
   const [sel, setSel] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [locating, setLocating] = useState(false)
   // Режим «Поехали»: null = выключен, число = индекс текущего этапа.
   const [journeyLeg, setJourneyLeg] = useState<number | null>(null)
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
@@ -169,25 +168,6 @@ export default function App() {
     }
   }
 
-  function locate() {
-    if (!navigator.geolocation) {
-      setError('Геолокация недоступна в этом браузере')
-      return
-    }
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setFrom({ name: '📍 Моё местоположение', lat: pos.coords.latitude, lon: pos.coords.longitude })
-        setLocating(false)
-      },
-      () => {
-        setError('Не удалось получить геолокацию')
-        setLocating(false)
-      },
-      { enableHighAccuracy: true, timeout: 8000 },
-    )
-  }
-
   function swap() {
     setFrom(to)
     setTo(from)
@@ -203,9 +183,6 @@ export default function App() {
         <div className="inputs">
           <div className="row">
             <PlaceInput placeholder="Откуда" value={from} onSelect={setFrom} />
-            <button className="icon-btn" onClick={locate} title="Моё местоположение">
-              {locating ? '…' : '📍'}
-            </button>
           </div>
           <div className="row">
             <PlaceInput placeholder="Куда" value={to} onSelect={setTo} />

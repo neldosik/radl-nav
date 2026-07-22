@@ -15,6 +15,28 @@ export async function geocode(text: string): Promise<GeocodeMatch[]> {
   return r.json()
 }
 
+/** Координаты → человекочитаемый адрес (ближайшая точка). */
+export async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  const u = new URL(`${MOTIS}/v1/reverse-geocode`)
+  u.searchParams.set('place', `${lat},${lon}`)
+  const r = await fetch(u)
+  if (!r.ok) throw new Error(`reverse HTTP ${r.status}`)
+  const arr = (await r.json()) as GeocodeMatch[]
+  return arr?.[0]?.name ?? 'Моё местоположение'
+}
+
+/** GPS-координаты браузера (Promise-обёртка над geolocation). */
+export function getGeolocation(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      reject,
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  })
+}
+
 /** providerId MyRadl в Transitous (см. /api/v1/rentals); systemId `nextbike_ml` фильтр НЕ принимает. */
 const MYRADL_PROVIDER = 'de-MyRadlMunich'
 
