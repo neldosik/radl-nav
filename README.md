@@ -6,12 +6,14 @@
 
 **Без бэкенда**: статичная PWA, все API открытые и с CORS `*`.
 
+**Живёт здесь: https://neldosik.github.io/radl-nav/** (GitHub Pages, ветка `gh-pages`).
+
 ## Запуск
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # статика в dist/ — деплой на Cloudflare Pages / Vercel (бесплатно)
+npm run dev        # http://localhost:5173/radl-nav/
+npm run deploy     # build + push dist/ в gh-pages → обновляет прод за ~30 сек
 ```
 
 ## Данные
@@ -40,7 +42,7 @@ npm run build      # статика в dist/ — деплой на Cloudflare Pa
 
 ## Roadmap
 
-- [ ] деплой на Cloudflare Pages + установка на телефон (PWA);
+- [x] деплой (GitHub Pages) + установка на телефон (PWA);
 - [ ] «веломарафон»: автосплит вело-этапа >28 мин через промежуточную станцию;
 - [ ] выбор времени отправления/прибытия (`time`, `arriveBy`);
 - [ ] таймер «пора сдавать велик» (пуш/Telegram через бота);
