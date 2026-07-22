@@ -1,4 +1,4 @@
-import type { Leg } from './types'
+import type { Itinerary, Leg } from './types'
 
 export const mins = (sec: number) => Math.max(1, Math.round(sec / 60))
 
@@ -53,9 +53,33 @@ export function modeMeta(leg: Leg): ModeMeta {
   }
 }
 
-/** Deep-link: открыть этап как навигацию в Google Maps. */
-export function gmapsLink(leg: Leg): string {
+/** Deep-link: открыть этап в Google Maps; navigate=true сразу запускает ведение (на телефоне). */
+export function gmapsLink(leg: Leg, navigate = false): string {
   const travelmode =
     leg.mode === 'WALK' ? 'walking' : leg.mode === 'RENTAL' || leg.mode === 'BIKE' ? 'bicycling' : 'transit'
-  return `https://www.google.com/maps/dir/?api=1&origin=${leg.from.lat},${leg.from.lon}&destination=${leg.to.lat},${leg.to.lon}&travelmode=${travelmode}`
+  return (
+    `https://www.google.com/maps/dir/?api=1&origin=${leg.from.lat},${leg.from.lon}` +
+    `&destination=${leg.to.lat},${leg.to.lon}&travelmode=${travelmode}` +
+    (navigate ? '&dir_action=navigate' : '')
+  )
+}
+
+/**
+ * Весь маршрут одной ссылкой — только для вариантов без транспорта:
+ * waypoints у Google не работают с travelmode=transit.
+ */
+export function gmapsFullBikeLink(it: Itinerary): string | null {
+  if (!it.legs.every(l => l.mode === 'WALK' || l.mode === 'RENTAL' || l.mode === 'BIKE')) return null
+  const first = it.legs[0]
+  const last = it.legs[it.legs.length - 1]
+  const way = it.legs
+    .slice(0, -1)
+    .map(l => `${l.to.lat},${l.to.lon}`)
+    .join('|')
+  return (
+    `https://www.google.com/maps/dir/?api=1&origin=${first.from.lat},${first.from.lon}` +
+    `&destination=${last.to.lat},${last.to.lon}` +
+    (way ? `&waypoints=${encodeURIComponent(way)}` : '') +
+    `&travelmode=bicycling`
+  )
 }

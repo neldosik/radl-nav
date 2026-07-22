@@ -18,11 +18,16 @@ export async function geocode(text: string): Promise<GeocodeMatch[]> {
 /** providerId MyRadl в Transitous (см. /api/v1/rentals); systemId `nextbike_ml` фильтр НЕ принимает. */
 const MYRADL_PROVIDER = 'de-MyRadlMunich'
 
-export async function plan(from: LatLon, to: LatLon, walkOnly = false): Promise<PlanResponse> {
+export interface PlanOpts {
+  walkOnly?: boolean
+  classicOnly?: boolean // только обычные велики (HUMAN), без электро
+}
+
+export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}): Promise<PlanResponse> {
   const u = new URL(`${MOTIS}/v5/plan`)
   u.searchParams.set('fromPlace', `${from.lat},${from.lon}`)
   u.searchParams.set('toPlace', `${to.lat},${to.lon}`)
-  if (walkOnly) {
+  if (opts.walkOnly) {
     // Страховочный запрос: чистый транспорт без прокатов.
     u.searchParams.set('preTransitModes', 'WALK')
     u.searchParams.set('postTransitModes', 'WALK')
@@ -40,6 +45,12 @@ export async function plan(from: LatLon, to: LatLon, walkOnly = false): Promise<
     u.searchParams.set('preTransitRentalFormFactors', 'BICYCLE')
     u.searchParams.set('postTransitRentalFormFactors', 'BICYCLE')
     u.searchParams.set('directRentalFormFactors', 'BICYCLE')
+    if (opts.classicOnly) {
+      // только обычные велики: e-bike платный даже с абонементом
+      u.searchParams.set('preTransitRentalPropulsionTypes', 'HUMAN')
+      u.searchParams.set('postTransitRentalPropulsionTypes', 'HUMAN')
+      u.searchParams.set('directRentalPropulsionTypes', 'HUMAN')
+    }
     // 30 минут вело-подъезда вместо дефолтных 15 — под бесплатное окно MyRadl;
     // прямой вело-вариант до 45 мин (дальше жёсткий клиентский лимит пользователя).
     u.searchParams.set('maxPreTransitTime', '1800')

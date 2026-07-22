@@ -6,9 +6,10 @@ interface Props {
   selected: boolean
   bikesNeeded: number
   onSelect: () => void
+  onGo: () => void
 }
 
-export default function ItineraryCard({ view, selected, bikesNeeded, onSelect }: Props) {
+export default function ItineraryCard({ view, selected, bikesNeeded, onSelect, onGo }: Props) {
   const { it } = view
 
   return (
@@ -34,7 +35,9 @@ export default function ItineraryCard({ view, selected, bikesNeeded, onSelect }:
       </div>
 
       <div className="badges">
-        {view.warnLong ? (
+        {view.hasElectric ? (
+          <span className="badge warn">⚡ e-bike — платный (1,50 €/30 мин)</span>
+        ) : view.warnLong ? (
           <span className="badge warn">⚠️ велик дольше 30 бесплатных минут</span>
         ) : (
           <span className="badge ok">0 € с Deutschlandticket</span>
@@ -86,11 +89,28 @@ export default function ItineraryCard({ view, selected, bikesNeeded, onSelect }:
                       {b.endStation ? `; вернуть: «${b.endStation.name}»` : ''}
                     </div>
                   )}
+                  {b?.freeFloating && (
+                    <div className="leg-sub">📍 свободностоящий велик (не на станции)</div>
+                  )}
+                  {b?.electric && (
+                    <div className="leg-sub warn-text">⚡ электровелик — бесплатных минут нет</div>
+                  )}
                   {b?.tooLong && (
                     <div className="leg-sub warn-text">
                       ⚠️ {mins(leg.duration)} мин — сдай велик на станции по пути и возьми новый,
                       иначе 1 €
                     </div>
+                  )}
+                  {b && leg.rental?.rentalUriWeb && (
+                    <a
+                      className="leg-sub link"
+                      href={leg.rental.rentalUriWeb}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      открыть в MyRadl ↗
+                    </a>
                   )}
                 </div>
                 <a
@@ -106,6 +126,15 @@ export default function ItineraryCard({ view, selected, bikesNeeded, onSelect }:
               </div>
             )
           })}
+          <button
+            className="go-journey"
+            onClick={e => {
+              e.stopPropagation()
+              onGo()
+            }}
+          >
+            🚴 Поехали
+          </button>
         </div>
       )}
     </div>

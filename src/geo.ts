@@ -1,6 +1,6 @@
 import type { LatLon, Station } from './types'
 
-function haversine(a: LatLon, b: LatLon): number {
+export function haversine(a: LatLon, b: LatLon): number {
   const R = 6371000
   const rad = Math.PI / 180
   const dLat = (b.lat - a.lat) * rad

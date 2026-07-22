@@ -25,10 +25,16 @@ export interface LegPlace extends LatLon {
 export interface Rental {
   systemId?: string
   systemName?: string
+  providerId?: string
   url?: string
   stationName?: string
+  fromStationName?: string // пусто = свободностоящий велик
+  toStationName?: string
+  rentalUriWeb?: string // deep-link на станцию/велик в приложении nextbike
+  rentalUriAndroid?: string
+  rentalUriIOS?: string
   formFactor?: string // BICYCLE | SCOOTER_STANDING | ...
-  propulsionType?: string
+  propulsionType?: string // HUMAN | ELECTRIC_ASSIST | ELECTRIC
   returnConstraint?: string
 }
 
@@ -74,11 +80,14 @@ export interface BikeLegInfo {
   startStation: Station | null
   endStation: Station | null
   tooLong: boolean // дольше бесплатного окна
+  electric: boolean // e-bike — платный всегда
+  freeFloating: boolean // велик не на станции
 }
 
 export interface ItineraryView {
   it: Itinerary
   hasBike: boolean
   warnLong: boolean
+  hasElectric: boolean
   bikeLegs: Map<number, BikeLegInfo> // индекс этапа -> live-данные
 }

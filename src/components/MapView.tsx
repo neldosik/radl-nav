@@ -6,16 +6,20 @@ import type { ItineraryView } from '../types'
 
 interface Props {
   view: ItineraryView | null
+  activeLeg?: number | null
+  userPos?: { lat: number; lon: number } | null
 }
 
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
-export default function MapView({ view }: Props) {
+export default function MapView({ view, activeLeg = null, userPos = null }: Props) {
   const div = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const markers = useRef<maplibregl.Marker[]>([])
+  const userMarker = useRef<maplibregl.Marker | null>(null)
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
+  const activeLegRef = useRef<number | null>(null)
 
   function clear() {
     const m = map.current
@@ -28,11 +32,11 @@ export default function MapView({ view }: Props) {
     markers.current = []
   }
 
-  function draw(v: ItineraryView) {
+  function draw(v: ItineraryView, active: number | null) {
     const m = map.current
     if (!m) return
 
-    const features = v.it.legs.map(leg => {
+    const features = v.it.legs.map((leg, idx) => {
       const meta = modeMeta(leg)
       const coords: [number, number][] = leg.legGeometry?.points
         ? decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
@@ -42,7 +46,11 @@ export default function MapView({ view }: Props) {
           ]
       return {
         type: 'Feature' as const,
-        properties: { color: meta.color, dash: leg.mode === 'WALK' },
+        properties: {
+          color: meta.color,
+          dash: leg.mode === 'WALK',
+          dim: active != null && idx !== active,
+        },
         geometry: { type: 'LineString' as const, coordinates: coords },
       }
     })
@@ -68,9 +76,12 @@ export default function MapView({ view }: Props) {
       if (info.endStation) add(leg.to.lon, leg.to.lat, '🅿', 'mk-bike')
     }
 
+    // В режиме «Поехали» приближаем к текущему этапу, иначе показываем весь маршрут.
+    const fitFeatures = active != null && features[active] ? [features[active]] : features
     const bounds = new maplibregl.LngLatBounds()
-    for (const f of features) for (const c of f.geometry.coordinates) bounds.extend(c)
-    if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: 60, maxZoom: 15.5, duration: 500 })
+    for (const f of fitFeatures) for (const c of f.geometry.coordinates) bounds.extend(c)
+    if (!bounds.isEmpty())
+      m.fitBounds(bounds, { padding: 60, maxZoom: active != null ? 16 : 15.5, duration: 500 })
   }
 
   useEffect(() => {
@@ -87,11 +98,13 @@ export default function MapView({ view }: Props) {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
+      const dimmed = (normal: number, dim: number) =>
+        ['case', ['boolean', ['get', 'dim'], false], dim, normal] as unknown as number
       m.addLayer({
         id: 'route-casing',
         type: 'line',
         source: 'route',
-        paint: { 'line-color': '#0e1116', 'line-width': 7, 'line-opacity': 0.85 },
+        paint: { 'line-color': '#0e1116', 'line-width': 7, 'line-opacity': dimmed(0.85, 0.15) },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       })
       m.addLayer({
@@ -99,7 +112,7 @@ export default function MapView({ view }: Props) {
         type: 'line',
         source: 'route',
         filter: ['!', ['get', 'dash']],
-        paint: { 'line-color': ['get', 'color'], 'line-width': 4.5 },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 4.5, 'line-opacity': dimmed(1, 0.25) },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       })
       m.addLayer({
@@ -107,11 +120,16 @@ export default function MapView({ view }: Props) {
         type: 'line',
         source: 'route',
         filter: ['get', 'dash'],
-        paint: { 'line-color': ['get', 'color'], 'line-width': 3.5, 'line-dasharray': [0.5, 1.6] },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': 3.5,
+          'line-dasharray': [0.5, 1.6],
+          'line-opacity': dimmed(1, 0.25),
+        },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       })
       ready.current = true
-      if (viewRef.current) draw(viewRef.current)
+      if (viewRef.current) draw(viewRef.current, activeLegRef.current)
     })
     map.current = m
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,11 +137,31 @@ export default function MapView({ view }: Props) {
 
   useEffect(() => {
     viewRef.current = view
+    activeLegRef.current = activeLeg
     if (!ready.current) return
-    if (view) draw(view)
+    if (view) draw(view, activeLeg)
     else clear()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view])
+  }, [view, activeLeg])
+
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    if (!userPos) {
+      userMarker.current?.remove()
+      userMarker.current = null
+      return
+    }
+    if (!userMarker.current) {
+      const el = document.createElement('div')
+      el.className = 'mk-user'
+      userMarker.current = new maplibregl.Marker({ element: el })
+        .setLngLat([userPos.lon, userPos.lat])
+        .addTo(m)
+    } else {
+      userMarker.current.setLngLat([userPos.lon, userPos.lat])
+    }
+  }, [userPos])
 
   return <div ref={div} className="map" />
 }

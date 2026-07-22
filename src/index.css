@@ -171,6 +171,22 @@ header {
   width: 44px;
 }
 
+.bike-n.type {
+  width: auto;
+  padding: 0 10px;
+}
+
+.controls.wrap {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.leg-sub.link {
+  color: var(--accent);
+  display: inline-block;
+  text-decoration: none;
+}
+
 .bike-n.active {
   background: var(--accent);
   border-color: var(--accent);
@@ -371,6 +387,162 @@ header {
   background: #052e1f;
   color: var(--accent);
   border-color: var(--accent);
+}
+
+.mk-user {
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25);
+}
+
+.go-journey {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #052e1f;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.journey {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.j-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.j-exit {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.j-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.j-title {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.leg-icon.big {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  border-radius: 12px;
+}
+
+.j-main {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.j-sub {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.j-dist {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn-primary {
+  display: block;
+  text-align: center;
+  background: var(--accent);
+  color: #052e1f;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.btn-secondary {
+  display: block;
+  text-align: center;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.j-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.j-nav button {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.j-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.j-nav .j-next {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.j-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.j-full {
+  color: var(--accent);
+  font-size: 13px;
+  text-align: center;
+  display: block;
+}
+
+.j-coming {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
 }
 
 @media (min-width: 900px) {
