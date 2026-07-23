@@ -25,6 +25,48 @@ export async function reverseGeocode(lat: number, lon: number): Promise<string> 
   return arr?.[0]?.name ?? 'Моё местоположение'
 }
 
+export interface WeatherAtTime {
+  temp: number // °C
+  precip: number // мм за час
+  rain: boolean // ощутимый дождь
+  timeLabel: string // HH:MM часа прогноза
+}
+
+/** Прогноз (Open-Meteo, без ключа) на конкретный час в точке. rain = осадки ≥ 0.3 мм. */
+export async function fetchWeatherAt(lat: number, lon: number, when: Date): Promise<WeatherAtTime | null> {
+  const u = new URL('https://api.open-meteo.com/v1/forecast')
+  u.searchParams.set('latitude', String(lat))
+  u.searchParams.set('longitude', String(lon))
+  u.searchParams.set('hourly', 'temperature_2m,precipitation')
+  u.searchParams.set('forecast_days', '2')
+  u.searchParams.set('timezone', 'auto')
+  const r = await fetch(u)
+  if (!r.ok) return null
+  const d = await r.json()
+  const times: string[] = d?.hourly?.time ?? []
+  const temps: number[] = d?.hourly?.temperature_2m ?? []
+  const precs: number[] = d?.hourly?.precipitation ?? []
+  if (!times.length) return null
+  // ближайший час к запрошенному времени
+  const target = when.getTime()
+  let bi = 0
+  let bd = Infinity
+  for (let i = 0; i < times.length; i++) {
+    const dd = Math.abs(new Date(times[i]).getTime() - target)
+    if (dd < bd) {
+      bd = dd
+      bi = i
+    }
+  }
+  const precip = precs[bi] ?? 0
+  return {
+    temp: Math.round(temps[bi] ?? 0),
+    precip,
+    rain: precip >= 0.3,
+    timeLabel: times[bi]?.slice(11, 16) ?? '',
+  }
+}
+
 /** GPS-координаты браузера (Promise-обёртка над geolocation). */
 export function getGeolocation(): Promise<{ lat: number; lon: number }> {
   return new Promise((resolve, reject) => {

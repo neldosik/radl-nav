@@ -25,6 +25,7 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
   const map = useRef<maplibregl.Map | null>(null)
   const markers = useRef<maplibregl.Marker[]>([])
   const userMarker = useRef<maplibregl.Marker | null>(null)
+  const userPosRef = useRef<{ lat: number; lon: number } | null>(null)
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
   const activeLegRef = useRef<number | null>(null)
@@ -83,12 +84,19 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
       if (info.endStation) add(leg.to.lon, leg.to.lat, 'P', 'mk-bike')
     }
 
-    // В режиме «Поехали» приближаем к текущему этапу, иначе показываем весь маршрут.
-    const fitFeatures = active != null && features[active] ? [features[active]] : features
-    const bounds = new maplibregl.LngLatBounds()
-    for (const f of fitFeatures) for (const c of f.geometry.coordinates) bounds.extend(c)
-    if (!bounds.isEmpty())
-      m.fitBounds(bounds, { padding: 60, maxZoom: active != null ? 16 : 15.5, duration: 500 })
+    if (active != null) {
+      // Навигация: уличный зум, центр на юзере (или на старте этапа, пока нет GPS).
+      const leg = v.it.legs[active]
+      const center: [number, number] = userPosRef.current
+        ? [userPosRef.current.lon, userPosRef.current.lat]
+        : [leg.from.lon, leg.from.lat]
+      m.easeTo({ center, zoom: 16.5, duration: 500, essential: true })
+    } else {
+      // Обзор всего маршрута (когда не в навигации).
+      const bounds = new maplibregl.LngLatBounds()
+      for (const f of features) for (const c of f.geometry.coordinates) bounds.extend(c)
+      if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: 60, maxZoom: 15.5, duration: 500 })
+    }
   }
 
   useEffect(() => {
@@ -153,6 +161,7 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
 
   useEffect(() => {
     const m = map.current
+    userPosRef.current = userPos
     if (!m) return
     if (!userPos) {
       userMarker.current?.remove()
@@ -168,9 +177,10 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
     } else {
       userMarker.current.setLngLat([userPos.lon, userPos.lat])
     }
-    // В Los-Modus камера плавно едет за тобой — как в навигаторе.
+    // В Los-Modus камера жёстко едет за тобой (центр держим на юзере, зум не трогаем —
+    // остаётся уличным; ты можешь сам подкрутить пальцами).
     if (activeLegRef.current != null) {
-      m.easeTo({ center: [userPos.lon, userPos.lat], duration: 700, essential: true })
+      m.easeTo({ center: [userPos.lon, userPos.lat], duration: 900, essential: true })
     }
   }, [userPos])
 

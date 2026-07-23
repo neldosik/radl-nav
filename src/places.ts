@@ -50,3 +50,38 @@ export function removeSaved(id: string): SavedPlace[] {
   persist(next)
   return next
 }
+
+// ── Любимые маршруты (пары from→to) ──
+export interface FavRoute {
+  id: string
+  from: Place
+  to: Place
+}
+
+const FR_KEY = 'radl.favroutes'
+
+export function loadFavRoutes(): FavRoute[] {
+  try {
+    return JSON.parse(localStorage.getItem(FR_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
+export function addFavRoute(from: Place, to: Place): FavRoute[] {
+  const id = `${from.name}→${to.name}`
+  const next = [{ id, from, to }, ...loadFavRoutes().filter(f => f.id !== id)].slice(0, 8)
+  localStorage.setItem(FR_KEY, JSON.stringify(next))
+  return next
+}
+
+export function removeFavRoute(id: string): FavRoute[] {
+  const next = loadFavRoutes().filter(f => f.id !== id)
+  localStorage.setItem(FR_KEY, JSON.stringify(next))
+  return next
+}
+
+/** Короткая подпись места для чипа маршрута (первое слово / до запятой). */
+export function shortPlace(p: Place): string {
+  return p.name.replace(/^📍\s*/, '').split(',')[0].trim()
+}

@@ -3,9 +3,12 @@ import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
-import { loadStations, plan } from './api'
+import { fetchWeatherAt, loadStations, plan } from './api'
+import type { WeatherAtTime } from './api'
 import { haversine, nearestStation } from './geo'
-import { BikeIcon, BoltIcon, LogoMark, SendIcon, SwapIcon } from './icons'
+import { decodePolyline } from './polyline'
+import { addFavRoute, loadFavRoutes, removeFavRoute, shortPlace } from './places'
+import { BikeIcon, BoltIcon, LogoMark, SendIcon, StarIcon, SwapIcon } from './icons'
 import type { BikeLegInfo, Itinerary, ItineraryView, Place, Station } from './types'
 
 /** 28 мин вместо 30 — запас на поиск слота и парковку. */
@@ -45,6 +48,18 @@ function buildView(
       tooLong: !electric && leg.duration > FREE_LIMIT_SEC,
       electric,
       freeFloating,
+      swapStation: null,
+    }
+    // «Веломарафон»: этап дольше бесплатных 30 мин → станция у середины пути для смены велика.
+    if (info.tooLong && leg.legGeometry?.points) {
+      const pts = decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
+      const mid = pts[Math.floor(pts.length * 0.55)]
+      if (mid) {
+        // Доки MyRadl всегда 0 (flex-станции), возврат принимают везде — нужны лишь велики.
+        const cand = stations.filter(s => s.bikes > 0)
+        const sw = nearestStation({ lat: mid[1], lon: mid[0] }, cand, 600)
+        if (sw && sw.id !== info.startStation?.id && sw.id !== info.endStation?.id) info.swapStation = sw
+      }
     }
     if (info.tooLong) warnLong = true
     if (electric) hasElectric = true
@@ -72,6 +87,8 @@ export default function App() {
   const [sel, setSel] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [weather, setWeather] = useState<WeatherAtTime | null>(null)
+  const [favVer, setFavVer] = useState(0) // форс-обновление списка любимых
   // Режим «Поехали»: null = выключен, число = индекс текущего этапа.
   const [journeyLeg, setJourneyLeg] = useState<number | null>(null)
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
@@ -130,16 +147,17 @@ export default function App() {
         })
       : null
 
-  async function search() {
-    if (!from || !to) return
+  async function search(f: Place | null = from, t: Place | null = to) {
+    if (!f || !t) return
     setLoading(true)
     setError(null)
     setViews(null)
+    setWeather(null)
     const when = timeMode !== 'now' && timeVal ? new Date(timeVal) : undefined
     const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}
     try {
       const [res, stations] = await Promise.all([
-        plan(from, to, { classicOnly: bikeType === 'classic', ...timeOpts }),
+        plan(f, t, { classicOnly: bikeType === 'classic', ...timeOpts }),
         loadStations(),
       ])
       const toViews = (its: Itinerary[]) =>
@@ -155,7 +173,7 @@ export default function App() {
       // Лимит вело-времени мог съесть всё (вечером MOTIS любит длинные вело-варианты) —
       // добираем чистый транспорт вторым запросом.
       if (list.length < 2) {
-        const res2 = await plan(from, to, { walkOnly: true, ...timeOpts })
+        const res2 = await plan(f, t, { walkOnly: true, ...timeOpts })
         const seen = new Set(list.map(sig))
         for (const v of toViews([...(res2.direct ?? []), ...res2.itineraries])) {
           if (!seen.has(sig(v))) list.push(v)
@@ -166,6 +184,13 @@ export default function App() {
         .slice(0, 7)
       setViews(list)
       setSel(0)
+      // Погода на время старта лучшего варианта в точке отправления.
+      if (list.length) {
+        const rideStart = new Date(list[0].it.startTime)
+        fetchWeatherAt(f.lat, f.lon, rideStart)
+          .then(w => setWeather(w))
+          .catch(() => {})
+      }
     } catch (e) {
       console.error(e)
       setError('Router nicht erreichbar (Transitous). Versuch es gleich nochmal.')
@@ -178,6 +203,12 @@ export default function App() {
     setFrom(to)
     setTo(from)
     setViews(null)
+  }
+
+  function runFav(f: Place, t: Place) {
+    setFrom(f)
+    setTo(t)
+    search(f, t)
   }
 
   // ── Journey / Los-Modus ──
@@ -323,11 +354,44 @@ export default function App() {
             </button>
           </div>
 
-          <button className="btn-route" disabled={!from || !to || loading} onClick={search}>
+          <button className="btn-route" disabled={!from || !to || loading} onClick={() => search()}>
             <SendIcon size={16} />
             {loading ? '…' : 'Route'}
           </button>
         </div>
+
+        {(loadFavRoutes().length > 0 || (from && to)) && (
+          <div className="favs">
+            {from && to && (
+              <button
+                className="fav-chip save"
+                onClick={() => {
+                  addFavRoute(from, to)
+                  setFavVer(v => v + 1)
+                }}
+                title="Route merken"
+              >
+                <StarIcon size={12} /> merken
+              </button>
+            )}
+            {loadFavRoutes().map(fr => (
+              <button key={fr.id} className="fav-chip" onClick={() => runFav(fr.from, fr.to)}>
+                {shortPlace(fr.from)} → {shortPlace(fr.to)}
+                <span
+                  className="fav-del"
+                  onClick={e => {
+                    e.stopPropagation()
+                    removeFavRoute(fr.id)
+                    setFavVer(v => v + 1)
+                  }}
+                >
+                  ✕
+                </span>
+              </button>
+            ))}
+            <span hidden>{favVer}</span>
+          </div>
+        )}
       </div>
 
       <section className="results">
@@ -342,6 +406,13 @@ export default function App() {
         {views && views.length === 0 && (
           <div className="msg">
             Unter «Rad ≤ {maxBike} Min» nichts gefunden — erhöhe das Limit oder wähle andere Punkte.
+          </div>
+        )}
+        {hasResults && weather && (
+          <div className={`weather${weather.rain ? ' rain' : ''}`}>
+            {weather.rain
+              ? `🌧️ Regen um ${weather.timeLabel} (${weather.precip.toFixed(1)} mm) · ${weather.temp}° — bei Radetappen lieber MVV`
+              : `☀️ Trocken um ${weather.timeLabel} · ${weather.temp}° — gute Radzeit`}
           </div>
         )}
         {hasResults && (

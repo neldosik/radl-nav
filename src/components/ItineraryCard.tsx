@@ -126,6 +126,12 @@ export default function ItineraryCard({
                       {mins(leg.duration)} Min — Rad unterwegs wechseln, sonst 1 €
                     </div>
                   )}
+                  {b?.swapStation && (
+                    <div className="leg-sub swap">
+                      🔁 Rad wechseln bei »{b.swapStation.name}« ({b.swapStation.bikes}{' '}
+                      {bikeWord(b.swapStation.bikes)}) — bleibt gratis
+                    </div>
+                  )}
                 </div>
                 <a
                   className="leg-link"

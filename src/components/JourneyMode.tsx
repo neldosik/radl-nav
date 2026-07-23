@@ -111,6 +111,12 @@ export default function JourneyMode({
             {b?.tooLong && (
               <div className="leg-sub warn">Länger als 30 Freiminuten — Rad unterwegs wechseln</div>
             )}
+            {b?.swapStation && (
+              <div className="leg-sub swap">
+                🔁 Rad wechseln bei »{b.swapStation.name}« ({b.swapStation.bikes}{' '}
+                {bikeWord(b.swapStation.bikes)}) — bleibt gratis
+              </div>
+            )}
             {hasGeo && distText != null && (
               <div className="j-dist">
                 <TargetIcon size={18} /> noch ≈ {distText}

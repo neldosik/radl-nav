@@ -307,6 +307,65 @@ body {
   gap: 5px;
 }
 
+/* любимые маршруты */
+.favs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.fav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.fav-chip.save {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+.fav-chip:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.fav-del {
+  color: var(--color-neutral-500);
+  font-size: 11px;
+  margin-left: 2px;
+}
+
+/* погодный баннер */
+.weather {
+  padding: 11px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-bottom: 2px solid var(--color-divider);
+}
+
+.weather.rain {
+  color: var(--color-accent-700);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.leg-sub.swap {
+  color: var(--color-accent-700);
+  font-weight: 600;
+}
+
 .time-input {
   border: 1px solid var(--color-divider);
   background: var(--color-bg);

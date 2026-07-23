@@ -82,6 +82,7 @@ export interface BikeLegInfo {
   tooLong: boolean // дольше бесплатного окна
   electric: boolean // e-bike — платный всегда
   freeFloating: boolean // велик не на станции
+  swapStation: Station | null // «веломарафон»: где сменить велик, чтобы остаться в 30 мин
 }
 
 export interface ItineraryView {
