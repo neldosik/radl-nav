@@ -1,5 +1,5 @@
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, gmapsLink, hm, legKind, legLabel, lineShort, mins } from '../format'
+import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
 import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 
 interface Props {
@@ -7,8 +7,17 @@ interface Props {
   index: number
   selected: boolean
   bikesNeeded: number
+  now: number
   onSelect: () => void
   onGo: () => void
+}
+
+/** «+3» опоздание / «3 früher» / «Ausfall». */
+function DelayTag({ leg }: { leg: Leg }) {
+  if (leg.cancelled) return <span className="delay cancel">Ausfall</span>
+  const d = legDelayMin(leg)
+  if (d == null || d === 0) return null
+  return <span className="delay">{d > 0 ? `+${d}` : `${d}`} Min</span>
 }
 
 function KindIcon({ leg }: { leg: Leg }) {
@@ -23,10 +32,12 @@ export default function ItineraryCard({
   index,
   selected,
   bikesNeeded,
+  now,
   onSelect,
   onGo,
 }: Props) {
   const { it } = view
+  const departIn = Math.round((new Date(it.startTime).getTime() - now) / 60000)
 
   // Тег маршрута (одна строка, как в дизайне).
   const bikeStarts = [...view.bikeLegs.values()].filter(b => b.startStation)
@@ -90,6 +101,11 @@ export default function ItineraryCard({
 
       {selected && (
         <div className="legs">
+          {departIn >= -1 && departIn <= 120 && (
+            <div className={`depart-in${departIn <= 3 ? ' urgent' : ''}`}>
+              ▶ {departIn <= 0 ? 'Abfahrt jetzt' : `Abfahrt in ${departIn} Min`}
+            </div>
+          )}
           {it.legs.map((leg, i) => {
             const k = legKind(leg)
             const b = view.bikeLegs.get(i)
@@ -106,7 +122,8 @@ export default function ItineraryCard({
                 <div className="leg-body">
                   <div className="leg-title">
                     {legLabel(leg)}
-                    {leg.routeShortName ? ` ${leg.routeShortName}` : ''} · {mins(leg.duration)} Min
+                    {leg.routeShortName ? ` ${leg.routeShortName}` : ''} · {mins(leg.duration)} Min{' '}
+                    <DelayTag leg={leg} />
                   </div>
                   <div className="leg-sub">
                     {fromName} → {toName}

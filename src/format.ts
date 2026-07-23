@@ -8,6 +8,13 @@ export const hm = (iso: string) =>
 /** 1 Rad, 2 Räder */
 export const bikeWord = (n: number) => (n === 1 ? 'Rad' : 'Räder')
 
+/** Задержка транспортного этапа в минутах (>0 опоздание, <0 раньше), null если нет realtime. */
+export function legDelayMin(leg: Leg): number | null {
+  if (!leg.realTime || !leg.scheduledStartTime || !leg.startTime) return null
+  const d = (new Date(leg.startTime).getTime() - new Date(leg.scheduledStartTime).getTime()) / 60000
+  return Math.round(d)
+}
+
 export type LegKind = 'walk' | 'bike' | 'line'
 
 export function legKind(leg: Leg): LegKind {

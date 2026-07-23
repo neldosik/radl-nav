@@ -3,6 +3,7 @@ import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
+import MapPicker from './components/MapPicker'
 import { fetchWeatherAt, loadStations, plan } from './api'
 import type { WeatherAtTime } from './api'
 import { haversine, nearestStation } from './geo'
@@ -89,6 +90,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherAtTime | null>(null)
   const [favVer, setFavVer] = useState(0) // форс-обновление списка любимых
+  const [nowTick, setNowTick] = useState(Date.now()) // для живого отсчёта до отправления
+  const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   // Режим «Поехали»: null = выключен, число = индекс текущего этапа.
   const [journeyLeg, setJourneyLeg] = useState<number | null>(null)
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
@@ -138,6 +141,13 @@ export default function App() {
   useEffect(() => {
     setJourneyLeg(null)
   }, [sel, views])
+
+  // Тик раз в 30с для отсчёта «Abfahrt in X» (только когда есть результаты).
+  useEffect(() => {
+    if (!views) return
+    const id = window.setInterval(() => setNowTick(Date.now()), 30000)
+    return () => window.clearInterval(id)
+  }, [views])
 
   const distToEnd =
     journeyLeg != null && userPos && journeyView
@@ -268,11 +278,21 @@ export default function App() {
       <div className="inputs">
         <div className="in-row von">
           <span className="in-label">VON</span>
-          <PlaceInput placeholder="Startpunkt" value={from} onSelect={setFrom} />
+          <PlaceInput
+            placeholder="Startpunkt"
+            value={from}
+            onSelect={setFrom}
+            onPickOnMap={() => setPickOnMap('from')}
+          />
         </div>
         <div className="in-row">
           <span className="in-label">NACH</span>
-          <PlaceInput placeholder="Ziel" value={to} onSelect={setTo} />
+          <PlaceInput
+            placeholder="Ziel"
+            value={to}
+            onSelect={setTo}
+            onPickOnMap={() => setPickOnMap('to')}
+          />
           <button className="in-btn" onClick={swap} title="Tauschen">
             <SwapIcon size={18} />
           </button>
@@ -427,6 +447,7 @@ export default function App() {
             index={i}
             selected={i === sel}
             bikesNeeded={bikes}
+            now={nowTick}
             onSelect={() => setSel(i)}
             onGo={() => setJourneyLeg(0)}
           />
@@ -435,6 +456,19 @@ export default function App() {
           made by <b>neld</b>
         </div>
       </section>
+
+      {pickOnMap && (
+        <MapPicker
+          title={pickOnMap === 'from' ? 'Start auf der Karte' : 'Ziel auf der Karte'}
+          initial={pickOnMap === 'from' ? to : from}
+          onPick={p => {
+            if (pickOnMap === 'from') setFrom(p)
+            else setTo(p)
+            setPickOnMap(null)
+          }}
+          onClose={() => setPickOnMap(null)}
+        />
+      )}
     </div>
   )
 }

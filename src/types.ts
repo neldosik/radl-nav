@@ -45,6 +45,9 @@ export interface Leg {
   duration: number // seconds
   startTime: string
   endTime: string
+  scheduledStartTime?: string // плановое время (для расчёта задержки)
+  realTime?: boolean // есть данные реального времени
+  cancelled?: boolean // рейс отменён
   distance?: number
   headsign?: string
   routeShortName?: string

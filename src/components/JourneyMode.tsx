@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, gmapsLink, hm, legKind, legLabel, lineShort, mins } from '../format'
+import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
 import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, TargetIcon, WalkIcon } from '../icons'
 
 interface Props {
@@ -89,9 +89,19 @@ export default function JourneyMode({
             <BigIcon leg={leg} />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
               <span className="j-mins">{mins(leg.duration)}</span>
               <span className="j-legname">Min · {name}</span>
+              {leg.cancelled ? (
+                <span className="delay cancel">Ausfall</span>
+              ) : (
+                legDelayMin(leg) != null &&
+                legDelayMin(leg) !== 0 && (
+                  <span className="delay">
+                    {legDelayMin(leg)! > 0 ? `+${legDelayMin(leg)}` : legDelayMin(leg)} Min
+                  </span>
+                )
+              )}
             </div>
             <div className="leg-sub" style={{ marginTop: 4 }}>
               {hm(leg.startTime)} · {fromName} → {toName}

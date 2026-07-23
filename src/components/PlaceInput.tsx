@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { geocode, getGeolocation, reverseGeocode } from '../api'
 import { loadSaved, PRESET_SLOTS, removeSaved, upsertSaved } from '../places'
-import { CloseIcon, StarIcon, TargetIcon } from '../icons'
+import { CloseIcon, PinIcon, StarIcon, TargetIcon } from '../icons'
 import type { GeocodeMatch, Place } from '../types'
 
 interface Props {
   placeholder: string
   value: Place | null
   onSelect: (p: Place | null) => void
+  onPickOnMap?: () => void
 }
 
 const RECENTS_KEY = 'radl.recents'
@@ -25,7 +26,7 @@ function saveRecent(p: Place) {
   localStorage.setItem(RECENTS_KEY, JSON.stringify(list))
 }
 
-export default function PlaceInput({ placeholder, value, onSelect }: Props) {
+export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }: Props) {
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<GeocodeMatch[]>([])
   const [open, setOpen] = useState(false)
@@ -189,6 +190,23 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
                   <span className="d-name">{locating ? 'Bestimme…' : 'Mein Standort'}</span>
                 </span>
               </button>
+
+              {onPickOnMap && (
+                <button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => {
+                    setOpen(false)
+                    onPickOnMap()
+                  }}
+                >
+                  <span className="d-ico">
+                    <PinIcon size={16} />
+                  </span>
+                  <span className="d-main">
+                    <span className="d-name">Auf der Karte wählen</span>
+                  </span>
+                </button>
+              )}
 
               {saved.map(s => (
                 <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => select(s.place)}>
