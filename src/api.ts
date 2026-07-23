@@ -43,12 +43,18 @@ const MYRADL_PROVIDER = 'de-MyRadlMunich'
 export interface PlanOpts {
   walkOnly?: boolean
   classicOnly?: boolean // только обычные велики (HUMAN), без электро
+  time?: Date // время отправления или прибытия
+  arriveBy?: boolean // true = time трактуется как желаемое прибытие
 }
 
 export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}): Promise<PlanResponse> {
   const u = new URL(`${MOTIS}/v5/plan`)
   u.searchParams.set('fromPlace', `${from.lat},${from.lon}`)
   u.searchParams.set('toPlace', `${to.lat},${to.lon}`)
+  if (opts.time) {
+    u.searchParams.set('time', opts.time.toISOString())
+    if (opts.arriveBy) u.searchParams.set('arriveBy', 'true')
+  }
   if (opts.walkOnly) {
     // Страховочный запрос: чистый транспорт без прокатов.
     u.searchParams.set('preTransitModes', 'WALK')

@@ -65,6 +65,9 @@ export default function App() {
   const [bikeType, setBikeType] = useState<'classic' | 'any'>(() =>
     localStorage.getItem('radl.biketype') === 'any' ? 'any' : 'classic',
   )
+  const [timeMode, setTimeMode] = useState<'now' | 'depart' | 'arrive'>('now')
+  const [timeVal, setTimeVal] = useState('') // значение <input type="datetime-local">
+
   const [views, setViews] = useState<ItineraryView[] | null>(null)
   const [sel, setSel] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -132,9 +135,11 @@ export default function App() {
     setLoading(true)
     setError(null)
     setViews(null)
+    const when = timeMode !== 'now' && timeVal ? new Date(timeVal) : undefined
+    const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}
     try {
       const [res, stations] = await Promise.all([
-        plan(from, to, { classicOnly: bikeType === 'classic' }),
+        plan(from, to, { classicOnly: bikeType === 'classic', ...timeOpts }),
         loadStations(),
       ])
       const toViews = (its: Itinerary[]) =>
@@ -150,7 +155,7 @@ export default function App() {
       // Лимит вело-времени мог съесть всё (вечером MOTIS любит длинные вело-варианты) —
       // добираем чистый транспорт вторым запросом.
       if (list.length < 2) {
-        const res2 = await plan(from, to, { walkOnly: true })
+        const res2 = await plan(from, to, { walkOnly: true, ...timeOpts })
         const seen = new Set(list.map(sig))
         for (const v of toViews([...(res2.direct ?? []), ...res2.itineraries])) {
           if (!seen.has(sig(v))) list.push(v)
@@ -194,6 +199,17 @@ export default function App() {
     )
   }
 
+  // now → строка для <input type="datetime-local"> (с учётом локального пояса)
+  function nowLocal() {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  }
+  function pickTimeMode(m: 'now' | 'depart' | 'arrive') {
+    setTimeMode(m)
+    if (m !== 'now' && !timeVal) setTimeVal(nowLocal())
+  }
+
   // ── Suche ──
   const hasResults = !!views && views.length > 0
 
@@ -229,6 +245,29 @@ export default function App() {
           <button className="in-btn" onClick={swap} title="Tauschen">
             <SwapIcon size={18} />
           </button>
+        </div>
+
+        <div className="controls">
+          <span className="ctl-label">Zeit</span>
+          <div className="seg seg-auto">
+            {(['now', 'depart', 'arrive'] as const).map(m => (
+              <button
+                key={m}
+                className={`seg-btn${timeMode === m ? ' on' : ''}`}
+                onClick={() => pickTimeMode(m)}
+              >
+                {m === 'now' ? 'Jetzt' : m === 'depart' ? 'Abfahrt' : 'Ankunft'}
+              </button>
+            ))}
+          </div>
+          {timeMode !== 'now' && (
+            <input
+              className="time-input"
+              type="datetime-local"
+              value={timeVal}
+              onChange={e => setTimeVal(e.target.value)}
+            />
+          )}
         </div>
 
         <div className="controls">
