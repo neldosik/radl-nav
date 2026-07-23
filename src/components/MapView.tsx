@@ -168,6 +168,10 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
     } else {
       userMarker.current.setLngLat([userPos.lon, userPos.lat])
     }
+    // В Los-Modus камера плавно едет за тобой — как в навигаторе.
+    if (activeLegRef.current != null) {
+      m.easeTo({ center: [userPos.lon, userPos.lat], duration: 700, essential: true })
+    }
   }, [userPos])
 
   return <div ref={div} className="map" />

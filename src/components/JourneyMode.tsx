@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, gmapsLink, hm, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, LockIcon, SendIcon, TargetIcon, WalkIcon } from '../icons'
+import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, TargetIcon, WalkIcon } from '../icons'
 
 interface Props {
   view: ItineraryView
@@ -123,11 +123,6 @@ export default function JourneyMode({
           <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
             <SendIcon size={17} /> Navigation in Google Maps
           </a>
-          {leg.rental?.rentalUriWeb && (
-            <a className="btn-block ghost" href={leg.rental.rentalUriWeb} target="_blank" rel="noreferrer">
-              <LockIcon size={16} /> Station in MyRadl öffnen
-            </a>
-          )}
           <div className="j-nav">
             <button onClick={onPrev} disabled={legIndex === 0}>
               <ChevronLeft size={16} /> Zurück

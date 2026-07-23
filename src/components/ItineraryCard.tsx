@@ -1,6 +1,6 @@
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, gmapsLink, hm, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, ExternalIcon, LockIcon, SendIcon, WalkIcon } from '../icons'
+import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 
 interface Props {
   view: ItineraryView
@@ -125,17 +125,6 @@ export default function ItineraryCard({
                     <div className="leg-sub warn">
                       {mins(leg.duration)} Min — Rad unterwegs wechseln, sonst 1 €
                     </div>
-                  )}
-                  {b && leg.rental?.rentalUriWeb && (
-                    <a
-                      className="leg-myradl"
-                      href={leg.rental.rentalUriWeb}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <LockIcon size={13} /> in MyRadl öffnen
-                    </a>
                   )}
                 </div>
                 <a
