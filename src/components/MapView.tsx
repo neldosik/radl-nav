@@ -1,8 +1,16 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { decodePolyline } from '../polyline'
-import { modeMeta } from '../format'
-import type { ItineraryView } from '../types'
+import { legKind } from '../format'
+import type { ItineraryView, Leg } from '../types'
+
+// Цвет линии этапа на карте в палитре modernist.
+function legColor(leg: Leg): string {
+  const k = legKind(leg)
+  if (k === 'bike') return '#ec3013' // accent
+  if (k === 'walk') return '#9b9797' // neutral-500
+  return '#201e1d' // text (транспорт)
+}
 
 interface Props {
   view: ItineraryView | null
@@ -37,7 +45,6 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
     if (!m) return
 
     const features = v.it.legs.map((leg, idx) => {
-      const meta = modeMeta(leg)
       const coords: [number, number][] = leg.legGeometry?.points
         ? decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
         : [
@@ -47,7 +54,7 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
       return {
         type: 'Feature' as const,
         properties: {
-          color: meta.color,
+          color: legColor(leg),
           dash: leg.mode === 'WALK',
           dim: active != null && idx !== active,
         },
@@ -72,8 +79,8 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
     add(legs[legs.length - 1].to.lon, legs[legs.length - 1].to.lat, 'B', 'mk-b')
     for (const [i, info] of v.bikeLegs) {
       const leg = legs[i]
-      if (info.startStation) add(leg.from.lon, leg.from.lat, `🚲${info.startStation.bikes}`, 'mk-bike')
-      if (info.endStation) add(leg.to.lon, leg.to.lat, '🅿', 'mk-bike')
+      if (info.startStation) add(leg.from.lon, leg.from.lat, `${info.startStation.bikes}`, 'mk-bike')
+      if (info.endStation) add(leg.to.lon, leg.to.lat, 'P', 'mk-bike')
     }
 
     // В режиме «Поехали» приближаем к текущему этапу, иначе показываем весь маршрут.

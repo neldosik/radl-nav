@@ -1,5 +1,7 @@
-import type { ItineraryView } from '../types'
-import { bikeWord, gmapsFullBikeLink, gmapsLink, hm, mins, modeMeta } from '../format'
+import type { ReactNode } from 'react'
+import type { ItineraryView, Leg } from '../types'
+import { bikeWord, gmapsLink, hm, legKind, legLabel, lineShort, mins } from '../format'
+import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, LockIcon, SendIcon, TargetIcon, WalkIcon } from '../icons'
 
 interface Props {
   view: ItineraryView
@@ -9,6 +11,21 @@ interface Props {
   onPrev: () => void
   onNext: () => void
   onExit: () => void
+  children?: ReactNode // карта
+}
+
+function BigIcon({ leg }: { leg: Leg }) {
+  const k = legKind(leg)
+  if (k === 'walk') return <WalkIcon size={28} />
+  if (k === 'bike') return <BikeIcon size={30} />
+  return <>{lineShort(leg)}</>
+}
+
+function ChipIcon({ leg }: { leg: Leg }) {
+  const k = legKind(leg)
+  if (k === 'walk') return <WalkIcon size={13} />
+  if (k === 'bike') return <BikeIcon size={13} />
+  return <>{lineShort(leg)}</>
 }
 
 export default function JourneyMode({
@@ -19,119 +36,127 @@ export default function JourneyMode({
   onPrev,
   onNext,
   onExit,
+  children,
 }: Props) {
   const legs = view.it.legs
   const leg = legs[legIndex]
-  const m = modeMeta(leg)
+  const k = legKind(leg)
   const b = view.bikeLegs.get(legIndex)
   const last = legIndex === legs.length - 1
-  const fullBike = gmapsFullBikeLink(view.it)
-  const fromName = leg.from.name === 'START' ? 'старт' : leg.from.name || b?.startStation?.name || ''
-  const toName = leg.to.name === 'END' ? 'финиш' : leg.to.name || b?.endStation?.name || ''
+  const total = String(legs.length).padStart(2, '0')
+
+  const fromName = leg.from.name === 'START' ? 'Start' : leg.from.name || b?.startStation?.name || ''
+  const toName = leg.to.name === 'END' ? 'Ziel' : leg.to.name || b?.endStation?.name || ''
+  const name = `${legLabel(leg)}${leg.routeShortName ? ` ${leg.routeShortName}` : ''}`
+
+  const distText =
+    distToEnd == null
+      ? null
+      : distToEnd >= 950
+        ? `${(distToEnd / 1000).toFixed(1)} km`
+        : `${Math.max(10, Math.round(distToEnd / 10) * 10)} m`
+  const showStation = !!b?.startStation || (hasGeo && distText != null)
 
   return (
     <div className="journey">
-      <div className="j-head">
-        <span>
-          Этап {legIndex + 1} из {legs.length}
-        </span>
-        <button className="j-exit" onClick={onExit}>
-          ✕ Завершить
+      <div className="j-poster">
+        <div>
+          <div className="j-kicker">Los-Modus</div>
+          <div className="j-etappe">
+            ETAPPE {String(legIndex + 1).padStart(2, '0')}
+            <small> / {total}</small>
+          </div>
+        </div>
+        <button className="j-end" onClick={onExit}>
+          <CloseIcon size={12} /> ENDE
         </button>
       </div>
 
-      <div className="j-card" style={{ borderColor: m.color }}>
-        <div className="j-title">
-          <span className="leg-icon big" style={{ background: m.color }}>
-            {m.icon}
+      <div className="j-progress">
+        {legs.map((_, i) => (
+          <span
+            key={i}
+            style={{ background: i <= legIndex ? 'var(--color-accent)' : 'var(--color-neutral-300)' }}
+          />
+        ))}
+      </div>
+
+      <div className="j-map">{children}</div>
+
+      <div className="j-scroll">
+        <div className="j-legcard">
+          <span className={`j-bigico ${k}`}>
+            <BigIcon leg={leg} />
           </span>
-          <div>
-            <div className="j-main">
-              {m.label} {leg.routeShortName && <b>{leg.routeShortName}</b>} · {mins(leg.duration)}{' '}
-              мин
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span className="j-mins">{mins(leg.duration)}</span>
+              <span className="j-legname">Min · {name}</span>
             </div>
-            <div className="j-sub">
+            <div className="leg-sub" style={{ marginTop: 4 }}>
               {hm(leg.startTime)} · {fromName} → {toName}
             </div>
-            {leg.headsign && <div className="j-sub">направление: {leg.headsign}</div>}
           </div>
         </div>
 
-        {b?.startStation && (
-          <div className="j-sub">
-            🚲 на «{b.startStation.name}» сейчас {b.startStation.bikes}{' '}
-            {bikeWord(b.startStation.bikes)}
-            {b.endStation ? `; вернуть: «${b.endStation.name}»` : ''}
-          </div>
-        )}
-        {b?.freeFloating && (
-          <div className="j-sub">📍 велик свободностоящий — точное место смотри в MyRadl</div>
-        )}
-        {b?.electric && (
-          <div className="j-sub warn-text">⚡ это электровелик — он платный (1,50 €/30 мин)</div>
-        )}
-        {b?.tooLong && (
-          <div className="j-sub warn-text">
-            ⚠️ дольше 30 бесплатных минут — смени велик на станции по пути
-          </div>
-        )}
-        {hasGeo && distToEnd != null && (
-          <div className="j-dist">
-            📍 до конца этапа ≈{' '}
-            {distToEnd >= 950
-              ? `${(distToEnd / 1000).toFixed(1)} км`
-              : `${Math.max(10, Math.round(distToEnd / 10) * 10)} м`}
+        {showStation && (
+          <div className="j-station">
+            {b?.startStation && (
+              <div className="leg-sub stat">
+                {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »{b.startStation.name}«
+                {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
+              </div>
+            )}
+            {b?.electric && <div className="leg-sub warn">E-Bike — keine Freiminuten</div>}
+            {b?.tooLong && (
+              <div className="leg-sub warn">Länger als 30 Freiminuten — Rad unterwegs wechseln</div>
+            )}
+            {hasGeo && distText != null && (
+              <div className="j-dist">
+                <TargetIcon size={18} /> noch ≈ {distText}
+              </div>
+            )}
           </div>
         )}
 
-        <a className="btn-primary" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
-          🧭 Навигация этапа в Google Maps
-        </a>
-        {leg.rental?.rentalUriWeb && (
-          <a
-            className="btn-secondary"
-            href={leg.rental.rentalUriWeb}
-            target="_blank"
-            rel="noreferrer"
-          >
-            🔓 Станция в приложении MyRadl
+        <div className="j-actions">
+          <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
+            <SendIcon size={17} /> Navigation in Google Maps
           </a>
+          {leg.rental?.rentalUriWeb && (
+            <a className="btn-block ghost" href={leg.rental.rentalUriWeb} target="_blank" rel="noreferrer">
+              <LockIcon size={16} /> Station in MyRadl öffnen
+            </a>
+          )}
+          <div className="j-nav">
+            <button onClick={onPrev} disabled={legIndex === 0}>
+              <ChevronLeft size={16} /> Zurück
+            </button>
+            <button className="next" onClick={onNext} disabled={last}>
+              {last ? 'Angekommen' : 'Weiter'} <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {!hasGeo && (
+          <div className="msg" style={{ padding: '4px 18px 16px', textAlign: 'left', fontSize: 12 }}>
+            Standort freigeben — Etappen schalten automatisch weiter, sobald du am Punkt bist.
+          </div>
+        )}
+
+        {!last && (
+          <div className="j-next-wrap">
+            <div className="j-next-label">Als Nächstes</div>
+            <div className="j-next-chips">
+              {legs.slice(legIndex + 1).map((l, i) => (
+                <span key={i} className={`badge ${legKind(l)}`}>
+                  <ChipIcon leg={l} />
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </div>
-
-      <div className="j-nav">
-        <button onClick={onPrev} disabled={legIndex === 0}>
-          ← Назад
-        </button>
-        <button className="j-next" onClick={onNext} disabled={last}>
-          {last ? 'Ты на месте 🎉' : 'Дальше →'}
-        </button>
-      </div>
-
-      {!hasGeo && (
-        <div className="j-hint">
-          Разреши геолокацию — этапы будут переключаться сами, когда доезжаешь до точки.
-        </div>
-      )}
-
-      {fullBike && (
-        <a className="j-full" href={fullBike} target="_blank" rel="noreferrer">
-          Весь маршрут одной ссылкой (чисто вело) ↗
-        </a>
-      )}
-
-      {!last && (
-        <div className="j-coming">
-          {legs.slice(legIndex + 1).map((l, k) => {
-            const mm = modeMeta(l)
-            return (
-              <span className="chip" key={k} style={{ borderColor: mm.color }}>
-                {mm.icon} {l.routeShortName ?? `${mins(l.duration)}′`}
-              </span>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }

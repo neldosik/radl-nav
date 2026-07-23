@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { geocode, getGeolocation, reverseGeocode } from '../api'
 import { loadSaved, PRESET_SLOTS, removeSaved, upsertSaved } from '../places'
+import { CloseIcon, StarIcon, TargetIcon } from '../icons'
 import type { GeocodeMatch, Place } from '../types'
 
 interface Props {
@@ -30,10 +31,10 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
   const [open, setOpen] = useState(false)
   const [locating, setLocating] = useState(false)
   const [saveOpen, setSaveOpen] = useState(false)
-  const [refresh, setRefresh] = useState(0) // форс-перерисовка после правки сохранённых
+  const [refresh, setRefresh] = useState(0)
   const timer = useRef<number | undefined>(undefined)
 
-  const text = value ? value.name : query
+  const text = value ? value.name.replace(/^📍\s*/, '') : query
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
@@ -66,10 +67,10 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
     setLocating(true)
     try {
       const pos = await getGeolocation()
-      const name = await reverseGeocode(pos.lat, pos.lon).catch(() => 'Моё местоположение')
-      select({ name: `📍 ${name}`, lat: pos.lat, lon: pos.lon }, false)
+      const name = await reverseGeocode(pos.lat, pos.lon).catch(() => 'Mein Standort')
+      select({ name, lat: pos.lat, lon: pos.lon }, false)
     } catch {
-      // тихо: пользователь отклонил доступ или таймаут
+      // тихо: доступ отклонён / таймаут
     } finally {
       setLocating(false)
     }
@@ -84,7 +85,7 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
 
   function saveCustom() {
     if (!value) return
-    const label = window.prompt('Название места:', '')?.trim()
+    const label = window.prompt('Name des Ortes:', '')?.trim()
     if (!label) return
     saveAs({ id: `custom-${Date.now()}`, emoji: '⭐', label })
   }
@@ -93,11 +94,12 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
   const usedIds = new Set(saved.map(s => s.id))
   const showSuggestions = !text.trim()
   const recents = showSuggestions ? loadRecents() : []
-  void refresh // держим зависимость от локального счётчика
+  void refresh
 
   return (
     <div className="place">
       <input
+        className="in-field"
         value={text}
         placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
@@ -105,97 +107,99 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
         onBlur={() => window.setTimeout(() => setOpen(false), 200)}
       />
       {value ? (
-        <div className="place-actions">
+        <>
           <button
-            className="star"
-            title="Сохранить место"
+            className="in-btn star"
+            title="Ort speichern"
             onMouseDown={e => e.preventDefault()}
             onClick={() => setSaveOpen(o => !o)}
           >
-            ☆
+            <StarIcon size={16} />
           </button>
           <button
-            className="clear"
+            className="in-btn"
+            title="Löschen"
             onClick={() => {
               onSelect(null)
               setQuery('')
               setSaveOpen(false)
             }}
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
-        </div>
+        </>
       ) : (
         <button
-          className="clear geo"
-          title="Моя геолокация"
+          className="in-btn"
+          title="Mein Standort"
           onMouseDown={e => e.preventDefault()}
           onClick={useMyLocation}
         >
-          {locating ? '…' : '📍'}
+          <TargetIcon size={17} />
         </button>
       )}
 
       {saveOpen && value && (
-        <div className="dropdown save-menu">
-          <div className="save-title">Сохранить как:</div>
+        <div className="drop">
+          <div className="save-title">Speichern als</div>
           {PRESET_SLOTS.map(s => (
             <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => saveAs(s)}>
-              <span className="p-name">
-                {s.emoji} {s.label}
-                {usedIds.has(s.id) ? ' (заменить)' : ''}
+              <span className="d-main">
+                <span className="d-name">
+                  {s.emoji} {s.label}
+                  {usedIds.has(s.id) ? ' · ersetzen' : ''}
+                </span>
               </span>
             </button>
           ))}
           <button onMouseDown={e => e.preventDefault()} onClick={saveCustom}>
-            <span className="p-name">✏️ Своё название…</span>
+            <span className="d-main">
+              <span className="d-name">＋ Eigener Name…</span>
+            </span>
           </button>
         </div>
       )}
 
       {open && !saveOpen && (matches.length > 0 || showSuggestions) && (
-        <div className="dropdown">
+        <div className="drop">
           {matches.map(m => (
             <button
               key={`${m.name}-${m.lat}-${m.lon}`}
               onMouseDown={e => e.preventDefault()}
               onClick={() => select({ name: m.name, lat: m.lat, lon: m.lon })}
             >
-              <span className="p-name">
-                {m.type === 'STOP' ? '🚏 ' : '📍 '}
-                {m.name}
+              <span className="d-main">
+                <span className="d-name">{m.name}</span>
+                {m.areas?.length ? (
+                  <span className="d-area">
+                    {m.areas.map(a => a.name).filter(Boolean).slice(0, 2).join(', ')}
+                  </span>
+                ) : null}
               </span>
-              {m.areas?.length ? (
-                <span className="p-area">
-                  {m.areas.map(a => a.name).filter(Boolean).slice(0, 2).join(', ')}
-                </span>
-              ) : null}
             </button>
           ))}
 
           {matches.length === 0 && showSuggestions && (
             <>
-              <button
-                className="geo-row"
-                onMouseDown={e => e.preventDefault()}
-                onClick={useMyLocation}
-              >
-                <span className="p-name">📍 {locating ? 'Определяю…' : 'Моя геолокация'}</span>
+              <button onMouseDown={e => e.preventDefault()} onClick={useMyLocation}>
+                <span className="d-ico">
+                  <TargetIcon size={16} />
+                </span>
+                <span className="d-main">
+                  <span className="d-name">{locating ? 'Bestimme…' : 'Mein Standort'}</span>
+                </span>
               </button>
 
               {saved.map(s => (
-                <button
-                  key={s.id}
-                  className="saved-row"
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => select(s.place)}
-                >
-                  <span className="p-name">
-                    {s.emoji} {s.label}
+                <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => select(s.place)}>
+                  <span className="d-main">
+                    <span className="d-name">
+                      {s.emoji} {s.label}
+                    </span>
+                    <span className="d-area">{s.place.name}</span>
                   </span>
-                  <span className="p-area">{s.place.name}</span>
                   <span
-                    className="row-del"
+                    className="d-del"
                     onMouseDown={e => e.preventDefault()}
                     onClick={e => {
                       e.stopPropagation()
@@ -203,18 +207,16 @@ export default function PlaceInput({ placeholder, value, onSelect }: Props) {
                       setRefresh(x => x + 1)
                     }}
                   >
-                    ✕
+                    <CloseIcon size={12} />
                   </span>
                 </button>
               ))}
 
               {recents.map(r => (
-                <button
-                  key={r.name}
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => select(r)}
-                >
-                  <span className="p-name">🕘 {r.name}</span>
+                <button key={r.name} onMouseDown={e => e.preventDefault()} onClick={() => select(r)}>
+                  <span className="d-main">
+                    <span className="d-name">{r.name}</span>
+                  </span>
                 </button>
               ))}
             </>

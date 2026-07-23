@@ -9,9 +9,9 @@ export interface SavedPlace {
 
 /** Предустановленные слоты — показываются только после того, как заданы. */
 export const PRESET_SLOTS: { id: string; emoji: string; label: string }[] = [
-  { id: 'home', emoji: '🏠', label: 'Дом' },
-  { id: 'work', emoji: '💼', label: 'Работа' },
-  { id: 'school', emoji: '🎓', label: 'Школа' },
+  { id: 'home', emoji: '🏠', label: 'Zuhause' },
+  { id: 'work', emoji: '💼', label: 'Arbeit' },
+  { id: 'school', emoji: '🎓', label: 'Uni' },
 ]
 
 const KEY = 'radl.saved'

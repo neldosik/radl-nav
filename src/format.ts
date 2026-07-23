@@ -2,58 +2,57 @@ import type { Itinerary, Leg } from './types'
 
 export const mins = (sec: number) => Math.max(1, Math.round(sec / 60))
 
-/** 1 велик, 2 велика, 5 великов… */
-export function bikeWord(n: number): string {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return 'велик'
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'велика'
-  return 'великов'
-}
-
 export const hm = (iso: string) =>
   new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 
-export interface ModeMeta {
-  icon: string
-  label: string
-  color: string
+/** 1 Rad, 2 Räder */
+export const bikeWord = (n: number) => (n === 1 ? 'Rad' : 'Räder')
+
+export type LegKind = 'walk' | 'bike' | 'line'
+
+export function legKind(leg: Leg): LegKind {
+  if (leg.mode === 'WALK') return 'walk'
+  if (leg.mode === 'RENTAL' || leg.mode === 'BIKE') return 'bike'
+  return 'line'
 }
 
-export function modeMeta(leg: Leg): ModeMeta {
-  const rc = leg.routeColor ? `#${leg.routeColor}` : undefined
+/** Немецкая подпись режима этапа. */
+export function legLabel(leg: Leg): string {
   switch (leg.mode) {
     case 'WALK':
-      return { icon: '🚶', label: 'пешком', color: '#8b93a1' }
-    case 'RENTAL': {
-      const scooter = (leg.rental?.formFactor ?? '').startsWith('SCOOTER')
-      return scooter
-        ? { icon: '🛴', label: (leg.rental?.systemName ?? 'самокат').trim(), color: '#c084fc' }
-        : { icon: '🚲', label: (leg.rental?.systemName ?? 'велик').trim(), color: '#34d399' }
-    }
+      return 'zu Fuß'
+    case 'RENTAL':
+      return (leg.rental?.systemName ?? 'MyRadl').trim()
     case 'BIKE':
-      return { icon: '🚲', label: 'велик', color: '#34d399' }
+      return 'Rad'
     case 'SUBWAY':
     case 'METRO':
-      return { icon: '🚇', label: 'U-Bahn', color: rc ?? '#3b82f6' }
+      return 'U-Bahn'
     case 'TRAM':
-      return { icon: '🚋', label: 'трамвай', color: rc ?? '#ef4444' }
+      return 'Tram'
     case 'BUS':
     case 'COACH':
-      return { icon: '🚌', label: 'автобус', color: rc ?? '#0ea5e9' }
+      return 'Bus'
     case 'SUBURBAN':
-      return { icon: '🚈', label: 'S-Bahn', color: rc ?? '#22c55e' }
+      return 'S-Bahn'
     case 'RAIL':
     case 'REGIONAL_RAIL':
     case 'REGIONAL_FAST_RAIL':
     case 'LONG_DISTANCE':
-      return { icon: '🚆', label: 'поезд', color: rc ?? '#a3a3a3' }
+      return 'Zug'
     default:
-      return { icon: '🚌', label: leg.mode, color: rc ?? '#8b93a1' }
+      return leg.mode
   }
 }
 
-/** Deep-link: открыть этап в Google Maps; navigate=true сразу запускает ведение (на телефоне). */
+/** Короткий код линии для квадратного бейджа (U6, 63, S1…). */
+export function lineShort(leg: Leg): string {
+  if (leg.routeShortName) return leg.routeShortName
+  const l = legLabel(leg)
+  return l.replace(/^(U-?Bahn|S-?Bahn|Tram|Bus|Zug)\s*/i, '').trim() || '·'
+}
+
+/** Deep-link: открыть этап в Google Maps; navigate=true сразу запускает ведение. */
 export function gmapsLink(leg: Leg, navigate = false): string {
   const travelmode =
     leg.mode === 'WALK' ? 'walking' : leg.mode === 'RENTAL' || leg.mode === 'BIKE' ? 'bicycling' : 'transit'
@@ -64,10 +63,7 @@ export function gmapsLink(leg: Leg, navigate = false): string {
   )
 }
 
-/**
- * Весь маршрут одной ссылкой — только для вариантов без транспорта:
- * waypoints у Google не работают с travelmode=transit.
- */
+/** Весь маршрут одной ссылкой — только для вариантов без транспорта. */
 export function gmapsFullBikeLink(it: Itinerary): string | null {
   if (!it.legs.every(l => l.mode === 'WALK' || l.mode === 'RENTAL' || l.mode === 'BIKE')) return null
   const first = it.legs[0]

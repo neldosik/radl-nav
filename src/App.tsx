@@ -5,6 +5,7 @@ import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
 import { loadStations, plan } from './api'
 import { haversine, nearestStation } from './geo'
+import { BikeIcon, BoltIcon, LogoMark, SendIcon, SwapIcon } from './icons'
 import type { BikeLegInfo, Itinerary, ItineraryView, Place, Station } from './types'
 
 /** 28 мин вместо 30 — запас на поиск слота и парковку. */
@@ -162,7 +163,7 @@ export default function App() {
       setSel(0)
     } catch (e) {
       console.error(e)
-      setError('Роутер не ответил (Transitous). Попробуй ещё раз через минуту.')
+      setError('Router nicht erreichbar (Transitous). Versuch es gleich nochmal.')
     } finally {
       setLoading(false)
     }
@@ -174,120 +175,152 @@ export default function App() {
     setViews(null)
   }
 
+  // ── Journey / Los-Modus ──
+  if (journeyView && journeyLeg != null) {
+    return (
+      <div className="app">
+        <JourneyMode
+          view={journeyView}
+          legIndex={journeyLeg}
+          distToEnd={distToEnd}
+          hasGeo={userPos != null}
+          onPrev={() => setJourneyLeg(Math.max(0, journeyLeg - 1))}
+          onNext={() => setJourneyLeg(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
+          onExit={() => setJourneyLeg(null)}
+        >
+          <MapView view={journeyView} activeLeg={journeyLeg} userPos={userPos} />
+        </JourneyMode>
+      </div>
+    )
+  }
+
+  // ── Suche ──
+  const hasResults = !!views && views.length > 0
+
   return (
     <div className="app">
-      <header>
-        <div className="brand">
-          🚲 Radl Navi <span className="sub">MyRadl + MVV · Мюнхен</span>
+      {hasResults ? (
+        <div className="poster-compact">
+          <b>RADL NAVI</b>
+          <span>MyRadl + MVV</span>
         </div>
-        <div className="inputs">
-          <div className="row">
-            <PlaceInput placeholder="Откуда" value={from} onSelect={setFrom} />
-          </div>
-          <div className="row">
-            <PlaceInput placeholder="Куда" value={to} onSelect={setTo} />
-            <button className="icon-btn" onClick={swap} title="Поменять местами">
-              ⇅
-            </button>
-          </div>
-          <div className="row controls">
-            <div className="bikes-sel">
-              <span>Великов:</span>
-              {[1, 2, 3, 4].map(n => (
-                <button
-                  key={n}
-                  className={`bike-n${bikes === n ? ' active' : ''}`}
-                  onClick={() => setBikes(n)}
-                >
-                  {n}
-                </button>
-              ))}
+      ) : (
+        <div className="poster">
+          <div>
+            <div className="poster-title">
+              RADL
+              <br />
+              NAVI
             </div>
-            <button className="go" disabled={!from || !to || loading} onClick={search}>
-              {loading ? 'Ищу…' : 'Маршрут'}
-            </button>
+            <div className="poster-sub">MyRadl + MVV · München</div>
           </div>
-          <div className="row controls wrap">
-            <div className="bikes-sel">
-              <span>На велике ≤</span>
-              {[10, 15, 20, 30].map(n => (
-                <button
-                  key={n}
-                  className={`bike-n wide${maxBike === n ? ' active' : ''}`}
-                  onClick={() => {
-                    setMaxBike(n)
-                    localStorage.setItem('radl.maxbike', String(n))
-                  }}
-                >
-                  {n}′
-                </button>
-              ))}
-            </div>
-            <div className="bikes-sel">
-              <button
-                className={`bike-n type${bikeType === 'classic' ? ' active' : ''}`}
-                onClick={() => {
-                  setBikeType('classic')
-                  localStorage.setItem('radl.biketype', 'classic')
-                }}
-              >
-                🚲 обычные
-              </button>
-              <button
-                className={`bike-n type${bikeType === 'any' ? ' active' : ''}`}
-                onClick={() => {
-                  setBikeType('any')
-                  localStorage.setItem('radl.biketype', 'any')
-                }}
-              >
-                ⚡ любые
-              </button>
-            </div>
-          </div>
+          <LogoMark size={26} />
         </div>
-      </header>
+      )}
 
-      <MapView view={views?.[sel] ?? null} activeLeg={journeyLeg} userPos={userPos} />
+      <div className="inputs">
+        <div className="in-row von">
+          <span className="in-label">VON</span>
+          <PlaceInput placeholder="Startpunkt" value={from} onSelect={setFrom} />
+        </div>
+        <div className="in-row">
+          <span className="in-label">NACH</span>
+          <PlaceInput placeholder="Ziel" value={to} onSelect={setTo} />
+          <button className="in-btn" onClick={swap} title="Tauschen">
+            <SwapIcon size={18} />
+          </button>
+        </div>
+
+        <div className="controls">
+          <span className="ctl-label">Räder</span>
+          <div className="seg">
+            {[1, 2, 3, 4].map(n => (
+              <button
+                key={n}
+                className={`seg-btn${bikes === n ? ' on' : ''}`}
+                onClick={() => setBikes(n)}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <span className="ctl-label">Rad ≤</span>
+          <div className="seg">
+            {[10, 15, 20, 30].map(n => (
+              <button
+                key={n}
+                className={`seg-btn${maxBike === n ? ' on' : ''}`}
+                onClick={() => {
+                  setMaxBike(n)
+                  localStorage.setItem('radl.maxbike', String(n))
+                }}
+              >
+                {n}′
+              </button>
+            ))}
+          </div>
+
+          <div className="seg seg-auto">
+            <button
+              className={`seg-btn${bikeType === 'classic' ? ' on' : ''}`}
+              onClick={() => {
+                setBikeType('classic')
+                localStorage.setItem('radl.biketype', 'classic')
+              }}
+            >
+              <BikeIcon size={15} />
+              Standard
+            </button>
+            <button
+              className={`seg-btn${bikeType === 'any' ? ' on' : ''}`}
+              onClick={() => {
+                setBikeType('any')
+                localStorage.setItem('radl.biketype', 'any')
+              }}
+            >
+              <BoltIcon size={14} />
+              E-Bike
+            </button>
+          </div>
+
+          <button className="btn-route" disabled={!from || !to || loading} onClick={search}>
+            <SendIcon size={16} />
+            {loading ? '…' : 'Route'}
+          </button>
+        </div>
+      </div>
 
       <section className="results">
-        {journeyView && journeyLeg != null ? (
-          <JourneyMode
-            view={journeyView}
-            legIndex={journeyLeg}
-            distToEnd={distToEnd}
-            hasGeo={userPos != null}
-            onPrev={() => setJourneyLeg(Math.max(0, journeyLeg - 1))}
-            onNext={() => setJourneyLeg(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
-            onExit={() => setJourneyLeg(null)}
-          />
-        ) : (
-          <>
-            {error && <div className="msg error">{error}</div>}
-            {!error && !views && !loading && (
-              <div className="msg">
-                Куда едем? 🚲 Велик учитывается в начале, в конце или вместо транспорта — а
-                бесплатные 30 минут MyRadl под контролем.
-              </div>
-            )}
-            {loading && <div className="msg">Считаю комбинации велик + MVV…</div>}
-            {views && views.length === 0 && (
-              <div className="msg">
-                Под лимит «на велике ≤ {maxBike} мин» ничего не нашлось — увеличь лимит или
-                попробуй другие точки.
-              </div>
-            )}
-            {views?.map((v, i) => (
-              <ItineraryCard
-                key={i}
-                view={v}
-                selected={i === sel}
-                bikesNeeded={bikes}
-                onSelect={() => setSel(i)}
-                onGo={() => setJourneyLeg(0)}
-              />
-            ))}
-          </>
+        {error && <div className="msg error">{error}</div>}
+        {!error && !views && !loading && (
+          <div className="msg">
+            Wähle Start und Ziel — dann berechne ich Kombinationen aus Rad + MVV mit deinen 30
+            Freiminuten im Blick.
+          </div>
         )}
+        {loading && <div className="msg">Berechne Rad + MVV …</div>}
+        {views && views.length === 0 && (
+          <div className="msg">
+            Unter «Rad ≤ {maxBike} Min» nichts gefunden — erhöhe das Limit oder wähle andere Punkte.
+          </div>
+        )}
+        {hasResults && (
+          <div className="res-head">
+            {views!.length} Routen · nach Ankunft
+          </div>
+        )}
+        {views?.map((v, i) => (
+          <ItineraryCard
+            key={i}
+            view={v}
+            index={i}
+            selected={i === sel}
+            bikesNeeded={bikes}
+            onSelect={() => setSel(i)}
+            onGo={() => setJourneyLeg(0)}
+          />
+        ))}
       </section>
     </div>
   )
