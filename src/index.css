@@ -426,6 +426,24 @@ body {
   color: var(--color-neutral-600);
 }
 
+.sig {
+  text-align: center;
+  padding: 22px 18px 28px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+  border-top: 2px solid var(--color-divider);
+  margin-top: 8px;
+}
+
+.sig b {
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 .route {
   border-top: 2px solid var(--color-divider);
 }

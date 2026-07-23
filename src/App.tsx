@@ -360,6 +360,9 @@ export default function App() {
             onGo={() => setJourneyLeg(0)}
           />
         ))}
+        <div className="sig">
+          made by <b>neld</b>
+        </div>
       </section>
     </div>
   )
