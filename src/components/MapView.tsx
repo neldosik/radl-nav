@@ -3,14 +3,17 @@ import maplibregl from 'maplibre-gl'
 import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
 import { haversine, planPickup } from '../geo'
+import { addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
+import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
 
-// Linienfarbe der Etappe auf der Karte im Modernist-Stil
-function legColor(leg: Leg): string {
+// Linienfarbe der Etappe — je nach Theme, damit sie auf dunkler Karte sichtbar bleibt
+function legColor(leg: Leg, theme: ThemeMode): string {
+  const c = routeColors(theme)
   const k = legKind(leg)
-  if (k === 'bike') return '#ec3013' // Akzent
-  if (k === 'walk') return '#9b9797' // neutral-500
-  return '#201e1d' // Text (Transit)
+  if (k === 'bike') return c.bike
+  if (k === 'walk') return c.walk
+  return c.transit
 }
 
 interface Props {
@@ -18,11 +21,16 @@ interface Props {
   activeLeg?: number | null
   userPos?: { lat: number; lon: number } | null
   bikesNeeded?: number
+  theme?: ThemeMode
 }
 
-const STYLE = 'https://tiles.openfreemap.org/styles/liberty'
-
-export default function MapView({ view, activeLeg = null, userPos = null, bikesNeeded = 1 }: Props) {
+export default function MapView({
+  view,
+  activeLeg = null,
+  userPos = null,
+  bikesNeeded = 1,
+  theme = 'light',
+}: Props) {
   const div = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const markers = useRef<maplibregl.Marker[]>([])
@@ -34,6 +42,8 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
   const activeLegRef = useRef<number | null>(null)
   const bikesRef = useRef(bikesNeeded)
   bikesRef.current = bikesNeeded
+  const themeRef = useRef(theme)
+  themeRef.current = theme
 
   function clear() {
     const m = map.current
@@ -60,7 +70,7 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
       return {
         type: 'Feature' as const,
         properties: {
-          color: legColor(leg),
+          color: legColor(leg, themeRef.current),
           dash: leg.mode === 'WALK',
           dim: active != null && idx !== active,
         },
@@ -115,52 +125,32 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
     if (!div.current || map.current) return
     const m = new maplibregl.Map({
       container: div.current,
-      style: STYLE,
+      style: mapStyleUrl(themeRef.current),
       center: [11.575, 48.137],
       zoom: 11.5,
       attributionControl: { compact: true },
     })
     m.on('load', () => {
-      m.addSource('route', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      })
-      const dimmed = (normal: number, dim: number) =>
-        ['case', ['boolean', ['get', 'dim'], false], dim, normal] as unknown as number
-      m.addLayer({
-        id: 'route-casing',
-        type: 'line',
-        source: 'route',
-        paint: { 'line-color': '#0e1116', 'line-width': 7, 'line-opacity': dimmed(0.85, 0.15) },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      })
-      m.addLayer({
-        id: 'route-solid',
-        type: 'line',
-        source: 'route',
-        filter: ['!', ['get', 'dash']],
-        paint: { 'line-color': ['get', 'color'], 'line-width': 4.5, 'line-opacity': dimmed(1, 0.25) },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      })
-      m.addLayer({
-        id: 'route-dash',
-        type: 'line',
-        source: 'route',
-        filter: ['get', 'dash'],
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 3.5,
-          'line-dasharray': [0.5, 1.6],
-          'line-opacity': dimmed(1, 0.25),
-        },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      })
+      addRouteLayers(m, themeRef.current)
       ready.current = true
       if (viewRef.current) draw(viewRef.current, activeLegRef.current)
     })
     map.current = m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Theme-Wechsel: Kartenstil tauschen und eigene Layer neu anlegen
+  // (setStyle entfernt sie), danach Route erneut zeichnen.
+  useEffect(() => {
+    const m = map.current
+    if (!m || !ready.current) return
+    m.setStyle(mapStyleUrl(theme))
+    m.once('styledata', () => {
+      addRouteLayers(m, theme)
+      if (viewRef.current) draw(viewRef.current, activeLegRef.current)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme])
 
   useEffect(() => {
     viewRef.current = view

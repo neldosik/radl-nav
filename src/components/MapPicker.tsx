@@ -2,18 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { reverseGeocode } from '../api'
 import { CloseIcon } from '../icons'
+import { mapStyleUrl } from '../mapStyle'
+import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
-
-const STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
 interface Props {
   title: string
   initial?: LatLon | null
+  theme?: ThemeMode
   onPick: (p: Place) => void
   onClose: () => void
 }
 
-export default function MapPicker({ title, initial, onPick, onClose }: Props) {
+export default function MapPicker({ title, initial, theme = 'light', onPick, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const nameTimer = useRef<number | undefined>(undefined)
@@ -23,7 +24,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: Props) {
     if (!canvas.current || map.current) return
     const m = new maplibregl.Map({
       container: canvas.current,
-      style: STYLE,
+      style: mapStyleUrl(theme),
       center: initial ? [initial.lon, initial.lat] : [11.575, 48.137],
       zoom: initial ? 15 : 12,
       attributionControl: { compact: true },

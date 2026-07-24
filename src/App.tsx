@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
@@ -103,6 +103,7 @@ export default function App() {
   const [arrived, setArrived] = useState(false) // экран «прибыли»
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
   const [liveStations, setLiveStations] = useState<Station[]>([])
+  const searchCtrl = useRef<AbortController | null>(null) // laufende Suche abbrechbar
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
 
   useEffect(() => {
@@ -219,6 +220,10 @@ export default function App() {
 
   async function search(f: Place | null = from, t: Place | null = to) {
     if (!f || !t) return
+    // Vorherige Suche abbrechen — sonst kann eine alte Antwort die neue überschreiben.
+    searchCtrl.current?.abort()
+    const ctrl = new AbortController()
+    searchCtrl.current = ctrl
     setLoading(true)
     setError(null)
     setViews(null)
@@ -227,10 +232,11 @@ export default function App() {
     const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}
     try {
       const [res, stations, freeBikes] = await Promise.all([
-        plan(f, t, { classicOnly: bikeType === 'classic', ...timeOpts }),
+        plan(f, t, { classicOnly: bikeType === 'classic', ...timeOpts }, ctrl.signal),
         loadStations(),
         loadFreeBikes().catch(() => []),
       ])
+      if (ctrl.signal.aborted) return
       // для подсчёта доступности учитываем и свободностоящие велики
       const supply = [...stations, ...clusterFreeBikes(freeBikes)]
       const toViews = (its: Itinerary[]) =>
@@ -246,7 +252,8 @@ export default function App() {
       // Лимит вело-времени мог съесть всё (вечером MOTIS любит длинные вело-варианты) —
       // добираем чистый транспорт вторым запросом.
       if (list.length < 2) {
-        const res2 = await plan(f, t, { walkOnly: true, ...timeOpts })
+        const res2 = await plan(f, t, { walkOnly: true, ...timeOpts }, ctrl.signal)
+        if (ctrl.signal.aborted) return
         const seen = new Set(list.map(sig))
         for (const v of toViews([...(res2.direct ?? []), ...res2.itineraries])) {
           if (!seen.has(sig(v))) list.push(v)
@@ -261,14 +268,19 @@ export default function App() {
       if (list.length) {
         const rideStart = new Date(list[0].it.startTime)
         fetchWeatherAt(f.lat, f.lon, rideStart)
-          .then(w => setWeather(w))
+          .then(w => {
+            if (!ctrl.signal.aborted) setWeather(w)
+          })
           .catch(() => {})
       }
     } catch (e) {
+      // Abbruch durch eine neuere Suche ist kein Fehler
+      if ((e as Error)?.name === 'AbortError' || ctrl.signal.aborted) return
       console.error(e)
       setError('Router nicht erreichbar (Transitous). Versuch es gleich nochmal.')
     } finally {
-      setLoading(false)
+      // Ladeanzeige nur beenden, wenn keine neuere Suche übernommen hat
+      if (searchCtrl.current === ctrl) setLoading(false)
     }
   }
 
@@ -308,6 +320,7 @@ export default function App() {
             activeLeg={journeyLeg}
             userPos={userPos}
             bikesNeeded={bikes}
+            theme={themeMode}
           />
         </JourneyMode>
       </div>
@@ -561,6 +574,7 @@ export default function App() {
         <MapPicker
           title={pickOnMap === 'from' ? 'Start auf der Karte' : 'Ziel auf der Karte'}
           initial={pickOnMap === 'from' ? to : from}
+          theme={themeMode}
           onPick={p => {
             if (pickOnMap === 'from') setFrom(p)
             else setTo(p)

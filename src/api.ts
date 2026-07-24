@@ -161,6 +161,7 @@ interface GbfsFreeBike {
   vehicle_type_id?: string
   is_reserved?: boolean
   is_disabled?: boolean
+  station_id?: string // gesetzt => Rad steht an einer Station (schon in station_status gezählt)
 }
 
 /** Freistehende MyRadl-Räder (nicht an einer Station) — können ebenfalls geliehen werden. */
@@ -175,7 +176,11 @@ export async function loadFreeBikes(): Promise<FreeBike[]> {
     for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
       if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
     }
+    // WICHTIG: free_bike_status enthält ALLE Räder — auch die an Stationen
+    // (~4100 von ~4500 haben station_id). Ohne diesen Filter würden Stationsräder
+    // doppelt gezählt (einmal via station_status, einmal hier).
     return ((fb.data?.bikes ?? []) as GbfsFreeBike[])
+      .filter(b => !b.station_id)
       .filter(b => !b.is_disabled && !b.is_reserved && typeof b.lat === 'number' && typeof b.lon === 'number')
       .map(b => ({
         id: b.bike_id,
