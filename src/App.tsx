@@ -4,9 +4,9 @@ import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
-import { fetchWeatherAt, loadStations, plan } from './api'
+import { fetchWeatherAt, loadFreeBikes, loadStations, plan } from './api'
 import type { WeatherAtTime } from './api'
-import { haversine, nearbyStations, nearestStation } from './geo'
+import { clusterFreeBikes, haversine, nearbyStations, nearestStation } from './geo'
 import { decodePolyline } from './polyline'
 import { addFavRoute, loadFavRoutes, removeFavRoute, shortPlace } from './places'
 import { BikeIcon, BoltIcon, LogoMark, SendIcon, StarIcon, SwapIcon } from './icons'
@@ -19,7 +19,8 @@ const MYRADL_SYSTEM_ID = 'nextbike_ml'
 
 function buildView(
   it: Itinerary,
-  stations: Station[],
+  stations: Station[], // реальные станции — для взятия/возврата/смены велика
+  supply: Station[], // станции + свободностоящие велики — для подсчёта «сколько рядом»
   maxBikeSec: number,
   classicOnly: boolean,
 ): ItineraryView | null {
@@ -50,8 +51,8 @@ function buildView(
       electric,
       freeFloating,
       swapStation: null,
-      // станции вокруг старта этапа — чтобы набрать несколько великов на группу
-      nearby: nearbyStations(leg.from, stations, 600, 6),
+      // всё доступное вокруг старта этапа (вкл. свободностоящие) — чтобы набрать на группу
+      nearby: nearbyStations(leg.from, supply, 600, 6),
     }
     // «Веломарафон»: этап дольше бесплатных 30 мин → станция у середины пути для смены велика.
     if (info.tooLong && leg.legGeometry?.points) {
@@ -168,13 +169,16 @@ export default function App() {
     const when = timeMode !== 'now' && timeVal ? new Date(timeVal) : undefined
     const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}
     try {
-      const [res, stations] = await Promise.all([
+      const [res, stations, freeBikes] = await Promise.all([
         plan(f, t, { classicOnly: bikeType === 'classic', ...timeOpts }),
         loadStations(),
+        loadFreeBikes().catch(() => []),
       ])
+      // для подсчёта доступности учитываем и свободностоящие велики
+      const supply = [...stations, ...clusterFreeBikes(freeBikes)]
       const toViews = (its: Itinerary[]) =>
         its
-          .map(it => buildView(it, stations, maxBike * 60, bikeType === 'classic'))
+          .map(it => buildView(it, stations, supply, maxBike * 60, bikeType === 'classic'))
           .filter((v): v is ItineraryView => v !== null)
           // чисто пешие варианты не интересны — приложение про велик и транспорт
           .filter(v => v.hasBike || v.it.legs.some(l => l.mode !== 'WALK'))

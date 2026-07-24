@@ -1,4 +1,34 @@
-import type { LatLon, Station } from './types'
+import type { FreeBike, LatLon, Station } from './types'
+
+/**
+ * Свободностоящие велики → псевдо-станции: рядом стоящие (сетка ~55 м) складываются
+ * в одну точку, чтобы не сыпать сотнями отдельных пинов.
+ */
+export function clusterFreeBikes(bikes: FreeBike[]): Station[] {
+  const grid = new Map<string, { lat: number; lon: number; n: number; bikes: number; ebikes: number }>()
+  for (const b of bikes) {
+    const key = `${Math.round(b.lat / 0.0005)}|${Math.round(b.lon / 0.0008)}`
+    let g = grid.get(key)
+    if (!g) {
+      g = { lat: 0, lon: 0, n: 0, bikes: 0, ebikes: 0 }
+      grid.set(key, g)
+    }
+    g.lat += b.lat
+    g.lon += b.lon
+    g.n++
+    if (b.electric) g.ebikes++
+    else g.bikes++
+  }
+  return [...grid.entries()].map(([key, g]) => ({
+    id: `free-${key}`,
+    name: g.n === 1 ? 'Freies Rad' : 'Freie Räder',
+    lat: g.lat / g.n,
+    lon: g.lon / g.n,
+    bikes: g.bikes,
+    ebikes: g.ebikes,
+    docks: null,
+  }))
+}
 
 export function haversine(a: LatLon, b: LatLon): number {
   const R = 6371000

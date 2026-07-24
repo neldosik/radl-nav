@@ -70,6 +70,12 @@ export interface PlanResponse {
   direct?: Itinerary[]
 }
 
+/** Свободностоящий велик (не на станции) из GBFS free_bike_status. */
+export interface FreeBike extends LatLon {
+  id: string
+  electric: boolean
+}
+
 /** Живая станция MyRadl из GBFS. */
 export interface Station extends LatLon {
   id: string

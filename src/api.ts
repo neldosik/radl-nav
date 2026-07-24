@@ -1,4 +1,4 @@
-import type { GeocodeMatch, LatLon, PlanResponse, Station } from './types'
+import type { FreeBike, GeocodeMatch, LatLon, PlanResponse, Station } from './types'
 
 const MOTIS = 'https://api.transitous.org/api'
 const GBFS = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_ml/de'
@@ -152,6 +152,37 @@ interface GbfsVehicleType {
   vehicle_type_id: string
   form_factor?: string
   propulsion_type?: string
+}
+
+interface GbfsFreeBike {
+  bike_id: string
+  lat?: number
+  lon?: number
+  vehicle_type_id?: string
+  is_reserved?: boolean
+  is_disabled?: boolean
+}
+
+/** Свободностоящие велики MyRadl (не на станции) — их тоже можно взять. */
+export async function loadFreeBikes(): Promise<FreeBike[]> {
+  const [fb, types] = await Promise.all([
+    fetch(`${GBFS}/free_bike_status.json`).then(r => r.json()),
+    fetch(`${GBFS}/vehicle_types.json`)
+      .then(r => r.json())
+      .catch(() => null),
+  ])
+  const electric = new Set<string>()
+  for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
+    if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
+  }
+  return ((fb.data?.bikes ?? []) as GbfsFreeBike[])
+    .filter(b => !b.is_disabled && !b.is_reserved && typeof b.lat === 'number' && typeof b.lon === 'number')
+    .map(b => ({
+      id: b.bike_id,
+      lat: b.lat!,
+      lon: b.lon!,
+      electric: !!b.vehicle_type_id && electric.has(b.vehicle_type_id),
+    }))
 }
 
 /** Живое состояние всех станций MyRadl (GBFS, ttl 60 сек). */
