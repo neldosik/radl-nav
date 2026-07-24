@@ -712,6 +712,21 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* Pflichtangaben zu Datenquellen (Open-Meteo CC BY 4.0, OpenFreeMap/OSM) */
+.sig-credits {
+  margin-top: 10px;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  line-height: 1.6;
+  color: var(--color-neutral-500);
+}
+
+.sig-credits a {
+  color: var(--color-neutral-600);
+  text-decoration: underline;
+}
+
 .route {
   border-top: 2px solid var(--color-divider);
 }

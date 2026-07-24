@@ -121,7 +121,8 @@ export default function App() {
     }
   }, [])
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
-    return localStorage.getItem('radl.theme') === 'light' ? 'light' : 'dark'
+    // Standard: helles Theme; Dark nur, wenn der Nutzer es selbst gewählt hat
+    return localStorage.getItem('radl.theme') === 'dark' ? 'dark' : 'light'
   })
 
   useEffect(() => {
@@ -567,6 +568,22 @@ export default function App() {
         ))}
         <div className="sig">
           made by <b>neld</b>
+          <div className="sig-credits">
+            Fahrplan{' '}
+            <a href="https://transitous.org" target="_blank" rel="noreferrer">
+              Transitous
+            </a>{' '}
+            · Räder MyRadl/nextbike (CC0) · Wetter{' '}
+            <a href="https://open-meteo.com" target="_blank" rel="noreferrer">
+              Open-Meteo
+            </a>{' '}
+            (CC BY 4.0) · Karte OpenFreeMap © OpenMapTiles, Daten{' '}
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+              OpenStreetMap
+            </a>
+            <br />
+            Nicht-kommerzielles Hobby-Projekt · ohne Gewähr
+          </div>
         </div>
       </section>
 
