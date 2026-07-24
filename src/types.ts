@@ -86,6 +86,7 @@ export interface BikeLegInfo {
   electric: boolean // e-bike — платный всегда
   freeFloating: boolean // велик не на станции
   swapStation: Station | null // «веломарафон»: где сменить велик, чтобы остаться в 30 мин
+  nearby: { station: Station; dist: number }[] // станции рядом со стартом этапа (для группы)
 }
 
 export interface ItineraryView {

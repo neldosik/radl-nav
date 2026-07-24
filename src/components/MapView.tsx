@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
+import { planPickup } from '../geo'
 import type { ItineraryView, Leg } from '../types'
 
 // Цвет линии этапа на карте в палитре modernist.
@@ -16,11 +17,12 @@ interface Props {
   view: ItineraryView | null
   activeLeg?: number | null
   userPos?: { lat: number; lon: number } | null
+  bikesNeeded?: number
 }
 
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
-export default function MapView({ view, activeLeg = null, userPos = null }: Props) {
+export default function MapView({ view, activeLeg = null, userPos = null, bikesNeeded = 1 }: Props) {
   const div = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const markers = useRef<maplibregl.Marker[]>([])
@@ -29,6 +31,8 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
   const activeLegRef = useRef<number | null>(null)
+  const bikesRef = useRef(bikesNeeded)
+  bikesRef.current = bikesNeeded
 
   function clear() {
     const m = map.current
@@ -80,7 +84,13 @@ export default function MapView({ view, activeLeg = null, userPos = null }: Prop
     add(legs[legs.length - 1].to.lon, legs[legs.length - 1].to.lat, 'B', 'mk-b')
     for (const [i, info] of v.bikeLegs) {
       const leg = legs[i]
-      if (info.startStation) add(leg.from.lon, leg.from.lat, `${info.startStation.bikes}`, 'mk-bike')
+      if (bikesRef.current > 1) {
+        // Группа: показываем, где сколько великов брать (могут быть разные станции).
+        const pk = planPickup(info.nearby, info.electric, bikesRef.current)
+        for (const p of pk.picks) add(p.station.lon, p.station.lat, `${p.take}`, 'mk-bike')
+      } else if (info.startStation) {
+        add(leg.from.lon, leg.from.lat, `${info.startStation.bikes}`, 'mk-bike')
+      }
       if (info.endStation) add(leg.to.lon, leg.to.lat, 'P', 'mk-bike')
     }
 

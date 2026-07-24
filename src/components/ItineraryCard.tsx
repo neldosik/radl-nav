@@ -1,6 +1,14 @@
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
 import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
+import { planPickup } from '../geo'
+
+/** «2 an »A« + 1 an »B« (180 m)» */
+export function pickupText(picks: { station: { name: string }; dist: number; take: number }[]) {
+  return picks
+    .map(p => `${p.take} an »${p.station.name}«${p.dist > 60 ? ` (${Math.round(p.dist)} m)` : ''}`)
+    .join(' + ')
+}
 
 interface Props {
   view: ItineraryView
@@ -39,26 +47,29 @@ export default function ItineraryCard({
   const { it } = view
   const departIn = Math.round((new Date(it.startTime).getTime() - now) / 60000)
 
-  // Тег маршрута (одна строка, как в дизайне).
-  const bikeStarts = [...view.bikeLegs.values()].filter(b => b.startStation)
-  const minBikes = bikeStarts.length
-    ? Math.min(...bikeStarts.map(b => b.startStation!.bikes))
-    : null
-  const lowBikes = bikeStarts.some(b => b.startStation!.bikes < bikesNeeded)
+  // Доступность нужного количества великов рядом (с разбором по станциям).
+  const bikeInfos = [...view.bikeLegs.values()]
+  const pickups = bikeInfos.map(b => ({
+    b,
+    pk: planPickup(b.nearby, b.electric, bikesNeeded),
+  }))
+  const short = pickups.find(p => p.pk.got < bikesNeeded)
+  const minGot = pickups.length ? Math.min(...pickups.map(p => p.pk.got)) : null
 
+  // Тег маршрута (одна строка, как в дизайне).
   let tagKind = 'ok'
   let tagText = '0 € mit Deutschlandticket'
-  if (view.hasElectric) {
+  if (short) {
+    tagKind = 'warn'
+    tagText = `Nur ${short.pk.got} von ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'Rädern'} in der Nähe`
+  } else if (view.hasElectric) {
     tagKind = 'warn'
     tagText = 'E-Bike · 1,50 €/30 Min'
-  } else if (lowBikes && minBikes != null) {
-    tagKind = 'warn'
-    tagText = `Nur ${minBikes} ${bikeWord(minBikes)} frei — reservieren`
   } else if (view.warnLong) {
     tagKind = 'warn'
     tagText = 'Rad länger als 30 Freiminuten'
-  } else if (minBikes != null) {
-    tagText = `0 € mit Deutschlandticket · ${minBikes} ${bikeWord(minBikes)} frei`
+  } else if (minGot != null) {
+    tagText = `0 € mit Deutschlandticket · ${minGot} ${bikeWord(minGot)} frei`
   }
 
   const stripLegs = it.legs.filter(l => !(l.mode === 'WALK' && l.duration < 90))
@@ -129,13 +140,45 @@ export default function ItineraryCard({
                     {fromName} → {toName}
                     {leg.headsign ? ` · Ri. ${leg.headsign}` : ''}
                   </div>
-                  {b?.startStation && (
-                    <div className="leg-sub stat">
-                      {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »{b.startStation.name}«
-                      {b.startStation.ebikes ? ` (+${b.startStation.ebikes} E-Bike)` : ''}
-                      {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
-                    </div>
-                  )}
+                  {b &&
+                    (() => {
+                      const pk = planPickup(b.nearby, b.electric, bikesNeeded)
+                      const pl = b.electric ? 'E-Bikes' : 'Räder'
+                      // одна штука — короткая строка как раньше
+                      if (bikesNeeded === 1) {
+                        if (!b.startStation) return null
+                        return (
+                          <div className="leg-sub stat">
+                            {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »
+                            {b.startStation.name}«
+                            {b.startStation.ebikes ? ` (+${b.startStation.ebikes} E-Bike)` : ''}
+                            {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
+                          </div>
+                        )
+                      }
+                      return (
+                        <>
+                          {pk.got >= bikesNeeded ? (
+                            <div className="leg-sub stat">
+                              {bikesNeeded} {pl}: {pickupText(pk.picks)}
+                            </div>
+                          ) : (
+                            <>
+                              <div className="leg-sub warn">
+                                Nur {pk.got} von {bikesNeeded} {pl} in der Nähe
+                              </div>
+                              <div className="leg-sub stat">
+                                In der Nähe: {pk.totalElectric} E-Bikes · {pk.totalClassic} Standard
+                                {pk.picks.length > 0 ? ` — ${pickupText(pk.picks)}` : ''}
+                              </div>
+                            </>
+                          )}
+                          {b.endStation && (
+                            <div className="leg-sub stat">zurückgeben: »{b.endStation.name}«</div>
+                          )}
+                        </>
+                      )
+                    })()}
                   {b?.freeFloating && <div className="leg-sub stat">Freistehendes Rad (keine Station)</div>}
                   {b?.electric && <div className="leg-sub warn">E-Bike — keine Freiminuten</div>}
                   {b?.tooLong && (

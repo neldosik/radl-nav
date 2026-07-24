@@ -6,7 +6,7 @@ import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
 import { fetchWeatherAt, loadStations, plan } from './api'
 import type { WeatherAtTime } from './api'
-import { haversine, nearestStation } from './geo'
+import { haversine, nearbyStations, nearestStation } from './geo'
 import { decodePolyline } from './polyline'
 import { addFavRoute, loadFavRoutes, removeFavRoute, shortPlace } from './places'
 import { BikeIcon, BoltIcon, LogoMark, SendIcon, StarIcon, SwapIcon } from './icons'
@@ -50,6 +50,8 @@ function buildView(
       electric,
       freeFloating,
       swapStation: null,
+      // станции вокруг старта этапа — чтобы набрать несколько великов на группу
+      nearby: nearbyStations(leg.from, stations, 600, 6),
     }
     // «Веломарафон»: этап дольше бесплатных 30 мин → станция у середины пути для смены велика.
     if (info.tooLong && leg.legGeometry?.points) {
@@ -230,11 +232,17 @@ export default function App() {
           legIndex={journeyLeg}
           distToEnd={distToEnd}
           hasGeo={userPos != null}
+          bikesNeeded={bikes}
           onPrev={() => setJourneyLeg(Math.max(0, journeyLeg - 1))}
           onNext={() => setJourneyLeg(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
           onExit={() => setJourneyLeg(null)}
         >
-          <MapView view={journeyView} activeLeg={journeyLeg} userPos={userPos} />
+          <MapView
+            view={journeyView}
+            activeLeg={journeyLeg}
+            userPos={userPos}
+            bikesNeeded={bikes}
+          />
         </JourneyMode>
       </div>
     )

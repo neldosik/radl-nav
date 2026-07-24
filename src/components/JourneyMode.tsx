@@ -2,12 +2,15 @@ import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
 import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, TargetIcon, WalkIcon } from '../icons'
+import { planPickup } from '../geo'
+import { pickupText } from './ItineraryCard'
 
 interface Props {
   view: ItineraryView
   legIndex: number
   distToEnd: number | null
   hasGeo: boolean
+  bikesNeeded: number
   onPrev: () => void
   onNext: () => void
   onExit: () => void
@@ -33,6 +36,7 @@ export default function JourneyMode({
   legIndex,
   distToEnd,
   hasGeo,
+  bikesNeeded,
   onPrev,
   onNext,
   onExit,
@@ -111,12 +115,43 @@ export default function JourneyMode({
 
         {showStation && (
           <div className="j-station">
-            {b?.startStation && (
-              <div className="leg-sub stat">
-                {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »{b.startStation.name}«
-                {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
-              </div>
-            )}
+            {b &&
+              (() => {
+                const pk = planPickup(b.nearby, b.electric, bikesNeeded)
+                const pl = b.electric ? 'E-Bikes' : 'Räder'
+                if (bikesNeeded === 1) {
+                  if (!b.startStation) return null
+                  return (
+                    <div className="leg-sub stat">
+                      {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »
+                      {b.startStation.name}«
+                      {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
+                    </div>
+                  )
+                }
+                return (
+                  <>
+                    {pk.got >= bikesNeeded ? (
+                      <div className="leg-sub stat">
+                        {bikesNeeded} {pl}: {pickupText(pk.picks)}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="leg-sub warn">
+                          Nur {pk.got} von {bikesNeeded} {pl} in der Nähe
+                        </div>
+                        <div className="leg-sub stat">
+                          In der Nähe: {pk.totalElectric} E-Bikes · {pk.totalClassic} Standard
+                          {pk.picks.length > 0 ? ` — ${pickupText(pk.picks)}` : ''}
+                        </div>
+                      </>
+                    )}
+                    {b.endStation && (
+                      <div className="leg-sub stat">zurückgeben: »{b.endStation.name}«</div>
+                    )}
+                  </>
+                )
+              })()}
             {b?.electric && <div className="leg-sub warn">E-Bike — keine Freiminuten</div>}
             {b?.tooLong && (
               <div className="leg-sub warn">Länger als 30 Freiminuten — Rad unterwegs wechseln</div>
