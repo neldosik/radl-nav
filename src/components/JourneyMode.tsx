@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, TargetIcon, WalkIcon } from '../icons'
+import { gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
+import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { pickupText } from './ItineraryCard'
 
@@ -11,16 +11,21 @@ interface Props {
   distToEnd: number | null
   hasGeo: boolean
   bikesNeeded: number
+  now: number
+  startedAt: number | null
+  arrived: boolean
+  routeLabel: string
   onPrev: () => void
   onNext: () => void
+  onArrive: () => void
   onExit: () => void
   children?: ReactNode // карта
 }
 
 function BigIcon({ leg }: { leg: Leg }) {
   const k = legKind(leg)
-  if (k === 'walk') return <WalkIcon size={28} />
-  if (k === 'bike') return <BikeIcon size={30} />
+  if (k === 'walk') return <WalkIcon size={22} />
+  if (k === 'bike') return <BikeIcon size={24} />
   return <>{lineShort(leg)}</>
 }
 
@@ -31,14 +36,29 @@ function ChipIcon({ leg }: { leg: Leg }) {
   return <>{lineShort(leg)}</>
 }
 
+/** mm:ss, а после часа — h:mm:ss */
+function elapsedText(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const p = (n: number) => String(n).padStart(2, '0')
+  return h > 0 ? `${h}:${p(m)}:${p(sec)}` : `${p(m)}:${p(sec)}`
+}
+
 export default function JourneyMode({
   view,
   legIndex,
   distToEnd,
   hasGeo,
   bikesNeeded,
+  now,
+  startedAt,
+  arrived,
+  routeLabel,
   onPrev,
   onNext,
+  onArrive,
   onExit,
   children,
 }: Props) {
@@ -48,10 +68,34 @@ export default function JourneyMode({
   const b = view.bikeLegs.get(legIndex)
   const last = legIndex === legs.length - 1
   const total = String(legs.length).padStart(2, '0')
+  const elapsedMs = startedAt ? now - startedAt : 0
+
+  // ── Экран прибытия ──
+  if (arrived) {
+    return (
+      <div className="journey">
+        <div className="arrive">
+          <div className="arrive-kicker">Angekommen</div>
+          <div className="arrive-time">
+            {Math.max(1, Math.round(elapsedMs / 60000))}
+            <small> Min</small>
+          </div>
+          <div className="arrive-route">{routeLabel || 'Ziel erreicht'}</div>
+          <div className="arrive-sub">
+            Reine Fahrzeit {elapsedText(elapsedMs)} · {legs.length} Etappen
+          </div>
+          <button className="btn-block" onClick={onExit}>
+            <SendIcon size={17} /> Fertig
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const fromName = leg.from.name === 'START' ? 'Start' : leg.from.name || b?.startStation?.name || ''
   const toName = leg.to.name === 'END' ? 'Ziel' : leg.to.name || b?.endStation?.name || ''
   const name = `${legLabel(leg)}${leg.routeShortName ? ` ${leg.routeShortName}` : ''}`
+  const delay = legDelayMin(leg)
 
   const distText =
     distToEnd == null
@@ -59,7 +103,28 @@ export default function JourneyMode({
       : distToEnd >= 950
         ? `${(distToEnd / 1000).toFixed(1)} km`
         : `${Math.max(10, Math.round(distToEnd / 10) * 10)} m`
-  const showStation = !!b?.startStation || (hasGeo && distText != null)
+
+  // Одна короткая строка с самым важным про этот этап.
+  let infoLine: string | null = null
+  let infoWarn = false
+  if (b) {
+    const pk = planPickup(b.nearby, b.electric, bikesNeeded)
+    const pl = b.electric ? 'E-Bikes' : 'Räder'
+    if (bikesNeeded > 1 && pk.got < bikesNeeded) {
+      infoLine = `Nur ${pk.got} von ${bikesNeeded} ${pl} · ${pk.totalElectric} E-Bikes, ${pk.totalClassic} Standard in der Nähe`
+      infoWarn = true
+    } else if (bikesNeeded > 1) {
+      infoLine = `${bikesNeeded} ${pl}: ${pickupText(pk.picks)}`
+    } else if (b.startStation) {
+      infoLine = `${b.startStation.bikes} an »${b.startStation.name}«${b.endStation ? ` → zurück: »${b.endStation.name}«` : ''}`
+    } else if (b.freeFloating) {
+      infoLine = 'Freistehendes Rad — Ort in MyRadl prüfen'
+    }
+    if (b.swapStation) {
+      infoLine = `Rad wechseln bei »${b.swapStation.name}« — bleibt gratis`
+      infoWarn = true
+    }
+  }
 
   return (
     <div className="journey">
@@ -71,9 +136,12 @@ export default function JourneyMode({
             <small> / {total}</small>
           </div>
         </div>
-        <button className="j-end" onClick={onExit}>
-          <CloseIcon size={12} /> ENDE
-        </button>
+        <div className="j-head-right">
+          {startedAt != null && <div className="j-timer">{elapsedText(elapsedMs)}</div>}
+          <button className="j-end" onClick={onExit}>
+            <CloseIcon size={12} /> ENDE
+          </button>
+        </div>
       </div>
 
       <div className="j-progress">
@@ -87,119 +155,57 @@ export default function JourneyMode({
 
       <div className="j-map">{children}</div>
 
-      <div className="j-scroll">
+      <div className="j-panel">
         <div className="j-legcard">
           <span className={`j-bigico ${k}`}>
             <BigIcon leg={leg} />
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <div className="j-legmain">
+            <div className="j-legtop">
               <span className="j-mins">{mins(leg.duration)}</span>
               <span className="j-legname">Min · {name}</span>
               {leg.cancelled ? (
                 <span className="delay cancel">Ausfall</span>
-              ) : (
-                legDelayMin(leg) != null &&
-                legDelayMin(leg) !== 0 && (
-                  <span className="delay">
-                    {legDelayMin(leg)! > 0 ? `+${legDelayMin(leg)}` : legDelayMin(leg)} Min
-                  </span>
-                )
-              )}
+              ) : delay != null && delay !== 0 ? (
+                <span className="delay">{delay > 0 ? `+${delay}` : delay} Min</span>
+              ) : null}
+              {hasGeo && distText && <span className="j-dist-badge">≈ {distText}</span>}
             </div>
-            <div className="leg-sub" style={{ marginTop: 4 }}>
+            <div className="j-legsub">
               {hm(leg.startTime)} · {fromName} → {toName}
             </div>
           </div>
         </div>
 
-        {showStation && (
-          <div className="j-station">
-            {b &&
-              (() => {
-                const pk = planPickup(b.nearby, b.electric, bikesNeeded)
-                const pl = b.electric ? 'E-Bikes' : 'Räder'
-                if (bikesNeeded === 1) {
-                  if (!b.startStation) return null
-                  return (
-                    <div className="leg-sub stat">
-                      {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »
-                      {b.startStation.name}«
-                      {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
-                    </div>
-                  )
-                }
-                return (
-                  <>
-                    {pk.got >= bikesNeeded ? (
-                      <div className="leg-sub stat">
-                        {bikesNeeded} {pl}: {pickupText(pk.picks)}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="leg-sub warn">
-                          Nur {pk.got} von {bikesNeeded} {pl} in der Nähe
-                        </div>
-                        <div className="leg-sub stat">
-                          In der Nähe: {pk.totalElectric} E-Bikes · {pk.totalClassic} Standard
-                          {pk.picks.length > 0 ? ` — ${pickupText(pk.picks)}` : ''}
-                        </div>
-                      </>
-                    )}
-                    {b.endStation && (
-                      <div className="leg-sub stat">zurückgeben: »{b.endStation.name}«</div>
-                    )}
-                  </>
-                )
-              })()}
-            {b?.electric && <div className="leg-sub warn">E-Bike — keine Freiminuten</div>}
-            {b?.tooLong && (
-              <div className="leg-sub warn">Länger als 30 Freiminuten — Rad unterwegs wechseln</div>
-            )}
-            {b?.swapStation && (
-              <div className="leg-sub swap">
-                🔁 Rad wechseln bei »{b.swapStation.name}« ({b.swapStation.bikes}{' '}
-                {bikeWord(b.swapStation.bikes)}) — bleibt gratis
-              </div>
-            )}
-            {hasGeo && distText != null && (
-              <div className="j-dist">
-                <TargetIcon size={18} /> noch ≈ {distText}
-              </div>
-            )}
-          </div>
-        )}
+        {infoLine && <div className={`j-info${infoWarn ? ' warn' : ''}`}>{infoLine}</div>}
 
-        <div className="j-actions">
-          <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
-            <SendIcon size={17} /> Navigation in Google Maps
-          </a>
-          <div className="j-nav">
-            <button onClick={onPrev} disabled={legIndex === 0}>
-              <ChevronLeft size={16} /> Zurück
+        <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
+          <SendIcon size={16} /> Navigation in Google Maps
+        </a>
+
+        <div className="j-nav">
+          <button onClick={onPrev} disabled={legIndex === 0}>
+            <ChevronLeft size={16} /> Zurück
+          </button>
+          {last ? (
+            <button className="next" onClick={onArrive}>
+              Angekommen <ChevronRight size={16} />
             </button>
-            <button className="next" onClick={onNext} disabled={last}>
-              {last ? 'Angekommen' : 'Weiter'} <ChevronRight size={16} />
+          ) : (
+            <button className="next" onClick={onNext}>
+              Weiter <ChevronRight size={16} />
             </button>
-          </div>
+          )}
         </div>
 
-        {!hasGeo && (
-          <div className="msg" style={{ padding: '4px 18px 16px', textAlign: 'left', fontSize: 12 }}>
-            Standort freigeben — Etappen schalten automatisch weiter, sobald du am Punkt bist.
-          </div>
-        )}
-
         {!last && (
-          <div className="j-next-wrap">
-            <div className="j-next-label">Als Nächstes</div>
-            <div className="j-next-chips">
-              {legs.slice(legIndex + 1).map((l, i) => (
-                <span key={i} className={`badge ${legKind(l)}`}>
-                  <ChipIcon leg={l} />
-                </span>
-              ))}
-            </div>
+          <div className="j-next-row">
+            <span className="j-next-cap">danach</span>
+            {legs.slice(legIndex + 1).map((l, i) => (
+              <span key={i} className={`badge ${legKind(l)}`}>
+                <ChipIcon leg={l} />
+              </span>
+            ))}
           </div>
         )}
       </div>

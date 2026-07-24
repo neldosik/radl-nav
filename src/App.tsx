@@ -97,6 +97,8 @@ export default function App() {
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   // Режим «Поехали»: null = выключен, число = индекс текущего этапа.
   const [journeyLeg, setJourneyLeg] = useState<number | null>(null)
+  const [startedAt, setStartedAt] = useState<number | null>(null) // старт поездки для таймера
+  const [arrived, setArrived] = useState(false) // экран «прибыли»
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
 
   const journeyView = journeyLeg != null && views ? (views[sel] ?? null) : null
@@ -143,6 +145,8 @@ export default function App() {
   // Новый поиск или другая карточка — выходим из режима «Поехали».
   useEffect(() => {
     setJourneyLeg(null)
+    setStartedAt(null)
+    setArrived(false)
   }, [sel, views])
 
   // Тик раз в 30с для отсчёта «Abfahrt in X» (только когда есть результаты).
@@ -151,6 +155,25 @@ export default function App() {
     const id = window.setInterval(() => setNowTick(Date.now()), 30000)
     return () => window.clearInterval(id)
   }, [views])
+
+  // В поездке тикаем раз в секунду — для таймера mm:ss.
+  useEffect(() => {
+    if (journeyLeg == null || arrived) return
+    const id = window.setInterval(() => setNowTick(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [journeyLeg, arrived])
+
+  function startJourney() {
+    setJourneyLeg(0)
+    setStartedAt(Date.now())
+    setArrived(false)
+  }
+
+  function exitJourney() {
+    setJourneyLeg(null)
+    setStartedAt(null)
+    setArrived(false)
+  }
 
   const distToEnd =
     journeyLeg != null && userPos && journeyView
@@ -237,9 +260,14 @@ export default function App() {
           distToEnd={distToEnd}
           hasGeo={userPos != null}
           bikesNeeded={bikes}
+          now={nowTick}
+          startedAt={startedAt}
+          arrived={arrived}
+          routeLabel={from && to ? `${shortPlace(from)} → ${shortPlace(to)}` : ''}
           onPrev={() => setJourneyLeg(Math.max(0, journeyLeg - 1))}
           onNext={() => setJourneyLeg(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
-          onExit={() => setJourneyLeg(null)}
+          onArrive={() => setArrived(true)}
+          onExit={exitJourney}
         >
           <MapView
             view={journeyView}
@@ -461,7 +489,7 @@ export default function App() {
             bikesNeeded={bikes}
             now={nowTick}
             onSelect={() => setSel(i)}
-            onGo={() => setJourneyLeg(0)}
+            onGo={startJourney}
           />
         ))}
         <div className="sig">
