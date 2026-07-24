@@ -34,10 +34,16 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
   const [saveOpen, setSaveOpen] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const timer = useRef<number | undefined>(undefined)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const text = value ? value.name.replace(/^📍\s*/, '') : query
 
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(timer.current)
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   function onChange(v: string) {
     if (value) onSelect(null)
@@ -45,13 +51,19 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
     window.clearTimeout(timer.current)
     if (v.trim().length < 2) {
       setMatches([])
+      abortControllerRef.current?.abort()
       return
     }
     timer.current = window.setTimeout(async () => {
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
       try {
-        setMatches(await geocode(v))
-      } catch {
-        setMatches([])
+        setMatches(await geocode(v, controller.signal))
+      } catch (err: unknown) {
+        if ((err as Error)?.name !== 'AbortError') {
+          setMatches([])
+        }
       }
     }, 300)
   }
@@ -71,7 +83,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
       const name = await reverseGeocode(pos.lat, pos.lon).catch(() => 'Mein Standort')
       select({ name, lat: pos.lat, lon: pos.lon }, false)
     } catch {
-      // тихо: доступ отклонён / таймаут
+      // Ruhig: Zugriff verweigert oder Zeitüberschreitung
     } finally {
       setLocating(false)
     }

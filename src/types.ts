@@ -28,9 +28,9 @@ export interface Rental {
   providerId?: string
   url?: string
   stationName?: string
-  fromStationName?: string // пусто = свободностоящий велик
+  fromStationName?: string // leer = freistehendes Rad
   toStationName?: string
-  rentalUriWeb?: string // deep-link на станцию/велик в приложении nextbike
+  rentalUriWeb?: string // Deep-Link zur Station/Rad in Nextbike App
   rentalUriAndroid?: string
   rentalUriIOS?: string
   formFactor?: string // BICYCLE | SCOOTER_STANDING | ...
@@ -42,12 +42,12 @@ export interface Leg {
   mode: string // WALK | RENTAL | BUS | SUBWAY | TRAM | ...
   from: LegPlace
   to: LegPlace
-  duration: number // seconds
+  duration: number // Sekunden
   startTime: string
   endTime: string
-  scheduledStartTime?: string // плановое время (для расчёта задержки)
-  realTime?: boolean // есть данные реального времени
-  cancelled?: boolean // рейс отменён
+  scheduledStartTime?: string // Geplante Zeit (für Verspätungsberechnung)
+  realTime?: boolean // Echtzeitdaten vorhanden
+  cancelled?: boolean // Fahrt storniert/ausgefallen
   distance?: number
   headsign?: string
   routeShortName?: string
@@ -70,29 +70,30 @@ export interface PlanResponse {
   direct?: Itinerary[]
 }
 
-/** Свободностоящий велик (не на станции) из GBFS free_bike_status. */
+/** Freistehendes Rad (nicht an Station) aus GBFS free_bike_status. */
 export interface FreeBike extends LatLon {
   id: string
   electric: boolean
 }
 
-/** Живая станция MyRadl из GBFS. */
+/** Live MyRadl-Station aus GBFS. */
 export interface Station extends LatLon {
   id: string
   name: string
-  bikes: number // классические велики (бесплатные 30 мин с абонементом)
-  ebikes: number // e-bike — платные, показываем отдельно
+  bikes: number // klassische Räder (30 Freiminuten mit Abo)
+  ebikes: number // E-Bike — kostenpflichtig
   docks: number | null
+  maxChargePercent?: number
 }
 
 export interface BikeLegInfo {
   startStation: Station | null
   endStation: Station | null
-  tooLong: boolean // дольше бесплатного окна
-  electric: boolean // e-bike — платный всегда
-  freeFloating: boolean // велик не на станции
-  swapStation: Station | null // «веломарафон»: где сменить велик, чтобы остаться в 30 мин
-  nearby: { station: Station; dist: number }[] // станции рядом со стартом этапа (для группы)
+  tooLong: boolean // länger als Freiminuten-Fenster
+  electric: boolean // E-Bike — immer kostenpflichtig
+  freeFloating: boolean // Rad steht frei
+  swapStation: Station | null // Wechselstation um im Freifenster zu bleiben
+  nearby: { station: Station; dist: number }[] // Stationen nahe Etappenstart (für Gruppen)
 }
 
 export interface ItineraryView {
@@ -100,5 +101,5 @@ export interface ItineraryView {
   hasBike: boolean
   warnLong: boolean
   hasElectric: boolean
-  bikeLegs: Map<number, BikeLegInfo> // индекс этапа -> live-данные
+  bikeLegs: Map<number, BikeLegInfo> // Etappenindex -> Live-Daten
 }

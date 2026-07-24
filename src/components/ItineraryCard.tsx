@@ -1,5 +1,5 @@
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
+import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
 import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 
@@ -20,7 +20,7 @@ interface Props {
   onGo: () => void
 }
 
-/** «+3» опоздание / «3 früher» / «Ausfall». */
+/** «+3» Verspätung / «3 früher» / «Ausfall». */
 function DelayTag({ leg }: { leg: Leg }) {
   if (leg.cancelled) return <span className="delay cancel">Ausfall</span>
   const d = legDelayMin(leg)
@@ -47,7 +47,7 @@ export default function ItineraryCard({
   const { it } = view
   const departIn = Math.round((new Date(it.startTime).getTime() - now) / 60000)
 
-  // Доступность нужного количества великов рядом (с разбором по станциям).
+  // Verfügbarkeit von Rädern in der Nähe (mit Aufteilung nach Stationen)
   const bikeInfos = [...view.bikeLegs.values()]
   const pickups = bikeInfos.map(b => ({
     b,
@@ -56,7 +56,7 @@ export default function ItineraryCard({
   const short = pickups.find(p => p.pk.got < bikesNeeded)
   const minGot = pickups.length ? Math.min(...pickups.map(p => p.pk.got)) : null
 
-  // Тег маршрута (одна строка, как в дизайне).
+  // Routen-Tag (eine Zeile)
   let tagKind = 'ok'
   let tagText = '0 € mit Deutschlandticket'
   if (short) {
@@ -144,7 +144,7 @@ export default function ItineraryCard({
                     (() => {
                       const pk = planPickup(b.nearby, b.electric, bikesNeeded)
                       const pl = b.electric ? 'E-Bikes' : 'Räder'
-                      // одна штука — короткая строка как раньше
+                      // Einzelnes Rad — kurze Zeile wie bisher
                       if (bikesNeeded === 1) {
                         if (!b.startStation) return null
                         return (
@@ -193,16 +193,30 @@ export default function ItineraryCard({
                     </div>
                   )}
                 </div>
-                <a
-                  className="leg-link"
-                  href={gmapsLink(leg)}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="In Google Maps öffnen"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <ExternalIcon size={16} />
-                </a>
+                <div className="leg-links">
+                  {k === 'bike' && (
+                    <a
+                      className="leg-link nextbike"
+                      href={nextbikeLink(leg)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="In Nextbike App öffnen"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <BikeIcon size={14} />
+                    </a>
+                  )}
+                  <a
+                    className="leg-link"
+                    href={gmapsLink(leg)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="In Google Maps öffnen"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <ExternalIcon size={16} />
+                  </a>
+                </div>
               </div>
             )
           })}

@@ -1,8 +1,8 @@
 import type { FreeBike, LatLon, Station } from './types'
 
 /**
- * Свободностоящие велики → псевдо-станции: рядом стоящие (сетка ~55 м) складываются
- * в одну точку, чтобы не сыпать сотнями отдельных пинов.
+ * Freistehende Räder → Pseudo-Stationen: nahe beieinander stehende (Raster ~55m)
+ * werden zusammengefasst, um Hunderte einzelne Pins auf der Karte zu vermeiden.
  */
 export function clusterFreeBikes(bikes: FreeBike[]): Station[] {
   const grid = new Map<string, { lat: number; lon: number; n: number; bikes: number; ebikes: number }>()
@@ -46,7 +46,7 @@ export interface NearStation {
   dist: number
 }
 
-/** Ближайшие станции вокруг точки (по возрастанию расстояния). */
+/** Nächstgelegene Stationen um einen Punkt (aufsteigend nach Entfernung). */
 export function nearbyStations(
   p: LatLon,
   stations: Station[],
@@ -65,8 +65,8 @@ export interface Pickup extends NearStation {
 }
 
 /**
- * Как набрать `need` великов нужного типа рядом: жадно, с ближайших станций.
- * Возвращает план разбора по станциям и сколько всего доступно каждого типа.
+ * Wie man `need` Räder des gewünschten Typs in der Nähe holt (gierig von nächstgelegenen Stationen).
+ * Liefert Abholplan pro Station und Gesamtzahl verfügbarer Räder.
  */
 export function planPickup(
   nearby: NearStation[],
@@ -92,7 +92,7 @@ export function planPickup(
   return { picks, got: need - left, totalElectric, totalClassic }
 }
 
-/** Ближайшая станция MyRadl в радиусе maxDist метров (точки MOTIS и GBFS чуть расходятся). */
+/** Nächstgelegene MyRadl-Station im Radius maxDist Meter. */
 export function nearestStation(p: LatLon, stations: Station[], maxDist = 150): Station | null {
   let best: Station | null = null
   let bestD = maxDist

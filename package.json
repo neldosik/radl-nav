@@ -11,6 +11,14 @@
     "deploy": "npm run build && cd dist && git init -b gh-pages && git add -A && git commit -m deploy && git push -f https://github.com/neldosik/radl-nav.git gh-pages:gh-pages"
   },
   "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/status-bar": "^8.0.3",
     "maplibre-gl": "^5.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

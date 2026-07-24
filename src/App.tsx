@@ -4,11 +4,13 @@ import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
-import { fetchWeatherAt, loadFreeBikes, loadStations, plan } from './api'
+import StationWidget from './components/StationWidget'
+import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, plan } from './api'
 import type { WeatherAtTime } from './api'
 import { clusterFreeBikes, haversine, nearbyStations, nearestStation } from './geo'
 import { decodePolyline } from './polyline'
-import { addFavRoute, loadFavRoutes, removeFavRoute, shortPlace } from './places'
+import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, shortPlace, upsertSaved } from './places'
+import type { SavedPlace } from './places'
 import { BikeIcon, BoltIcon, LogoMark, SendIcon, StarIcon, SwapIcon } from './icons'
 import type { BikeLegInfo, Itinerary, ItineraryView, Place, Station } from './types'
 
@@ -100,6 +102,38 @@ export default function App() {
   const [startedAt, setStartedAt] = useState<number | null>(null) // старт поездки для таймера
   const [arrived, setArrived] = useState(false) // экран «прибыли»
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
+  const [liveStations, setLiveStations] = useState<Station[]>([])
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
+
+  useEffect(() => {
+    loadStations().then(s => setLiveStations(s)).catch(() => {})
+    getGeolocation().then(pos => {
+      if (pos) setUserPos(pos)
+    }).catch(() => {})
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        p => setUserPos({ lat: p.coords.latitude, lon: p.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
+  }, [])
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    return localStorage.getItem('radl.theme') === 'light' ? 'light' : 'dark'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('radl.theme', themeMode)
+    const root = document.documentElement
+    root.classList.remove('light-theme', 'dark-theme')
+    if (themeMode === 'light') root.classList.add('light-theme')
+    else root.classList.add('dark-theme')
+  }, [themeMode])
+
+  function toggleTheme() {
+    setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'))
+  }
 
   const journeyView = journeyLeg != null && views ? (views[sel] ?? null) : null
 
@@ -296,24 +330,16 @@ export default function App() {
 
   return (
     <div className="app">
-      {hasResults ? (
-        <div className="poster-compact">
-          <b>RADL NAVI</b>
-          <span>MyRadl + MVV</span>
+      <div className="poster">
+        <div className="poster-brand">
+          <LogoMark size={20} />
+          <span className="poster-name">RADL NAVI</span>
+          <span className="poster-sub">MYRADL + MVV</span>
         </div>
-      ) : (
-        <div className="poster">
-          <div>
-            <div className="poster-title">
-              RADL
-              <br />
-              NAVI
-            </div>
-            <div className="poster-sub">MyRadl + MVV · München</div>
-          </div>
-          <LogoMark size={26} />
-        </div>
-      )}
+        <button className="theme-toggle-btn" onClick={toggleTheme} title="Design umschalten">
+          {themeMode === 'dark' ? '🌙 Dark' : '☀️ Light'}
+        </button>
+      </div>
 
       <div className="inputs">
         <div className="in-row von">
@@ -336,6 +362,33 @@ export default function App() {
           <button className="in-btn" onClick={swap} title="Tauschen">
             <SwapIcon size={18} />
           </button>
+        </div>
+
+        <div className="quick-presets-row">
+          {PRESET_SLOTS.map(s => {
+            const saved = savedPlaces.find(p => p.id === s.id)
+            return (
+              <button
+                key={s.id}
+                className={`quick-preset-chip${saved ? ' active' : ''}`}
+                onClick={() => {
+                  if (saved) {
+                    setTo(saved.place)
+                  } else if (to) {
+                    const next = upsertSaved(s, to)
+                    setSavedPlaces(next)
+                  } else if (from) {
+                    const next = upsertSaved(s, from)
+                    setSavedPlaces(next)
+                  }
+                }}
+                title={saved ? `Ziel: ${saved.place.name}` : `Als ${s.label} speichern`}
+              >
+                <span>{s.emoji}</span> {s.label}
+                {saved && <span className="preset-dot" />}
+              </button>
+            )
+          })}
         </div>
 
         <div className="controls">
@@ -414,15 +467,8 @@ export default function App() {
             </button>
           </div>
 
-          <button className="btn-route" disabled={!from || !to || loading} onClick={() => search()}>
-            <SendIcon size={16} />
-            {loading ? '…' : 'Route'}
-          </button>
-        </div>
-
-        {(loadFavRoutes().length > 0 || (from && to)) && (
-          <div className="favs">
-            {from && to && (
+          <div className="ctl-row-actions">
+            {from && to ? (
               <button
                 className="fav-chip save"
                 onClick={() => {
@@ -433,7 +479,21 @@ export default function App() {
               >
                 <StarIcon size={12} /> merken
               </button>
+            ) : (
+              <div className="fav-placeholder" />
             )}
+
+            <StationWidget userPos={userPos} stations={liveStations} onSelectStation={setFrom} />
+
+            <button className="btn-route-chip" disabled={!from || !to || loading} onClick={() => search()}>
+              <SendIcon size={13} />
+              {loading ? '…' : 'Route'}
+            </button>
+          </div>
+        </div>
+
+        {loadFavRoutes().length > 0 && (
+          <div className="favs">
             {loadFavRoutes().map(fr => (
               <button key={fr.id} className="fav-chip" onClick={() => runFav(fr.from, fr.to)}>
                 {shortPlace(fr.from)} → {shortPlace(fr.to)}

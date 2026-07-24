@@ -1,9 +1,11 @@
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, WalkIcon } from '../icons'
+import { gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
+import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { pickupText } from './ItineraryCard'
+import { playWarningSound } from '../audio'
 
 interface Props {
   view: ItineraryView
@@ -19,7 +21,7 @@ interface Props {
   onNext: () => void
   onArrive: () => void
   onExit: () => void
-  children?: ReactNode // карта
+  children?: ReactNode // Karte
 }
 
 function BigIcon({ leg }: { leg: Leg }) {
@@ -36,7 +38,7 @@ function ChipIcon({ leg }: { leg: Leg }) {
   return <>{lineShort(leg)}</>
 }
 
-/** mm:ss, а после часа — h:mm:ss */
+/** mm:ss, nach einer Stunde h:mm:ss */
 function elapsedText(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(s / 3600)
@@ -69,8 +71,32 @@ export default function JourneyMode({
   const last = legIndex === legs.length - 1
   const total = String(legs.length).padStart(2, '0')
   const elapsedMs = startedAt ? now - startedAt : 0
+  const elapsedSec = Math.floor(elapsedMs / 1000)
 
-  // ── Экран прибытия ──
+  const isBikeLeg = k === 'bike'
+  const warned5Min = useRef(false)
+  const warned2Min = useRef(false)
+
+  // Rückgabe-Timer: Warnung bei 23 Min (5 Min verbleibend) & 26 Min (2 Min verbleibend)
+  useEffect(() => {
+    if (!isBikeLeg) return
+    if (elapsedSec >= 23 * 60 && elapsedSec < 26 * 60 && !warned5Min.current) {
+      warned5Min.current = true
+      playWarningSound()
+    }
+    if (elapsedSec >= 26 * 60 && !warned2Min.current) {
+      warned2Min.current = true
+      playWarningSound()
+    }
+  }, [elapsedSec, isBikeLeg])
+
+  // Bei Etappenwechsel Warn-Flags zurücksetzen
+  useEffect(() => {
+    warned5Min.current = false
+    warned2Min.current = false
+  }, [legIndex])
+
+  // ── Ankunftsscreen ──
   if (arrived) {
     return (
       <div className="journey">
@@ -104,7 +130,7 @@ export default function JourneyMode({
         ? `${(distToEnd / 1000).toFixed(1)} km`
         : `${Math.max(10, Math.round(distToEnd / 10) * 10)} m`
 
-  // Одна короткая строка с самым важным про этот этап.
+  // Kurzer Hinweis zur aktuellen Etappe
   let infoLine: string | null = null
   let infoWarn = false
   if (b) {
@@ -125,6 +151,10 @@ export default function JourneyMode({
       infoWarn = true
     }
   }
+
+  // Rückgabe-Timer Warn-Banner
+  const remainingSec = Math.max(0, 28 * 60 - elapsedSec)
+  const remainingMins = Math.ceil(remainingSec / 60)
 
   return (
     <div className="journey">
@@ -156,6 +186,12 @@ export default function JourneyMode({
       <div className="j-map">{children}</div>
 
       <div className="j-panel">
+        {isBikeLeg && !b?.electric && (
+          <div className={`timer-banner${remainingMins <= 5 ? ' urgent' : ''}`}>
+            ⏱️ Rad-Timer: Noch <b>{remainingMins} Min</b> Freifahrt (28 Min limit)
+          </div>
+        )}
+
         <div className="j-legcard">
           <span className={`j-bigico ${k}`}>
             <BigIcon leg={leg} />
@@ -179,9 +215,16 @@ export default function JourneyMode({
 
         {infoLine && <div className={`j-info${infoWarn ? ' warn' : ''}`}>{infoLine}</div>}
 
-        <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
-          <SendIcon size={16} /> Navigation in Google Maps
-        </a>
+        <div className="j-actions-row">
+          <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
+            <SendIcon size={16} /> Google Maps
+          </a>
+          {isBikeLeg && (
+            <a className="btn-block nextbike" href={nextbikeLink(leg)} target="_blank" rel="noreferrer">
+              <ExternalIcon size={15} /> In Nextbike öffnen
+            </a>
+          )}
+        </div>
 
         <div className="j-nav">
           <button onClick={onPrev} disabled={legIndex === 0}>

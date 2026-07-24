@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Radl Navi</string>
+    <string name="title_activity_main">Radl Navi</string>
+    <string name="package_name">de.radlnavi.app</string>
+    <string name="custom_url_scheme">de.radlnavi.app</string>
+</resources>

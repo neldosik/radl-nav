@@ -2,15 +2,15 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
-import { planPickup } from '../geo'
+import { haversine, planPickup } from '../geo'
 import type { ItineraryView, Leg } from '../types'
 
-// Цвет линии этапа на карте в палитре modernist.
+// Linienfarbe der Etappe auf der Karte im Modernist-Stil
 function legColor(leg: Leg): string {
   const k = legKind(leg)
-  if (k === 'bike') return '#ec3013' // accent
+  if (k === 'bike') return '#ec3013' // Akzent
   if (k === 'walk') return '#9b9797' // neutral-500
-  return '#201e1d' // text (транспорт)
+  return '#201e1d' // Text (Transit)
 }
 
 interface Props {
@@ -28,6 +28,7 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
   const markers = useRef<maplibregl.Marker[]>([])
   const userMarker = useRef<maplibregl.Marker | null>(null)
   const userPosRef = useRef<{ lat: number; lon: number } | null>(null)
+  const prevCamPosRef = useRef<{ lat: number; lon: number } | null>(null)
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
   const activeLegRef = useRef<number | null>(null)
@@ -85,7 +86,7 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
     for (const [i, info] of v.bikeLegs) {
       const leg = legs[i]
       if (bikesRef.current > 1) {
-        // Группа: показываем, где сколько великов брать (могут быть разные станции).
+        // Gruppe: Zeige, wie viele Räder wo geholt werden
         const pk = planPickup(info.nearby, info.electric, bikesRef.current)
         for (const p of pk.picks) add(p.station.lon, p.station.lat, `${p.take}`, 'mk-bike')
       } else if (info.startStation) {
@@ -95,14 +96,15 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
     }
 
     if (active != null) {
-      // Навигация: уличный зум, центр на юзере (или на старте этапа, пока нет GPS).
+      // Navigation: Straßen-Zoom, Zentrierung auf Benutzer (oder Etappenstart, falls noch kein GPS)
       const leg = v.it.legs[active]
       const center: [number, number] = userPosRef.current
         ? [userPosRef.current.lon, userPosRef.current.lat]
         : [leg.from.lon, leg.from.lat]
       m.easeTo({ center, zoom: 16.5, duration: 500, essential: true })
+      prevCamPosRef.current = userPosRef.current ?? { lat: leg.from.lat, lon: leg.from.lon }
     } else {
-      // Обзор всего маршрута (когда не в навигации).
+      // Übersicht der gesamten Route (außerhalb der Navigation)
       const bounds = new maplibregl.LngLatBounds()
       for (const f of features) for (const c of f.geometry.coordinates) bounds.extend(c)
       if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: 60, maxZoom: 15.5, duration: 500 })
@@ -176,6 +178,7 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
     if (!userPos) {
       userMarker.current?.remove()
       userMarker.current = null
+      prevCamPosRef.current = null
       return
     }
     if (!userMarker.current) {
@@ -187,10 +190,20 @@ export default function MapView({ view, activeLeg = null, userPos = null, bikesN
     } else {
       userMarker.current.setLngLat([userPos.lon, userPos.lat])
     }
-    // В Los-Modus камера жёстко едет за тобой (центр держим на юзере, зум не трогаем —
-    // остаётся уличным; ты можешь сам подкрутить пальцами).
+    // In Los-Modus: Kamera folgt sanft dem Benutzer
     if (activeLegRef.current != null) {
-      m.easeTo({ center: [userPos.lon, userPos.lat], duration: 900, essential: true })
+      const prev = prevCamPosRef.current
+      const dist = prev ? haversine(prev, userPos) : Infinity
+      // Winzige GPS-Schwankungen (< 2m) ignorieren für flüssige Bewegung
+      if (dist > 2) {
+        m.easeTo({
+          center: [userPos.lon, userPos.lat],
+          duration: dist > 100 ? 800 : 450,
+          easing: t => t * (2 - t),
+          essential: true,
+        })
+        prevCamPosRef.current = userPos
+      }
     }
   }, [userPos])
 

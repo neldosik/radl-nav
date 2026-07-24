@@ -8,7 +8,7 @@ export const hm = (iso: string) =>
 /** 1 Rad, 2 Räder */
 export const bikeWord = (n: number) => (n === 1 ? 'Rad' : 'Räder')
 
-/** Задержка транспортного этапа в минутах (>0 опоздание, <0 раньше), null если нет realtime. */
+/** Verzögerung der Etappe in Minuten (>0 Verspätung, <0 verfrüht), null falls keine Echtzeitdaten. */
 export function legDelayMin(leg: Leg): number | null {
   if (!leg.realTime || !leg.scheduledStartTime || !leg.startTime) return null
   const d = (new Date(leg.startTime).getTime() - new Date(leg.scheduledStartTime).getTime()) / 60000
@@ -23,7 +23,7 @@ export function legKind(leg: Leg): LegKind {
   return 'line'
 }
 
-/** Немецкая подпись режима этапа. */
+/** Deutsche Bezeichnung des Etappenmodus. */
 export function legLabel(leg: Leg): string {
   switch (leg.mode) {
     case 'WALK':
@@ -52,14 +52,14 @@ export function legLabel(leg: Leg): string {
   }
 }
 
-/** Короткий код линии для квадратного бейджа (U6, 63, S1…). */
+/** Kurzer Linien-Code für quadratisches Badge (U6, 63, S1…). */
 export function lineShort(leg: Leg): string {
   if (leg.routeShortName) return leg.routeShortName
   const l = legLabel(leg)
   return l.replace(/^(U-?Bahn|S-?Bahn|Tram|Bus|Zug)\s*/i, '').trim() || '·'
 }
 
-/** Deep-link: открыть этап в Google Maps; navigate=true сразу запускает ведение. */
+/** Deep-Link: Etappe in Google Maps öffnen; navigate=true startet direkt die Navigation. */
 export function gmapsLink(leg: Leg, navigate = false): string {
   const travelmode =
     leg.mode === 'WALK' ? 'walking' : leg.mode === 'RENTAL' || leg.mode === 'BIKE' ? 'bicycling' : 'transit'
@@ -70,7 +70,7 @@ export function gmapsLink(leg: Leg, navigate = false): string {
   )
 }
 
-/** Весь маршрут одной ссылкой — только для вариантов без транспорта. */
+/** Gesamte Route in einem Link — nur für reine Rad-/Fußwegvarianten. */
 export function gmapsFullBikeLink(it: Itinerary): string | null {
   if (!it.legs.every(l => l.mode === 'WALK' || l.mode === 'RENTAL' || l.mode === 'BIKE')) return null
   const first = it.legs[0]
@@ -85,4 +85,11 @@ export function gmapsFullBikeLink(it: Itinerary): string | null {
     (way ? `&waypoints=${encodeURIComponent(way)}` : '') +
     `&travelmode=bicycling`
   )
+}
+
+/** Deep-Link in die Nextbike-App oder Nextbike-Webseite zur Ausleihe/Reservierung. */
+export function nextbikeLink(leg: Leg): string {
+  if (leg.rental?.rentalUriAndroid) return leg.rental.rentalUriAndroid
+  if (leg.rental?.rentalUriWeb) return leg.rental.rentalUriWeb
+  return `https://www.nextbike.de/bm/location/?lat=${leg.from.lat}&lng=${leg.from.lon}`
 }

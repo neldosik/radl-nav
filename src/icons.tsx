@@ -1,4 +1,4 @@
-// Иконки из дизайна RadlNavi.dc.html (modernist): тонкие штриховые SVG, без эмодзи.
+// Icons aus RadlNavi.dc.html Design (modernist): feine SVG-Konturen, ohne Emojis.
 interface P {
   size?: number
   className?: string
@@ -83,6 +83,18 @@ export const ChevronLeft = ({ size = 16 }: P) => (
 export const ChevronRight = ({ size = 16 }: P) => (
   <svg {...base(size)}>
     <path d="m9 18 6-6-6-6" />
+  </svg>
+)
+
+export const ChevronDown = ({ size = 16 }: P) => (
+  <svg {...base(size)}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+)
+
+export const ChevronUp = ({ size = 16 }: P) => (
+  <svg {...base(size)}>
+    <path d="m18 15-6-6-6 6" />
   </svg>
 )
 

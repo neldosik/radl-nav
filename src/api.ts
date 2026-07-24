@@ -4,35 +4,35 @@ const MOTIS = 'https://api.transitous.org/api'
 const GBFS = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_ml/de'
 const MUNICH_CENTER = '48.137,11.575'
 
-export async function geocode(text: string): Promise<GeocodeMatch[]> {
+export async function geocode(text: string, signal?: AbortSignal): Promise<GeocodeMatch[]> {
   const u = new URL(`${MOTIS}/v1/geocode`)
   u.searchParams.set('text', text)
   u.searchParams.set('language', 'de')
   u.searchParams.set('place', MUNICH_CENTER)
-  u.searchParams.set('placeBias', '3') // без этого Duisburg обгоняет мюнхенские остановки
-  const r = await fetch(u)
+  u.searchParams.set('placeBias', '3') // ohne dies schlägt Duisburg Münchner Haltestellen
+  const r = await fetch(u, { signal })
   if (!r.ok) throw new Error(`geocode HTTP ${r.status}`)
   return r.json()
 }
 
-/** Координаты → человекочитаемый адрес (ближайшая точка). */
-export async function reverseGeocode(lat: number, lon: number): Promise<string> {
+/** Koordinaten → menschenlesbare Adresse (nächstgelegener Punkt). */
+export async function reverseGeocode(lat: number, lon: number, signal?: AbortSignal): Promise<string> {
   const u = new URL(`${MOTIS}/v1/reverse-geocode`)
   u.searchParams.set('place', `${lat},${lon}`)
-  const r = await fetch(u)
+  const r = await fetch(u, { signal })
   if (!r.ok) throw new Error(`reverse HTTP ${r.status}`)
   const arr = (await r.json()) as GeocodeMatch[]
-  return arr?.[0]?.name ?? 'Моё местоположение'
+  return arr?.[0]?.name ?? 'Mein Standort'
 }
 
 export interface WeatherAtTime {
   temp: number // °C
-  precip: number // мм за час
-  rain: boolean // ощутимый дождь
-  timeLabel: string // HH:MM часа прогноза
+  precip: number // mm pro Stunde
+  rain: boolean // spürbarer Regen
+  timeLabel: string // HH:MM Vorhersagestunde
 }
 
-/** Прогноз (Open-Meteo, без ключа) на конкретный час в точке. rain = осадки ≥ 0.3 мм. */
+/** Vorhersage (Open-Meteo, ohne Key) für bestimmte Stunde am Punkt. rain = Niederschlag ≥ 0.3 mm. */
 export async function fetchWeatherAt(lat: number, lon: number, when: Date): Promise<WeatherAtTime | null> {
   const u = new URL('https://api.open-meteo.com/v1/forecast')
   u.searchParams.set('latitude', String(lat))
@@ -47,7 +47,7 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
   const temps: number[] = d?.hourly?.temperature_2m ?? []
   const precs: number[] = d?.hourly?.precipitation ?? []
   if (!times.length) return null
-  // ближайший час к запрошенному времени
+  // Nächstgelegene Stunde zur angefragten Zeit
   const target = when.getTime()
   let bi = 0
   let bd = Infinity
@@ -67,7 +67,7 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
   }
 }
 
-/** GPS-координаты браузера (Promise-обёртка над geolocation). */
+/** GPS-Koordinaten des Browsers (Promise-Wrapper über Geolocation). */
 export function getGeolocation(): Promise<{ lat: number; lon: number }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))
@@ -79,17 +79,17 @@ export function getGeolocation(): Promise<{ lat: number; lon: number }> {
   })
 }
 
-/** providerId MyRadl в Transitous (см. /api/v1/rentals); systemId `nextbike_ml` фильтр НЕ принимает. */
+/** providerId MyRadl in Transitous (siehe /api/v1/rentals); systemId `nextbike_ml` Filter akzeptiert NICHT. */
 const MYRADL_PROVIDER = 'de-MyRadlMunich'
 
 export interface PlanOpts {
   walkOnly?: boolean
-  classicOnly?: boolean // только обычные велики (HUMAN), без электро
-  time?: Date // время отправления или прибытия
-  arriveBy?: boolean // true = time трактуется как желаемое прибытие
+  classicOnly?: boolean // nur normale Räder (HUMAN), ohne Elektro
+  time?: Date // Abfahrts- oder Ankunftszeit
+  arriveBy?: boolean // true = time als gewünschte Ankunft interpretiert
 }
 
-export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}): Promise<PlanResponse> {
+export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal?: AbortSignal): Promise<PlanResponse> {
   const u = new URL(`${MOTIS}/v5/plan`)
   u.searchParams.set('fromPlace', `${from.lat},${from.lon}`)
   u.searchParams.set('toPlace', `${to.lat},${to.lon}`)
@@ -98,17 +98,17 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}): Promi
     if (opts.arriveBy) u.searchParams.set('arriveBy', 'true')
   }
   if (opts.walkOnly) {
-    // Страховочный запрос: чистый транспорт без прокатов.
+    // Sicherheitsanfrage: reiner ÖPNV ohne Verleih
     u.searchParams.set('preTransitModes', 'WALK')
     u.searchParams.set('postTransitModes', 'WALK')
     u.searchParams.set('directModes', 'WALK')
     u.searchParams.set('numItineraries', '5')
   } else {
-    // Велик разрешён до транспорта, после транспорта и как прямой вариант.
+    // Rad erlaubt vor Transit, nach Transit und als direkter Weg
     u.searchParams.set('preTransitModes', 'WALK,RENTAL')
     u.searchParams.set('postTransitModes', 'WALK,RENTAL')
     u.searchParams.set('directModes', 'WALK,RENTAL')
-    // Только MyRadl: иначе MOTIS суёт Dott (самокаты И велики) в каждый маршрут.
+    // Nur MyRadl: sonst steckt MOTIS Dott (Scooter UND Räder) in jede Route
     u.searchParams.set('preTransitRentalProviders', MYRADL_PROVIDER)
     u.searchParams.set('postTransitRentalProviders', MYRADL_PROVIDER)
     u.searchParams.set('directRentalProviders', MYRADL_PROVIDER)
@@ -116,20 +116,20 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}): Promi
     u.searchParams.set('postTransitRentalFormFactors', 'BICYCLE')
     u.searchParams.set('directRentalFormFactors', 'BICYCLE')
     if (opts.classicOnly) {
-      // только обычные велики: e-bike платный даже с абонементом
+      // Nur Standardräder: E-Bike kostenpflichtig auch mit Abo
       u.searchParams.set('preTransitRentalPropulsionTypes', 'HUMAN')
       u.searchParams.set('postTransitRentalPropulsionTypes', 'HUMAN')
       u.searchParams.set('directRentalPropulsionTypes', 'HUMAN')
     }
-    // 30 минут вело-подъезда вместо дефолтных 15 — под бесплатное окно MyRadl;
-    // прямой вело-вариант до 45 мин (дальше жёсткий клиентский лимит пользователя).
+    // 30 Minuten Rad-Anfahrt statt standardmäßiger 15 — für kostenloses MyRadl-Fenster;
+    // direkte Radvariante bis 45 Min (danach harte Nutzergrenze).
     u.searchParams.set('maxPreTransitTime', '1800')
     u.searchParams.set('maxPostTransitTime', '1800')
     u.searchParams.set('maxDirectTime', '2700')
-    // с запасом: часть вариантов отсеет клиентский лимит вело-времени
+    // mit Reserve: ein Teil der Optionen wird durch Kunden-Radzeit-Limit gefiltert
     u.searchParams.set('numItineraries', '7')
   }
-  const r = await fetch(u)
+  const r = await fetch(u, { signal })
   if (!r.ok) throw new Error(`plan HTTP ${r.status}`)
   return r.json()
 }
@@ -163,59 +163,71 @@ interface GbfsFreeBike {
   is_disabled?: boolean
 }
 
-/** Свободностоящие велики MyRadl (не на станции) — их тоже можно взять. */
+/** Freistehende MyRadl-Räder (nicht an einer Station) — können ebenfalls geliehen werden. */
 export async function loadFreeBikes(): Promise<FreeBike[]> {
-  const [fb, types] = await Promise.all([
-    fetch(`${GBFS}/free_bike_status.json`).then(r => r.json()),
-    fetch(`${GBFS}/vehicle_types.json`)
-      .then(r => r.json())
-      .catch(() => null),
-  ])
-  const electric = new Set<string>()
-  for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
-    if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
+  try {
+    const [fb, types] = await Promise.all([
+      fetch(`${GBFS}/free_bike_status.json`).then(r => (r.ok ? r.json() : null)),
+      fetch(`${GBFS}/vehicle_types.json`).then(r => (r.ok ? r.json() : null)).catch(() => null),
+    ])
+    if (!fb?.data?.bikes) return []
+    const electric = new Set<string>()
+    for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
+      if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
+    }
+    return ((fb.data?.bikes ?? []) as GbfsFreeBike[])
+      .filter(b => !b.is_disabled && !b.is_reserved && typeof b.lat === 'number' && typeof b.lon === 'number')
+      .map(b => ({
+        id: b.bike_id,
+        lat: b.lat!,
+        lon: b.lon!,
+        electric: !!b.vehicle_type_id && electric.has(b.vehicle_type_id),
+      }))
+  } catch (e) {
+    console.warn('GBFS free bikes loading failed:', e)
+    return []
   }
-  return ((fb.data?.bikes ?? []) as GbfsFreeBike[])
-    .filter(b => !b.is_disabled && !b.is_reserved && typeof b.lat === 'number' && typeof b.lon === 'number')
-    .map(b => ({
-      id: b.bike_id,
-      lat: b.lat!,
-      lon: b.lon!,
-      electric: !!b.vehicle_type_id && electric.has(b.vehicle_type_id),
-    }))
 }
 
-/** Живое состояние всех станций MyRadl (GBFS, ttl 60 сек). */
+/** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek). */
 export async function loadStations(): Promise<Station[]> {
-  const [info, status, types] = await Promise.all([
-    fetch(`${GBFS}/station_information.json`).then(r => r.json()),
-    fetch(`${GBFS}/station_status.json`).then(r => r.json()),
-    fetch(`${GBFS}/vehicle_types.json`).then(r => r.json()).catch(() => null),
-  ])
+  try {
+    const [info, status, types] = await Promise.all([
+      fetch(`${GBFS}/station_information.json`).then(r => (r.ok ? r.json() : null)),
+      fetch(`${GBFS}/station_status.json`).then(r => (r.ok ? r.json() : null)),
+      fetch(`${GBFS}/vehicle_types.json`).then(r => (r.ok ? r.json() : null)).catch(() => null),
+    ])
 
-  const electric = new Set<string>()
-  for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
-    if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
+    if (!info?.data?.stations || !status?.data?.stations) return []
+
+    const electric = new Set<string>()
+    for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
+      if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
+    }
+
+    const statusById = new Map<string, GbfsStationStatus>()
+    for (const s of (status.data?.stations ?? []) as GbfsStationStatus[]) statusById.set(s.station_id, s)
+
+    return ((info.data?.stations ?? []) as GbfsStationInfo[]).map(si => {
+      const st = statusById.get(si.station_id)
+      let ebikes = 0
+      for (const v of st?.vehicle_types_available ?? []) {
+        if (electric.has(v.vehicle_type_id)) ebikes += v.count
+      }
+      const total = st?.num_bikes_available ?? 0
+      return {
+        id: si.station_id,
+        name: si.name,
+        lat: si.lat,
+        lon: si.lon,
+        bikes: Math.max(0, total - ebikes),
+        ebikes,
+        docks: st?.num_docks_available ?? null,
+      }
+    })
+  } catch (e) {
+    console.warn('GBFS stations loading failed:', e)
+    return []
   }
-
-  const statusById = new Map<string, GbfsStationStatus>()
-  for (const s of (status.data?.stations ?? []) as GbfsStationStatus[]) statusById.set(s.station_id, s)
-
-  return ((info.data?.stations ?? []) as GbfsStationInfo[]).map(si => {
-    const st = statusById.get(si.station_id)
-    let ebikes = 0
-    for (const v of st?.vehicle_types_available ?? []) {
-      if (electric.has(v.vehicle_type_id)) ebikes += v.count
-    }
-    const total = st?.num_bikes_available ?? 0
-    return {
-      id: si.station_id,
-      name: si.name,
-      lat: si.lat,
-      lon: si.lon,
-      bikes: Math.max(0, total - ebikes),
-      ebikes,
-      docks: st?.num_docks_available ?? null,
-    }
-  })
 }
+

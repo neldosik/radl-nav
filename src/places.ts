@@ -7,7 +7,7 @@ export interface SavedPlace {
   place: Place
 }
 
-/** Предустановленные слоты — показываются только после того, как заданы. */
+/** Vordefinierte Slots — werden erst nach Konfiguration angezeigt. */
 export const PRESET_SLOTS: { id: string; emoji: string; label: string }[] = [
   { id: 'home', emoji: '🏠', label: 'Zuhause' },
   { id: 'work', emoji: '💼', label: 'Arbeit' },
@@ -28,12 +28,12 @@ function persist(list: SavedPlace[]) {
   localStorage.setItem(KEY, JSON.stringify(list))
 }
 
-/** Сохранить/перезаписать место в слоте (пресетном или своём). */
+/** Ort in Slot speichern/überschreiben (Preset oder eigener Slot). */
 export function upsertSaved(
   slot: { id: string; emoji: string; label: string },
   place: Place,
 ): SavedPlace[] {
-  // Слоты в постоянном порядке: пресеты сверху, потом свои по времени.
+  // Slots in fester Reihenfolge: Presets oben, eigene nach Zeit.
   const rest = loadSaved().filter(s => s.id !== slot.id)
   const next = [...rest, { ...slot, place }]
   const order = (s: SavedPlace) => {
@@ -51,7 +51,7 @@ export function removeSaved(id: string): SavedPlace[] {
   return next
 }
 
-// ── Любимые маршруты (пары from→to) ──
+// ── Lieblingsrouten (Start→Ziel Paare) ──
 export interface FavRoute {
   id: string
   from: Place
@@ -81,7 +81,7 @@ export function removeFavRoute(id: string): FavRoute[] {
   return next
 }
 
-/** Короткая подпись места для чипа маршрута (первое слово / до запятой). */
+/** Kurze Ortsbezeichnung für Routen-Chip (erstes Wort / vor Komma). */
 export function shortPlace(p: Place): string {
   return p.name.replace(/^📍\s*/, '').split(',')[0].trim()
 }

@@ -24,6 +24,66 @@
   color-scheme: light;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #141414;
+    --color-surface: #1f1f1f;
+    --color-text: #f3f3f3;
+    --color-accent: #ec3013;
+    --color-accent-2: #ff5238;
+    --color-divider: rgba(255, 255, 255, 0.2);
+
+    --color-neutral-300: #2a2a2a;
+    --color-neutral-500: #888888;
+    --color-neutral-600: #aaaaaa;
+    --color-neutral-700: #cccccc;
+    --color-neutral-800: #e0e0e0;
+
+    --color-accent-700: #ff5238;
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+    color-scheme: dark;
+  }
+}
+
+/* Explicit Theme Overrides */
+.light-theme {
+  --color-bg: #f3f2f2;
+  --color-surface: #eae9e9;
+  --color-text: #201e1d;
+  --color-accent: #ec3013;
+  --color-accent-2: #e15b47;
+  --color-divider: color-mix(in srgb, #201e1d 40%, transparent);
+
+  --color-neutral-300: #d7d3d3;
+  --color-neutral-500: #9b9797;
+  --color-neutral-600: #7d7979;
+  --color-neutral-700: #605d5d;
+  --color-neutral-800: #444141;
+
+  --color-accent-700: #ae1800;
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+  color-scheme: light;
+}
+
+.dark-theme {
+  --color-bg: #141414;
+  --color-surface: #1f1f1f;
+  --color-text: #f3f3f3;
+  --color-accent: #ec3013;
+  --color-accent-2: #ff5238;
+  --color-divider: rgba(255, 255, 255, 0.2);
+
+  --color-neutral-300: #2a2a2a;
+  --color-neutral-500: #888888;
+  --color-neutral-600: #aaaaaa;
+  --color-neutral-700: #cccccc;
+  --color-neutral-800: #e0e0e0;
+
+  --color-accent-700: #ff5238;
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -51,31 +111,56 @@ body {
   overflow: hidden;
 }
 
-/* ── Poster header ── */
+/* ── Compact Poster header ── */
 .poster {
   background: var(--color-accent);
-  padding: 15px 18px 16px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   flex: none;
-  color: var(--color-bg);
+  color: #ffffff;
 }
 
-.poster-title {
+.poster-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poster-name {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 30px;
-  letter-spacing: -0.03em;
-  line-height: 0.92;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: #ffffff;
 }
 
 .poster-sub {
   font-size: 10px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.85;
-  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-left: 2px;
+}
+
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 11px;
+  padding: 4px 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .poster-compact {
@@ -307,7 +392,7 @@ body {
   gap: 5px;
 }
 
-/* любимые маршруты */
+/* Lieblingsrouten */
 .favs {
   display: flex;
   flex-wrap: wrap;
@@ -346,7 +431,7 @@ body {
   margin-left: 2px;
 }
 
-/* погодный баннер */
+/* Wetter-Banner */
 .weather {
   padding: 11px 18px;
   font-size: 13px;
@@ -366,7 +451,7 @@ body {
   font-weight: 600;
 }
 
-/* выбор точки на карте */
+/* Kartenpunkt wählen */
 .picker {
   position: fixed;
   inset: 0;
@@ -459,7 +544,7 @@ body {
   min-height: 20px;
 }
 
-/* задержки транспорта */
+/* Verspätungs-Badge */
 .delay {
   display: inline-flex;
   align-items: center;
@@ -476,7 +561,7 @@ body {
   background: var(--color-neutral-800);
 }
 
-/* отсчёт до отправления */
+/* Abfahrts-Countdown */
 .depart-in {
   font-family: var(--font-heading);
   font-weight: 800;
@@ -528,7 +613,7 @@ body {
   scroll-behavior: smooth;
 }
 
-/* ── Плавность ── */
+/* ── Übergänge ── */
 @keyframes rn-expand {
   from {
     opacity: 0;
@@ -861,7 +946,7 @@ body {
 
 .j-poster {
   background: var(--color-accent);
-  padding: 10px 18px 11px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 18px 11px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -915,7 +1000,7 @@ body {
   flex: 1;
 }
 
-/* карта занимает почти весь экран, детали — компактной панелью снизу */
+/* Karte nimmt Großteil des Bildschirms ein, Details in kompakter Leiste unten */
 .j-map {
   position: relative;
   flex: 1 1 auto;
@@ -929,7 +1014,7 @@ body {
   height: 100%;
 }
 
-/* компактная панель под картой — без скролла */
+/* Kompakte Leiste unter der Karte — ohne Scrollen */
 .j-panel {
   flex: 0 0 auto;
   background: var(--color-bg);
@@ -1014,7 +1099,7 @@ body {
   color: var(--color-neutral-500);
 }
 
-/* экран прибытия */
+/* Ankunftsscreen */
 .arrive {
   flex: 1;
   display: flex;
@@ -1126,7 +1211,7 @@ body {
   gap: 10px;
 }
 
-/* компактнее внутри панели навигации */
+/* Kompakter in Navigationsleiste */
 .j-panel .btn-block {
   margin-top: 0;
   padding: 11px 14px;
@@ -1243,3 +1328,266 @@ body {
 .maplibregl-ctrl-attrib {
   font-size: 9px;
 }
+
+/* ── Unified Single-Row Action Bar ── */
+.ctl-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.fav-placeholder {
+  display: none;
+}
+
+.btn-route-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 30px;
+}
+
+.btn-route-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.station-widget-inline {
+  flex: 1;
+  position: relative;
+}
+
+.sw-inline-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 11.5px;
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 30px;
+}
+
+.sw-inline-btn.active,
+.sw-inline-btn:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  border-color: var(--color-accent);
+}
+
+.sw-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 290px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-lg);
+  z-index: 90;
+  padding: 10px;
+}
+
+/* ── Quick Preset Chips (Zuhause / Arbeit / Hbf) ── */
+.quick-presets-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 4px 0 2px;
+  scrollbar-width: none;
+}
+
+.quick-presets-row::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-divider);
+  background: color-mix(in srgb, var(--color-neutral-300) 25%, transparent);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+}
+
+.quick-preset-chip:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.quick-preset-chip.active {
+  border-color: var(--color-accent);
+  font-weight: 800;
+}
+
+.preset-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.sw-head-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sw-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-neutral-500);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sw-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: color-mix(in srgb, var(--color-neutral-300) 25%, transparent);
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-accent);
+}
+
+.sw-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sw-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 12.5px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sw-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-neutral-600);
+  margin-top: 2px;
+}
+
+.sw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 1px 5px;
+  background: var(--color-text);
+  color: #fff;
+}
+
+.sw-badge.electric {
+  background: var(--color-accent);
+}
+
+.sw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 11px;
+  padding: 6px 10px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sw-btn:hover {
+  background: var(--color-accent);
+}
+
+/* ── Rückgabe-Timer & Nextbike Deep-Link ── */
+.timer-banner {
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-left: 4px solid var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.timer-banner.urgent {
+  background: var(--color-accent);
+  color: #fff;
+  animation: rn-pulse 1s infinite;
+}
+
+.j-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.j-actions-row .btn-block {
+  flex: 1;
+}
+
+.btn-block.nextbike {
+  background: var(--color-text);
+}
+
+.leg-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leg-link.nextbike {
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+}
+
