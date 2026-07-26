@@ -68,6 +68,12 @@ export const LockIcon = ({ size = 16 }: P) => (
   </svg>
 )
 
+export const TrashIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
+  </svg>
+)
+
 export const CloseIcon = ({ size = 14 }: P) => (
   <svg {...base(size)} strokeWidth={2.2}>
     <path d="M18 6 6 18M6 6l12 12" />

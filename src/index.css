@@ -404,6 +404,21 @@ button {
   color: var(--muted);
 }
 
+/* „Route merken" stand ununterscheidbar neben den Chips, die eine Route laden */
+.fav-chip.save {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Das ✕ löscht die gemerkten Orte — es ist kein weiterer Ort */
+.quick-preset-chip.clear {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+  color: var(--faint);
+}
+
 .quick-preset-chip.active {
   border-color: var(--accent);
   color: var(--accent);
@@ -504,6 +519,8 @@ button {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  /* an den rechten Rand — mittig zwischen den Chips wirkte der Knopf verloren */
+  margin-left: auto;
 }
 
 .fav-placeholder {
@@ -633,8 +650,11 @@ button {
 /* ── Ergebnisliste ── */
 .results {
   flex: 1;
+  /* ohne min-height:0 wächst der Bereich mit dem Inhalt und schiebt die
+     Reiterleiste aus dem Bild — dann muss man zu ihr scrollen */
+  min-height: 0;
   overflow-y: auto;
-  padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 20px 20px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1080,10 +1100,25 @@ button {
   margin-bottom: 12px;
 }
 
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .chart-title {
   font-size: 12px;
   color: var(--muted);
-  margin-bottom: 12px;
+}
+
+.chart-avg {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .chart-bars {
@@ -1091,7 +1126,7 @@ button {
   align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
-  height: 68px;
+  height: 88px;
 }
 
 .chart-bar-col {
@@ -1101,6 +1136,31 @@ button {
   align-items: center;
   gap: 6px;
   height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Minutenwert erscheint erst beim Antippen des Balkens */
+.chart-bar-val {
+  flex: none;
+  height: 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chart-bar-col.picked .chart-bar-val {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .chart-bar-track {
@@ -1115,11 +1175,22 @@ button {
   border-radius: 6px;
   background: var(--accent);
   min-height: 4px;
+  opacity: 0.72;
+  transition: opacity 0.16s ease;
+}
+
+.chart-bar-col.picked .chart-bar-fill {
+  opacity: 1;
 }
 
 .chart-bar-day {
   font-size: 11px;
   color: var(--muted);
+}
+
+.chart-bar-col.picked .chart-bar-day {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .hist-list {
@@ -1152,6 +1223,42 @@ button {
 .hist-when {
   font-size: 12px;
   color: var(--muted);
+}
+
+.hist-when {
+  flex: none;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* genaues Datum mit Uhrzeit unter der Kurzform */
+.hist-exact {
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist-del {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 17px;
+  background: transparent;
+  color: var(--faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+
+.hist-del:hover {
+  color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .hist-cost {
@@ -1253,8 +1360,7 @@ button {
   z-index: 5;
 }
 
-.picker-hint,
-.bm-filter-bar {
+.picker-hint {
   position: absolute;
   left: 50%;
   top: 12px;
@@ -1274,18 +1380,25 @@ button {
   white-space: nowrap;
 }
 
-/* Filterleiste über der Räder-Karte */
+/* Filterleiste: eigene Zeile über der Karte, damit sie den Hinweis nicht
+   überlagert — vorher lagen beide oben mittig übereinander. */
 .bm-filter-bar {
-  gap: 6px;
-  padding: 0 6px;
-  height: 40px;
+  flex: none;
+  display: flex;
+  gap: 3px;
+  margin: 10px 16px;
+  padding: 4px;
+  border-radius: 21px;
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
 }
 
 .bm-filter-chip {
-  height: 28px;
-  padding: 0 12px;
+  flex: 1;
+  height: 34px;
+  padding: 0 6px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 17px;
   background: transparent;
   color: var(--muted);
   font-family: inherit;
@@ -1293,11 +1406,38 @@ button {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: background 0.16s ease, color 0.16s ease;
 }
 
 .bm-filter-chip.active {
   background: var(--accent);
   color: #fff;
+}
+
+/* Bestandszähler: kleine Notiz unten links, stört die Karte nicht */
+.bm-summary {
+  position: absolute;
+  left: 14px;
+  bottom: 18px;
+  z-index: 5;
+  max-width: calc(100% - 80px);
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 13px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bm-locate {
@@ -1762,8 +1902,11 @@ button {
   gap: 10px;
 }
 
-.j-nav button {
+/* Zurück: nur ein Pfeil, quadratisch — wie im Entwurf */
+.j-nav-prev {
+  width: 68px;
   height: 64px;
+  flex: none;
   border-radius: 16px;
   border: 1px solid var(--line-strong);
   background: transparent;
@@ -1771,24 +1914,52 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   cursor: pointer;
-  font-size: 19px;
-  font-weight: 700;
-  width: 68px;
-  flex: none;
 }
 
-.j-nav button.next {
+.j-nav-prev:disabled {
+  opacity: 0.35;
+}
+
+/* Weiter / Angekommen: breit und deutlich */
+.j-nav-next {
   flex: 1;
-  width: auto;
+  height: 64px;
   border: 0;
+  border-radius: 16px;
   background: var(--accent);
   color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
 }
 
-.j-nav button:disabled {
-  opacity: 0.4;
+/* Standort-Folgen wie in Kartendiensten */
+.j-follow {
+  position: absolute;
+  right: 14px;
+  bottom: 42%;
+  z-index: 12;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--shadow-float);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.j-follow.on {
+  color: var(--accent);
 }
 
 .j-actions-row {
@@ -1948,6 +2119,7 @@ button {
 }
 
 .filter-type-card {
+  position: relative;
   border: 1.5px solid var(--line-strong);
   background: var(--card);
   border-radius: var(--r-card);
@@ -1958,28 +2130,71 @@ button {
   color: var(--ink);
   display: block;
   width: 100%;
+  transition: border-color 0.16s ease, background 0.16s ease;
 }
 
-.filter-type-card.active {
+/* Beide Karten sahen gleich aus — jede Art bekommt jetzt eine eigene Farbe:
+   Petrol für Standard, Terracotta für E-Bike, plus Haken für die Auswahl. */
+.filter-type-card.classic .ft-icon {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.filter-type-card.classic.active {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
 
-/* zweite Karte ist immer das E-Bike — Terracotta statt Petrol */
-.filter-type-card:nth-child(2) .ft-icon {
-  color: var(--warn);
+.filter-type-card.classic.active .ft-icon,
+.filter-type-card.classic .ft-mark {
+  background: var(--accent);
+  color: #fff;
 }
 
-.filter-type-card:nth-child(2).active {
+.filter-type-card.ebike .ft-icon {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.filter-type-card.ebike.active {
   border-color: var(--warn);
   background: var(--warn-soft);
 }
 
+.filter-type-card.ebike.active .ft-icon,
+.filter-type-card.ebike .ft-mark {
+  background: var(--warn);
+  color: #fff;
+}
+
+.ft-mark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.filter-type-card.active .ft-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .ft-icon {
-  color: var(--accent);
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  margin: 0 auto 8px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
 }
 
 .ft-name {

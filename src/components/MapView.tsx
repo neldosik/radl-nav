@@ -22,6 +22,10 @@ interface Props {
   userPos?: { lat: number; lon: number } | null
   bikesNeeded?: number
   theme?: ThemeMode
+  /** Kamera folgt dem Standort (Los-Modus) */
+  follow?: boolean
+  /** Nutzer hat die Karte selbst verschoben — Folgen aussetzen */
+  onUserPan?: () => void
 }
 
 export default function MapView({
@@ -30,6 +34,8 @@ export default function MapView({
   userPos = null,
   bikesNeeded = 1,
   theme = 'light',
+  follow = true,
+  onUserPan,
 }: Props) {
   const div = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -40,6 +46,10 @@ export default function MapView({
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
   const activeLegRef = useRef<number | null>(null)
+  const followRef = useRef(true)
+  followRef.current = follow
+  const onUserPanRef = useRef(onUserPan)
+  onUserPanRef.current = onUserPan
   const bikesRef = useRef(bikesNeeded)
   bikesRef.current = bikesNeeded
   const themeRef = useRef(theme)
@@ -114,10 +124,12 @@ export default function MapView({
       m.easeTo({ center, zoom: 16.5, duration: 500, essential: true })
       prevCamPosRef.current = userPosRef.current ?? { lat: leg.from.lat, lon: leg.from.lon }
     } else {
-      // Übersicht der gesamten Route (außerhalb der Navigation)
+      // Übersicht der Route. Die Vorschaukarte ist nur ~150 px hoch — mit großem
+      // Rand bliebe fast nichts übrig und die Karte zoomte auf ganz München heraus.
       const bounds = new maplibregl.LngLatBounds()
       for (const f of features) for (const c of f.geometry.coordinates) bounds.extend(c)
-      if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: 60, maxZoom: 15.5, duration: 500 })
+      const pad = Math.max(12, Math.min(40, Math.round(m.getContainer().clientHeight * 0.12)))
+      if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: pad, maxZoom: 16.5, duration: 500 })
     }
   }
 
@@ -135,6 +147,12 @@ export default function MapView({
       ready.current = true
       if (viewRef.current) draw(viewRef.current, activeLegRef.current)
     })
+    // Eigenes Ziehen/Zoomen erkennen (nicht die programmierten Kamerafahrten)
+    const handPan = (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent && activeLegRef.current != null && followRef.current) onUserPanRef.current?.()
+    }
+    m.on('dragstart', handPan)
+    m.on('zoomstart', handPan)
     map.current = m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -180,8 +198,9 @@ export default function MapView({
     } else {
       userMarker.current.setLngLat([userPos.lon, userPos.lat])
     }
-    // In Los-Modus: Kamera folgt sanft dem Benutzer
-    if (activeLegRef.current != null) {
+    // In Los-Modus: Kamera folgt sanft dem Benutzer — außer er schaut sich
+    // gerade selbst auf der Karte um (dann übernimmt der Folgen-Knopf).
+    if (activeLegRef.current != null && followRef.current) {
       const prev = prevCamPosRef.current
       const dist = prev ? haversine(prev, userPos) : Infinity
       // Winzige GPS-Schwankungen (< 2m) ignorieren für flüssige Bewegung

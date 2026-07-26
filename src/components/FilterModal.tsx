@@ -38,7 +38,7 @@ export default function FilterModal({
           <label className="filter-label">{t('bikeTypeLabel', lang)}</label>
           <div className="filter-type-grid">
             <div
-              className={`filter-type-card${bikeType === 'classic' ? ' active' : ''}`}
+              className={`filter-type-card classic${bikeType === 'classic' ? ' active' : ''}`}
               onClick={() => {
                 onSelectBikeType('classic')
                 localStorage.setItem('radl.biketype', 'classic')
@@ -47,10 +47,11 @@ export default function FilterModal({
               <div className="ft-icon"><BikeIcon size={20} /></div>
               <div className="ft-name">Standard</div>
               <div className="ft-sub">{t('standardSub', lang)}</div>
+              <div className="ft-mark">✓</div>
             </div>
 
             <div
-              className={`filter-type-card${bikeType === 'any' ? ' active' : ''}`}
+              className={`filter-type-card ebike${bikeType === 'any' ? ' active' : ''}`}
               onClick={() => {
                 onSelectBikeType('any')
                 localStorage.setItem('radl.biketype', 'any')
@@ -59,6 +60,7 @@ export default function FilterModal({
               <div className="ft-icon"><BoltIcon size={20} /></div>
               <div className="ft-name">E-Bikes</div>
               <div className="ft-sub">{t('ebikeSub', lang)}</div>
+              <div className="ft-mark">✓</div>
             </div>
           </div>
         </div>

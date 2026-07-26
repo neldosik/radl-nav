@@ -11,7 +11,8 @@ const config: CapacitorConfig = {
   plugins: {
     StatusBar: {
       overlaysWebView: false,
-      backgroundColor: '#ec3013',
+      // Startwert = helles Papier; beim Themenwechsel setzt useTheme die Farbe nach
+      backgroundColor: '#f4f1ea',
     },
   },
 }

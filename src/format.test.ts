@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { bikeWord, gmapsFullBikeLink, gmapsLink, legDelayMin, legKind, legLabel, lineShort, mins } from './format'
+import {
+  bikeWord,
+  gmapsFullBikeLink,
+  gmapsLink,
+  legDelayMin,
+  legKind,
+  legLabel,
+  lineShort,
+  mins,
+  nextbikeLink,
+} from './format'
 import { decodePolyline } from './polyline'
 import type { Itinerary, Leg } from './types'
 
@@ -121,5 +131,35 @@ describe('decodePolyline', () => {
 
   it('liefert [] für leeren String', () => {
     expect(decodePolyline('')).toEqual([])
+  })
+})
+
+describe('nextbikeLink', () => {
+  const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15'
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36'
+  const rental = {
+    rentalUriWeb: 'https://web.example/station/7',
+    rentalUriAndroid: 'https://android.example/station/7',
+    rentalUriIOS: 'https://ios.example/station/7',
+  }
+
+  it('nimmt auf dem iPhone den iOS-Link, nicht den Android-Link', () => {
+    expect(nextbikeLink(leg({ rental }), IOS)).toBe(rental.rentalUriIOS)
+  })
+
+  it('nimmt auf Android den Android-Link', () => {
+    expect(nextbikeLink(leg({ rental }), ANDROID)).toBe(rental.rentalUriAndroid)
+  })
+
+  it('nimmt am Rechner den Web-Link', () => {
+    expect(nextbikeLink(leg({ rental }), 'Mozilla/5.0 (Windows NT 10.0)')).toBe(rental.rentalUriWeb)
+  })
+
+  it('weicht ohne Plattform-Link auf den Web-Link aus', () => {
+    expect(nextbikeLink(leg({ rental: { rentalUriWeb: rental.rentalUriWeb } }), IOS)).toBe(rental.rentalUriWeb)
+  })
+
+  it('landet ohne jeden Link auf der Nextbike-App statt auf einer 404', () => {
+    expect(nextbikeLink(leg(), ANDROID)).toBe('https://app.nextbike.net/')
   })
 })

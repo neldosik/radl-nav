@@ -87,9 +87,16 @@ export function gmapsFullBikeLink(it: Itinerary): string | null {
   )
 }
 
+/** Ausweichziel aus dem GBFS-Feed von MyRadl (`rental_apps.android.discovery_uri`):
+ *  öffnet die App, sonst die Webseite. Das früher gebaute
+ *  `nextbike.de/bm/location/?lat=…` gibt es nicht — das lief auf eine 404. */
+const NEXTBIKE_APP = 'https://app.nextbike.net/'
+
 /** Deep-Link in die Nextbike-App oder Nextbike-Webseite zur Ausleihe/Reservierung. */
-export function nextbikeLink(leg: Leg): string {
-  if (leg.rental?.rentalUriAndroid) return leg.rental.rentalUriAndroid
-  if (leg.rental?.rentalUriWeb) return leg.rental.rentalUriWeb
-  return `https://www.nextbike.de/bm/location/?lat=${leg.from.lat}&lng=${leg.from.lon}`
+export function nextbikeLink(leg: Leg, ua = navigator.userAgent): string {
+  const r = leg.rental
+  // Der Android-Link taugt auf dem iPhone nicht — je Plattform den passenden nehmen
+  if (/iPhone|iPad|iPod/i.test(ua) && r?.rentalUriIOS) return r.rentalUriIOS
+  if (/Android/i.test(ua) && r?.rentalUriAndroid) return r.rentalUriAndroid
+  return r?.rentalUriWeb ?? NEXTBIKE_APP
 }

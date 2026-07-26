@@ -1,6 +1,16 @@
 import { useState } from 'react'
-import { clearTrips, loadTrips, topRoute, tripStats, weeklyChartData, whenLabel } from '../history'
-import { BikeIcon, CloseIcon } from '../icons'
+import {
+  clearTrips,
+  exactWhen,
+  loadTrips,
+  removeTrip,
+  topRoute,
+  tripStats,
+  weeklyAverage,
+  weeklyChartData,
+  whenLabel,
+} from '../history'
+import { BikeIcon, CloseIcon, TrashIcon } from '../icons'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 
@@ -14,8 +24,11 @@ interface Props {
 /** Fahrtenbuch & Rider Analytics Dashboard */
 export default function History({ lang = 'de', embedded = false, onClose }: Props) {
   const [trips, setTrips] = useState(() => loadTrips())
+  /** angetippter Balken der Wochenübersicht */
+  const [pickedDay, setPickedDay] = useState<string | null>(null)
   const s = tripStats(trips)
   const chartData = weeklyChartData(trips)
+  const avgMins = weeklyAverage(chartData)
   const favorite = topRoute(trips)
 
   const maxMins = Math.max(1, ...chartData.map(c => c.mins))
@@ -76,21 +89,31 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
             )}
 
             <div className="chart-box">
-              <div className="chart-title">{t('histWeekTitle', lang)}</div>
+              <div className="chart-head">
+                <div className="chart-title">{t('histWeekTitle', lang)}</div>
+                <div className="chart-avg">
+                  ⌀ {avgMins} {lang === 'en' ? 'min/day' : 'Min/Tag'}
+                </div>
+              </div>
               <div className="chart-bars">
                 {chartData.map(d => {
                   const hPct = Math.round((d.mins / maxMins) * 100)
+                  const on = pickedDay === d.day
                   return (
-                    <div key={d.day} className="chart-bar-col">
+                    <button
+                      key={d.day}
+                      className={`chart-bar-col${on ? ' picked' : ''}`}
+                      onClick={() => setPickedDay(on ? null : d.day)}
+                    >
+                      <span className="chart-bar-val">{d.mins} Min</span>
                       <div className="chart-bar-track">
                         <div
                           className="chart-bar-fill"
                           style={{ height: `${Math.max(d.mins > 0 ? 15 : 0, hPct)}%` }}
-                          title={`${d.mins} Min`}
                         />
                       </div>
                       <span className="chart-bar-day">{d.day}</span>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -114,7 +137,10 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
           <div className="hist-list">
             {trips.map(tRec => (
               <div className="hist-item" key={tRec.id}>
-                <div className="hist-when">{whenLabel(tRec.at)}</div>
+                <div className="hist-when">
+                  {whenLabel(tRec.at)}
+                  <span className="hist-exact">{exactWhen(tRec.at)}</span>
+                </div>
                 <div className="hist-main">
                   <div className="hist-route">
                     {tRec.from} → {tRec.to}
@@ -130,6 +156,13 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
                     {tRec.electric && ' · E-Bike'}
                   </div>
                 </div>
+                <button
+                  className="hist-del"
+                  title={lang === 'en' ? 'Delete trip' : 'Fahrt löschen'}
+                  onClick={() => setTrips(removeTrip(tRec.id))}
+                >
+                  <TrashIcon size={14} />
+                </button>
               </div>
             ))}
           </div>

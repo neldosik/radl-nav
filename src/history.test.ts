@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { addTrip, clearTrips, loadTrips, tripStats, whenLabel } from './history'
+import {
+  addTrip,
+  clearTrips,
+  exactWhen,
+  loadTrips,
+  removeTrip,
+  tripStats,
+  weeklyAverage,
+  weeklyChartData,
+  whenLabel,
+} from './history'
 import type { TripRecord } from './history'
 
 const trip = (over: Partial<TripRecord> = {}): TripRecord => ({
@@ -53,6 +63,79 @@ describe('Speicher', () => {
   it('liefert [] bei kaputtem Speicher statt zu werfen', () => {
     localStorage.setItem('radl.trips', '{kaputt')
     expect(loadTrips()).toEqual([])
+  })
+
+  it('löscht einzelne Fahrten und lässt die übrigen stehen', () => {
+    addTrip({ from: 'A', to: 'B', seconds: 100, legs: 2, bikeMinutes: 5, electric: false })
+    const list = addTrip({ from: 'C', to: 'D', seconds: 200, legs: 1, bikeMinutes: 0, electric: false })
+    const rest = removeTrip(list[0].id)
+    expect(rest).toHaveLength(1)
+    expect(rest[0].from).toBe('A')
+    expect(loadTrips()).toHaveLength(1)
+  })
+
+  it('ignoriert unbekannte Kennungen beim Löschen', () => {
+    addTrip({ from: 'A', to: 'B', seconds: 100, legs: 2, bikeMinutes: 5, electric: false })
+    expect(removeTrip('gibt-es-nicht')).toHaveLength(1)
+  })
+
+  it('vergibt auch in derselben Millisekunde verschiedene Kennungen', () => {
+    addTrip({ from: 'A', to: 'B', seconds: 100, legs: 2, bikeMinutes: 5, electric: false })
+    const list = addTrip({ from: 'C', to: 'D', seconds: 200, legs: 1, bikeMinutes: 0, electric: false })
+    expect(list[0].id).not.toBe(list[1].id)
+  })
+})
+
+describe('weeklyChartData', () => {
+  // Freitag, 24.07.2026, 12:00 Ortszeit
+  const now = new Date(2026, 6, 24, 12, 0, 0).getTime()
+  const at = (d: Date) => d.toISOString()
+
+  it('legt Radminuten auf den passenden Wochentag', () => {
+    const chart = weeklyChartData([trip({ at: at(new Date(2026, 6, 24, 9, 0)), bikeMinutes: 12 })], now)
+    expect(chart.find(c => c.day === 'Fr')?.mins).toBe(12)
+    expect(chart.find(c => c.day === 'Mo')?.mins).toBe(0)
+  })
+
+  it('zählt denselben Wochentag der Vorwoche nicht mit', () => {
+    // genau sieben Tage zurück, aber später am Tag — lag früher im Fenster
+    const chart = weeklyChartData([trip({ at: at(new Date(2026, 6, 17, 15, 0)), bikeMinutes: 40 })], now)
+    expect(chart.find(c => c.day === 'Fr')?.mins).toBe(0)
+  })
+
+  it('summiert mehrere Fahrten am selben Tag', () => {
+    const chart = weeklyChartData(
+      [
+        trip({ at: at(new Date(2026, 6, 22, 8, 0)), bikeMinutes: 10 }),
+        trip({ at: at(new Date(2026, 6, 22, 18, 0)), bikeMinutes: 5 }),
+      ],
+      now,
+    )
+    expect(chart.find(c => c.day === 'Mi')?.mins).toBe(15)
+  })
+})
+
+describe('weeklyAverage', () => {
+  it('teilt die Radminuten auf sieben Tage auf', () => {
+    expect(weeklyAverage([{ day: 'Mo', mins: 70 }])).toBe(70)
+    const week = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, i) => ({ day, mins: i === 0 ? 70 : 0 }))
+    expect(weeklyAverage(week)).toBe(10)
+  })
+
+  it('ist 0 ohne Daten', () => {
+    expect(weeklyAverage([])).toBe(0)
+  })
+})
+
+describe('exactWhen', () => {
+  it('zeigt Datum und Uhrzeit', () => {
+    const s = exactWhen(new Date(2026, 6, 12, 14, 35).toISOString())
+    expect(s).toMatch(/12\.07\.2026/)
+    expect(s).toMatch(/14:35/)
+  })
+
+  it('bleibt bei Unsinn leer statt „Invalid Date"', () => {
+    expect(exactWhen('kein-datum')).toBe('')
   })
 })
 

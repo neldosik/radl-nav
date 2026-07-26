@@ -1,8 +1,17 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, WalkIcon } from '../icons'
+import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
+import {
+  BikeIcon,
+  ChevronLeft,
+  ChevronRight,
+  CloseIcon,
+  ExternalIcon,
+  SendIcon,
+  TargetIcon,
+  WalkIcon,
+} from '../icons'
 import { planPickup } from '../geo'
 import { FREE_LIMIT_SEC } from '../routing'
 import { pickupText } from './ItineraryCard'
@@ -26,6 +35,9 @@ interface Props {
   onNext: () => void
   onArrive: () => void
   onExit: () => void
+  /** Kamera folgt dem Standort? */
+  follow?: boolean
+  onToggleFollow?: () => void
   children?: ReactNode // Karte
 }
 
@@ -69,6 +81,8 @@ export default function JourneyMode({
   onNext,
   onArrive,
   onExit,
+  follow = true,
+  onToggleFollow,
   children,
 }: Props) {
   const legs = view.it.legs
@@ -218,6 +232,17 @@ export default function JourneyMode({
     <div className="journey">
       <div className="j-map">{children}</div>
 
+      {/* Folgen-Knopf wie in Kartendiensten: aus, sobald man selbst schiebt */}
+      {onToggleFollow && (
+        <button
+          className={`j-follow${follow ? ' on' : ''}`}
+          onClick={onToggleFollow}
+          title={follow ? (lang === 'en' ? 'Following you' : 'Folgt dir') : (lang === 'en' ? 'Recenter' : 'Zentrieren')}
+        >
+          <TargetIcon size={20} />
+        </button>
+      )}
+
       {/* Schwebende Kopfkarte: wohin es gerade geht + Entfernung */}
       <div className="j-poster">
         <div className="j-head-row">
@@ -290,17 +315,29 @@ export default function JourneyMode({
 
         {infoLine && <div className={`j-info${infoWarn ? ' warn' : ''}`}>{infoLine}</div>}
 
+        {/* Beim Rad: Ausleihe direkt in der Nextbike-App öffnen */}
+        {isBikeLeg && (
+          <a
+            className="btn-block nextbike"
+            href={nextbikeLink(leg)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ExternalIcon size={15} /> {lang === 'en' ? 'Open in Nextbike' : 'In Nextbike öffnen'}
+          </a>
+        )}
+
         <div className="j-nav">
-          <button className="j-step" disabled={legIndex === 0} onClick={onPrev}>
-            <ChevronLeft size={16} /> {t('jmPrev', lang)}
+          <button className="j-nav-prev" disabled={legIndex === 0} onClick={onPrev} title={t('jmPrev', lang)}>
+            <ChevronLeft size={24} />
           </button>
           {last ? (
-            <button className="j-step arrive-btn" onClick={onArrive}>
-              <SendIcon size={14} /> {t('jmArrivedBtn', lang)}
+            <button className="j-nav-next" onClick={onArrive}>
+              {t('jmArrivedBtn', lang)} <SendIcon size={20} />
             </button>
           ) : (
-            <button className="j-step next-btn" onClick={onNext}>
-              {t('jmNext', lang)} <ChevronRight size={16} />
+            <button className="j-nav-next" onClick={onNext}>
+              {t('jmNext', lang)} <ChevronRight size={22} />
             </button>
           )}
         </div>

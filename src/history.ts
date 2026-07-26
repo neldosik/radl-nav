@@ -27,7 +27,10 @@ export function loadTrips(): TripRecord[] {
 }
 
 export function addTrip(t: Omit<TripRecord, 'id' | 'at'>): TripRecord[] {
-  const rec: TripRecord = { ...t, id: `${Date.now()}`, at: new Date().toISOString() }
+  // Zufallsanhängsel: Date.now() allein war für zwei Fahrten in derselben
+  // Millisekunde gleich — dann löschte „diese Fahrt löschen" beide.
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const rec: TripRecord = { ...t, id, at: new Date().toISOString() }
   const next = [rec, ...loadTrips()].slice(0, MAX)
   localStorage.setItem(KEY, JSON.stringify(next))
   return next
@@ -35,6 +38,13 @@ export function addTrip(t: Omit<TripRecord, 'id' | 'at'>): TripRecord[] {
 
 export function clearTrips(): void {
   localStorage.removeItem(KEY)
+}
+
+/** Einzelne Fahrt löschen — vorher ging nur „alles löschen". */
+export function removeTrip(id: string): TripRecord[] {
+  const next = loadTrips().filter(t => t.id !== id)
+  localStorage.setItem(KEY, JSON.stringify(next))
+  return next
 }
 
 export interface TripStats {
@@ -65,16 +75,19 @@ export interface DayMinutes {
   mins: number
 }
 
-export function weeklyChartData(trips: TripRecord[]): DayMinutes[] {
+export function weeklyChartData(trips: TripRecord[], now = Date.now()): DayMinutes[] {
   const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
   const map = new Map<string, number>(days.map(d => [d, 0]))
 
-  const now = new Date()
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000)
+  // Fenster = heute plus die sechs Tage davor, am Tagesanfang gekappt. Mit einem
+  // gleitenden 7×24-h-Fenster fiel derselbe Wochentag zweimal in denselben Balken.
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() - 6)
 
   for (const t of trips) {
     const d = new Date(t.at)
-    if (d >= sevenDaysAgo) {
+    if (d >= start) {
       const idx = (d.getDay() + 6) % 7 // Mo = 0, So = 6
       const dayName = days[idx]
       map.set(dayName, (map.get(dayName) ?? 0) + Math.round(t.bikeMinutes))
@@ -82,6 +95,12 @@ export function weeklyChartData(trips: TripRecord[]): DayMinutes[] {
   }
 
   return days.map(day => ({ day, mins: map.get(day) ?? 0 }))
+}
+
+/** Schnitt der Radminuten über die sieben Tage der Übersicht. */
+export function weeklyAverage(chart: DayMinutes[]): number {
+  if (!chart.length) return 0
+  return Math.round(chart.reduce((n, d) => n + d.mins, 0) / chart.length)
 }
 
 export function topRoute(trips: TripRecord[]): string | null {
@@ -113,4 +132,17 @@ export function whenLabel(iso: string, now = Date.now()): string {
   const yesterday = new Date(now - 86400000).toDateString() === d.toDateString()
   if (yesterday) return `gestern ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+}
+
+/** Volles Datum mit Uhrzeit — „12.07.2026, 14:35". */
+export function exactWhen(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }

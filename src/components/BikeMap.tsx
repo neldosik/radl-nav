@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import { loadFreeBikes, loadStations } from '../api'
+import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { BikeIcon, BoltIcon, CloseIcon, TargetIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
@@ -95,7 +95,22 @@ export default function BikeMap({
   const [supply, setSupply] = useState<Station[] | null>(null)
   const [selected, setSelected] = useState<Station | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'classic' | 'ebike'>('all')
-  const center = userPos ?? MUNICH
+  // Eigener Standort: der Reiter wird auch ohne laufende Navigation geöffnet,
+  // dann liefert die App keine Position — also selbst nachfragen.
+  const [ownPos, setOwnPos] = useState<LatLon | null>(null)
+  const here = userPos ?? ownPos
+  const center = here ?? MUNICH
+
+  useEffect(() => {
+    if (userPos) return
+    let alive = true
+    getGeolocation()
+      .then(p => alive && setOwnPos(p))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [userPos])
 
   // Geste / Zurück-Taste zum Schließen
   useEffect(() => {
@@ -222,17 +237,19 @@ export default function BikeMap({
       m.once('load', applyData)
     }
 
-    if (userPos && !userMarker.current) {
+    if (here && !userMarker.current) {
       const me = document.createElement('div')
       me.className = 'mk-user'
-      userMarker.current = new maplibregl.Marker({ element: me }).setLngLat([userPos.lon, userPos.lat]).addTo(m)
+      userMarker.current = new maplibregl.Marker({ element: me }).setLngLat([here.lon, here.lat]).addTo(m)
+      // Karte einmalig auf den eigenen Standort holen, sobald er da ist
+      m.easeTo({ center: [here.lon, here.lat], zoom: 14.5, duration: 500 })
     }
-  }, [supply, filterType, selected, center, userPos])
+  }, [supply, filterType, selected, center, here])
 
   const list = supply ? nearbyStations(center, supply, RADIUS_M, 100) : []
   const totalBikes = list.reduce((n, x) => n + x.station.bikes, 0)
   const totalE = list.reduce((n, x) => n + x.station.ebikes, 0)
-  const walkDistM = selected && userPos ? Math.round(haversine(userPos, { lat: selected.lat, lon: selected.lon })) : null
+  const walkDistM = selected && here ? Math.round(haversine(here, { lat: selected.lat, lon: selected.lon })) : null
 
   return (
     <div className={`picker${embedded ? ' embedded' : ''}`}>
@@ -245,33 +262,33 @@ export default function BikeMap({
         )}
       </div>
 
+      <div className="bm-filter-bar">
+        <button
+          className={`bm-filter-chip${filterType === 'all' ? ' active' : ''}`}
+          onClick={() => setFilterType('all')}
+        >
+          <BikeIcon size={14} /> {t('bmAll', lang)}
+        </button>
+        <button
+          className={`bm-filter-chip${filterType === 'classic' ? ' active' : ''}`}
+          onClick={() => setFilterType('classic')}
+        >
+          <BikeIcon size={14} /> {t('bmClassic', lang)}
+        </button>
+        <button
+          className={`bm-filter-chip${filterType === 'ebike' ? ' active' : ''}`}
+          onClick={() => setFilterType('ebike')}
+        >
+          <BoltIcon size={14} /> {t('bmEbike', lang)}
+        </button>
+      </div>
+
       <div className="picker-map">
         <div ref={canvas} className="picker-canvas" />
-        <div className="picker-hint">
+        <div className="bm-summary">
           {supply == null
             ? t('bmLoading', lang)
             : dict[lang].bmSummary(totalBikes, totalE)}
-        </div>
-
-        <div className="bm-filter-bar">
-          <button
-            className={`bm-filter-chip${filterType === 'all' ? ' active' : ''}`}
-            onClick={() => setFilterType('all')}
-          >
-            <BikeIcon size={14} /> {t('bmAll', lang)}
-          </button>
-          <button
-            className={`bm-filter-chip${filterType === 'classic' ? ' active' : ''}`}
-            onClick={() => setFilterType('classic')}
-          >
-            <BikeIcon size={14} /> {t('bmClassic', lang)}
-          </button>
-          <button
-            className={`bm-filter-chip${filterType === 'ebike' ? ' active' : ''}`}
-            onClick={() => setFilterType('ebike')}
-          >
-            <BoltIcon size={14} /> {t('bmEbike', lang)}
-          </button>
         </div>
 
         <button

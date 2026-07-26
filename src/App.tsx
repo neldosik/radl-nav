@@ -50,6 +50,8 @@ export default function App() {
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   /** Untere Reiter: Route (Suche), Räder (Karte), Fahrten (Verlauf) */
   const [tab, setTab] = useState<'route' | 'bikes' | 'trips'>('route')
+  /** Los-Modus: Karte folgt dem Standort, bis man selbst schiebt */
+  const [followMe, setFollowMe] = useState(true)
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null)
@@ -209,7 +211,11 @@ export default function App() {
           onNext={() => journey.goTo(journeyLeg + 1)}
           onArrive={() => {
             if (from && to) {
-              const bikeLegMins = Array.from(journeyView.bikeLegs.values()).reduce((acc, b) => acc + (b.tooLong ? 30 : 15), 0)
+              // echte Radminuten aus den Etappen, nicht geschätzt
+              const bikeLegMins = Array.from(journeyView.bikeLegs.keys()).reduce(
+                (acc, i) => acc + Math.round((journeyView.it.legs[i]?.duration ?? 0) / 60),
+                0,
+              )
               addTrip({
                 from: shortPlace(from),
                 to: shortPlace(to),
@@ -222,6 +228,8 @@ export default function App() {
             journey.markArrived()
           }}
           onExit={journey.exit}
+          follow={followMe}
+          onToggleFollow={() => setFollowMe(f => !f)}
         >
           <MapView
             view={journeyView}
@@ -229,6 +237,8 @@ export default function App() {
             userPos={userPos}
             bikesNeeded={bikes}
             theme={themeMode}
+            follow={followMe}
+            onUserPan={() => setFollowMe(false)}
           />
         </JourneyMode>
       </div>
@@ -249,7 +259,7 @@ export default function App() {
   const minDuration = views ? Math.min(...views.map(v => v.it.duration)) : Infinity
   const minTransfers = views ? Math.min(...views.map(v => v.it.legs.length)) : Infinity
 
-  // Реиспользуемая нижняя панель вкладок
+  // Wiederverwendete Reiterleiste am unteren Rand
   const tabBar = (
     <nav className="tabbar">
       <button className={`tab${tab === 'route' ? ' on' : ''}`} onClick={() => setTab('route')}>
@@ -325,9 +335,6 @@ export default function App() {
               </button>
               <button className="header-menu-item" onClick={toggleSound}>
                 {soundEnabled ? t('soundOn', lang) : t('soundOff', lang)}
-              </button>
-              <button className="header-menu-item" onClick={() => setShowFilterModal(true)}>
-                {t('filterTitle', lang)}
               </button>
             </div>
           )}
@@ -406,19 +413,6 @@ export default function App() {
             </button>
           )}
 
-          {/* Rad-Typ und Zeitlimit — ein Chip statt zweier Schalterreihen */}
-          <button
-            className="filter-chip"
-            onClick={() => setShowFilterModal(true)}
-            title={t('filterTitle', lang)}
-          >
-            {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
-            <span>
-              {bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} ·{' '}
-              {maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`}
-            </span>
-            <ChevronDown size={12} />
-          </button>
         </div>
         {presetHint && <div className="preset-hint">{presetHint}</div>}
 
@@ -444,6 +438,20 @@ export default function App() {
               />
             )}
           </div>
+
+          {/* Rad-Typ und Zeitlimit — direkt neben der Zeitwahl */}
+          <button
+            className="filter-chip"
+            onClick={() => setShowFilterModal(true)}
+            title={t('filterTitle', lang)}
+          >
+            {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
+            <span>
+              {bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} ·{' '}
+              {maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`}
+            </span>
+            <ChevronDown size={12} />
+          </button>
 
           <div className="ctl-row-actions">
             {from && to && (
