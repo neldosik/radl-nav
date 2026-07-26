@@ -34,6 +34,47 @@ export interface WeatherAtTime {
   timeLabel: string // HH:MM Vorhersagestunde
 }
 
+export interface ElevationProfile {
+  gain: number // Aufstieg in Metern (↗)
+  loss: number // Abstieg in Metern (↘)
+}
+
+/** Echter Höhenverlauf entlang von Routenpunkten (Open-Meteo Elevation API). */
+export async function fetchElevationProfile(pts: [number, number][], signal?: AbortSignal): Promise<ElevationProfile | null> {
+  if (!pts || pts.length < 2) return null
+  // Maximal 25 gleichmäßige Punkte samplen, um die URL kompakt zu halten
+  const step = Math.max(1, Math.floor(pts.length / 25))
+  const sampled: [number, number][] = []
+  for (let i = 0; i < pts.length; i += step) sampled.push(pts[i])
+  if (sampled[sampled.length - 1] !== pts[pts.length - 1]) sampled.push(pts[pts.length - 1])
+
+  const lats = sampled.map(p => p[1].toFixed(5)).join(',')
+  const lons = sampled.map(p => p[0].toFixed(5)).join(',')
+
+  try {
+    const u = new URL('https://api.open-meteo.com/v1/elevation')
+    u.searchParams.set('latitude', lats)
+    u.searchParams.set('longitude', lons)
+    const r = await fetch(u, { signal })
+    if (!r.ok) return null
+    const d = await r.json()
+    const elevations: number[] = d?.elevation ?? []
+    if (elevations.length < 2) return null
+
+    let gain = 0
+    let loss = 0
+    for (let i = 1; i < elevations.length; i++) {
+      const diff = elevations[i] - elevations[i - 1]
+      if (diff > 0.5) gain += diff
+      else if (diff < -0.5) loss += Math.abs(diff)
+    }
+
+    return { gain: Math.round(gain), loss: Math.round(loss) }
+  } catch {
+    return null
+  }
+}
+
 /** Vorhersage (Open-Meteo, ohne Key) für bestimmte Stunde am Punkt. rain = Niederschlag ≥ 0.3 mm. */
 export async function fetchWeatherAt(lat: number, lon: number, when: Date): Promise<WeatherAtTime | null> {
   const u = new URL('https://api.open-meteo.com/v1/forecast')
@@ -164,15 +205,17 @@ export async function loadFreeBikes(): Promise<FreeBike[]> {
 
 /** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek). */
 export async function loadStations(): Promise<Station[]> {
-  const [info, status, types] = (await Promise.all([
+  const [info, status, types, fb] = (await Promise.all([
     gbfs('station_information'),
     gbfs('station_status'),
     gbfs('vehicle_types'),
-  ])) as [FeedData, FeedData, FeedData]
+    gbfs('free_bike_status'),
+  ])) as [FeedData, FeedData, FeedData, FeedData]
   return parseStations(
     feedList<GbfsStationInfo>(info, 'stations'),
     feedList<GbfsStationStatus>(status, 'stations'),
     feedList<GbfsVehicleType>(types, 'vehicle_types'),
+    feedList<GbfsFreeBike>(fb, 'bikes'),
   )
 }
 

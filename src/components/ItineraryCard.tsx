@@ -1,7 +1,35 @@
+import { useEffect, useState } from 'react'
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
 import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
+import { decodePolyline } from '../polyline'
+import { fetchElevationProfile } from '../api'
+import type { ElevationProfile } from '../api'
+
+function BikeLegElevation({ leg }: { leg: Leg }) {
+  const [profile, setProfile] = useState<ElevationProfile | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    if (!leg.legGeometry?.points) return
+    const pts = decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
+    fetchElevationProfile(pts).then(p => {
+      if (alive) setProfile(p)
+    })
+    return () => {
+      alive = false
+    }
+  }, [leg])
+
+  if (!profile) return null
+
+  return (
+    <div className="elev-pill" title="Echtes Höhenprofil (Open-Meteo)">
+      ↗ +{profile.gain}m · ↘ -{profile.loss}m
+    </div>
+  )
+}
 
 /** «2 an »A« + 1 an »B« (180 m)» */
 export function pickupText(picks: { station: { name: string }; dist: number; take: number }[]) {
@@ -157,6 +185,8 @@ export default function ItineraryCard({
                   </div>
                   {leg.headsign && <div className="leg-sub">Richtung: {leg.headsign}</div>}
 
+                  {k === 'bike' && <BikeLegElevation leg={leg} />}
+
                   {k === 'bike' && bike && (
                     <div className="bike-details">
                       {pk && (
@@ -166,7 +196,7 @@ export default function ItineraryCard({
                       )}
                       {bike.electric && (
                         <div className="ebike-bat-info">
-                          ⚡ E-Bike (1,50 €/30 Min)
+                          ⚡ E-Bike {bike.startStation?.maxChargePercent != null ? `· Max Akku: ${bike.startStation.maxChargePercent}% (≈${bike.startStation.rangeKm ?? 25} km)` : '(1,50 €/30 Min)'}
                         </div>
                       )}
                       {bike.tooLong && (

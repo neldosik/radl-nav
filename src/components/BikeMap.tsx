@@ -294,7 +294,7 @@ export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelec
               <span className="bm-count-pill classic">🚲 {selected.bikes} {t('bmStandard', lang)}</span>
               {selected.ebikes > 0 && (
                 <span className="bm-count-pill ebike">
-                  ⚡ {selected.ebikes} E-Bike {selected.batteryPercent ? `(🔋 ${selected.batteryPercent}% · ~${selected.rangeKm ?? 25} km)` : ''}
+                  ⚡ {selected.ebikes} E-Bike {(selected.maxChargePercent ?? selected.batteryPercent) != null ? `(🔋 Max: ${selected.maxChargePercent ?? selected.batteryPercent}% · ~${selected.rangeKm ?? 25} km)` : ''}
                 </span>
               )}
               {walkDistM != null && (
