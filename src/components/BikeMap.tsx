@@ -16,7 +16,7 @@ interface Props {
 }
 
 const MUNICH: LatLon = { lat: 48.137, lon: 11.575 }
-const RADIUS_M = 2000
+const RADIUS_M = 2500
 
 function distMeters(a: LatLon, b: LatLon): number {
   const R = 6371000
@@ -31,7 +31,7 @@ function distMeters(a: LatLon, b: LatLon): number {
 export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
-  const markers = useRef<maplibregl.Marker[]>([])
+  const userMarker = useRef<maplibregl.Marker | null>(null)
   const touchStartX = useRef<number | null>(null)
   const [supply, setSupply] = useState<Station[] | null>(null)
   const [selected, setSelected] = useState<Station | null>(null)
@@ -95,53 +95,115 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // WebGL 60fps locked GeoJSON layer rendering to eliminate marker lag completely!
   useEffect(() => {
     const m = map.current
     if (!m || !supply) return
-    markers.current.forEach(mk => mk.remove())
-    markers.current = []
 
-    const filtered = nearbyStations(center, supply, RADIUS_M, 80).filter(({ station }) => {
+    const filtered = nearbyStations(center, supply, RADIUS_M, 100).filter(({ station }) => {
       if (filterType === 'classic') return station.bikes > 0
       if (filterType === 'ebike') return station.ebikes > 0
       return station.bikes > 0 || station.ebikes > 0
     })
 
-    for (const { station } of filtered) {
-      const el = document.createElement('div')
-      const isSel = selected?.name === station.name
-      el.className = `bm-pill-marker${isSel ? ' selected' : ''}`
-      el.title = station.name
-
-      // Render Nextbike style pill marker layout (e.g. [⚡ 1 | 🚲 9] or [🚲 4])
-      let html = ''
-      if (station.ebikes > 0 && (filterType === 'all' || filterType === 'ebike')) {
-        html += `<span class="bm-pill-sec ebike">⚡ ${station.ebikes}</span>`
-      }
-      if (station.ebikes > 0 && station.bikes > 0 && filterType === 'all') {
-        html += `<span class="bm-pill-div"></span>`
-      }
-      if (station.bikes > 0 && (filterType === 'all' || filterType === 'classic')) {
-        html += `<span class="bm-pill-sec classic">🚲 ${station.bikes}</span>`
-      }
-
-      el.innerHTML = html || `🚲 ${station.bikes + station.ebikes}`
-      el.onclick = e => {
-        e.stopPropagation()
-        setSelected(station)
-      }
-      markers.current.push(new maplibregl.Marker({ element: el }).setLngLat([station.lon, station.lat]).addTo(m))
+    const geojson = {
+      type: 'FeatureCollection' as const,
+      features: filtered.map(({ station }) => {
+        let label = ''
+        if (station.ebikes > 0 && (filterType === 'all' || filterType === 'ebike')) {
+          label += `⚡${station.ebikes}`
+        }
+        if (station.ebikes > 0 && station.bikes > 0 && filterType === 'all') {
+          label += ' '
+        }
+        if (station.bikes > 0 && (filterType === 'all' || filterType === 'classic')) {
+          label += `🚲${station.bikes}`
+        }
+        const uniqueId = station.id ?? `${station.lat}_${station.lon}`
+        const isSel = selected ? (selected.id ? selected.id === uniqueId : selected.lat === station.lat && selected.lon === station.lon) : false
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [station.lon, station.lat],
+          },
+          properties: {
+            id: uniqueId,
+            name: station.name,
+            bikes: station.bikes,
+            ebikes: station.ebikes,
+            label: label || `🚲${station.bikes + station.ebikes}`,
+            selected: isSel,
+          },
+        }
+      }),
     }
 
-    if (userPos) {
+    const applyData = () => {
+      const src = m.getSource('bikes-supply') as maplibregl.GeoJSONSource
+      if (src) {
+        src.setData(geojson)
+      } else {
+        m.addSource('bikes-supply', { type: 'geojson', data: geojson })
+
+        m.addLayer({
+          id: 'bikes-pill-bg',
+          type: 'circle',
+          source: 'bikes-supply',
+          paint: {
+            'circle-radius': ['case', ['get', 'selected'], 18, 15],
+            'circle-color': '#ffffff',
+            'circle-stroke-width': ['case', ['get', 'selected'], 3.5, 2.5],
+            'circle-stroke-color': ['case', ['get', 'selected'], '#ec3013', '#312e81'],
+          },
+        })
+
+        m.addLayer({
+          id: 'bikes-pill-label',
+          type: 'symbol',
+          source: 'bikes-supply',
+          layout: {
+            'text-field': ['get', 'label'],
+            'text-size': 12,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+          },
+          paint: {
+            'text-color': '#1e1b4b',
+          },
+        })
+
+        m.on('click', 'bikes-pill-bg', e => {
+          const f = e.features?.[0]
+          if (f) {
+            const stId = f.properties?.id
+            const st = supply.find(s => (s.id && s.id === stId) || `${s.lat}_${s.lon}` === stId)
+            if (st) setSelected(st)
+          }
+        })
+        m.on('mouseenter', 'bikes-pill-bg', () => {
+          m.getCanvas().style.cursor = 'pointer'
+        })
+        m.on('mouseleave', 'bikes-pill-bg', () => {
+          m.getCanvas().style.cursor = ''
+        })
+      }
+    }
+
+    if (m.isStyleLoaded()) {
+      applyData()
+    } else {
+      m.once('load', applyData)
+    }
+
+    if (userPos && !userMarker.current) {
       const me = document.createElement('div')
       me.className = 'mk-user'
-      markers.current.push(new maplibregl.Marker({ element: me }).setLngLat([userPos.lon, userPos.lat]).addTo(m))
+      userMarker.current = new maplibregl.Marker({ element: me }).setLngLat([userPos.lon, userPos.lat]).addTo(m)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supply, filterType, selected])
+  }, [supply, filterType, selected, center, userPos])
 
-  const list = supply ? nearbyStations(center, supply, RADIUS_M, 80) : []
+  const list = supply ? nearbyStations(center, supply, RADIUS_M, 100) : []
   const totalBikes = list.reduce((n, x) => n + x.station.bikes, 0)
   const totalE = list.reduce((n, x) => n + x.station.ebikes, 0)
   const walkDistM = selected && userPos ? distMeters(userPos, { lat: selected.lat, lon: selected.lon }) : null
