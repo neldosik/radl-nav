@@ -9,7 +9,7 @@ const MapPicker = lazy(() => import('./components/MapPicker'))
 const BikeMap = lazy(() => import('./components/BikeMap'))
 const History = lazy(() => import('./components/History'))
 import { addTrip } from './history'
-import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations } from './api'
+import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeocode } from './api'
 import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
 import { searchRoutes } from './routing'
@@ -83,7 +83,11 @@ export default function App() {
 
   useEffect(() => {
     getGeolocation()
-      .then(pos => journey.setUserPos(pos))
+      .then(async pos => {
+        journey.setUserPos(pos)
+        const name = await reverseGeocode(pos.lat, pos.lon).catch(() => t('myLocation', lang))
+        setFrom(f => f ?? { name, lat: pos.lat, lon: pos.lon })
+      })
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
