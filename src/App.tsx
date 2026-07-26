@@ -50,6 +50,7 @@ export default function App() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null)
+  const mapBoxRef = useRef<HTMLDivElement>(null)
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
   const [presetHint, setPresetHint] = useState<string | null>(null)
 
@@ -478,8 +479,28 @@ export default function App() {
           </div>
         )}
         {hasResults && (
-          <div className="results-map">
+          <div className="results-map" ref={mapBoxRef}>
             <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+
+            <div className="map-route-pills">
+              {views.map((v, i) => {
+                const durMin = Math.round(v.it.duration / 60)
+                const isSel = i === sel
+                return (
+                  <button
+                    key={i}
+                    className={`map-route-pill${isSel ? ' active' : ''}`}
+                    onClick={() => {
+                      setSel(i)
+                      mapBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    }}
+                  >
+                    <span className="mrp-num">#{i + 1}</span>
+                    <span className="mrp-dur">{durMin} Min</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
         {hasResults && (
@@ -500,7 +521,10 @@ export default function App() {
                   isFree={isFree}
                   isFewestTransfers={isFewestTransfers}
                   lang={lang}
-                  onSelect={() => setSel(i)}
+                  onSelect={() => {
+                    setSel(i)
+                    mapBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                  }}
                   onGo={() => journey.start()}
                 />
               )

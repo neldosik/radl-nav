@@ -2090,6 +2090,70 @@ body {
   color: var(--color-neutral-500);
 }
 
+/* ── Floating Map Route Selector Pills ── */
+.results-map {
+  position: relative;
+  scroll-margin-top: 16px;
+}
+
+.map-route-pills {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  z-index: 10;
+  pointer-events: none;
+  scrollbar-width: none;
+}
+
+.map-route-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.map-route-pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e1b4b;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.map-route-pill:active {
+  transform: scale(0.94);
+}
+
+.map-route-pill.active {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 50%, transparent);
+}
+
+.mrp-num {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.mrp-dur {
+  font-weight: 800;
+}
+
 /* ── Analytics & Badges CSS ── */
 .top-route-box {
   background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
