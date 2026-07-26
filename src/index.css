@@ -473,7 +473,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  /* Statusleiste des Telefons darf die Kopfzeile nicht überdecken */
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 18px 14px;
   background: var(--color-accent);
   color: var(--color-bg);
   font-family: var(--font-heading);
@@ -538,7 +539,8 @@ body {
 
 .picker-bottom {
   flex: none;
-  padding: 14px 18px 20px;
+  /* unten Platz für die Home-Leiste lassen */
+  padding: 14px 18px calc(20px + env(safe-area-inset-bottom, 0px));
   border-top: 2px solid var(--color-divider);
 }
 
@@ -872,7 +874,7 @@ body {
 
 .sig {
   text-align: center;
-  padding: 22px 18px 28px;
+  padding: 22px 18px calc(28px + env(safe-area-inset-bottom, 0px));
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1209,7 +1211,7 @@ body {
 .j-panel {
   flex: 0 0 auto;
   background: var(--color-bg);
-  padding: 10px 14px 12px;
+  padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1296,7 +1298,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 28px 22px;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 22px
+    calc(28px + env(safe-area-inset-bottom, 0px));
   gap: 6px;
 }
 
