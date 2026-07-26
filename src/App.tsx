@@ -5,75 +5,16 @@ import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
 import StationWidget from './components/StationWidget'
-import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, plan } from './api'
+import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations } from './api'
 import type { WeatherAtTime } from './api'
-import { clusterFreeBikes, haversine, nearbyStations, nearestStation } from './geo'
-import { decodePolyline } from './polyline'
+import { clusterFreeBikes } from './geo'
+import { searchRoutes } from './routing'
+import { useTheme } from './hooks/useTheme'
+import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, shortPlace, upsertSaved } from './places'
 import type { SavedPlace } from './places'
 import { BikeIcon, BoltIcon, LogoMark, SendIcon, StarIcon, SwapIcon } from './icons'
-import type { BikeLegInfo, Itinerary, ItineraryView, Place, Station } from './types'
-
-/** 28 мин вместо 30 — запас на поиск слота и парковку. */
-const FREE_LIMIT_SEC = 28 * 60
-
-const MYRADL_SYSTEM_ID = 'nextbike_ml'
-
-function buildView(
-  it: Itinerary,
-  stations: Station[], // реальные станции — для взятия/возврата/смены велика
-  supply: Station[], // станции + свободностоящие велики — для подсчёта «сколько рядом»
-  maxBikeSec: number,
-  classicOnly: boolean,
-): ItineraryView | null {
-  const bikeLegs = new Map<number, BikeLegInfo>()
-  let hasBike = false
-  let warnLong = false
-  let hasElectric = false
-
-  for (let i = 0; i < it.legs.length; i++) {
-    const leg = it.legs[i]
-    if (leg.mode !== 'RENTAL') continue
-    // Только MyRadl: Dott (самокаты И велики) платный — вырезаем целиком.
-    const isMyRadl =
-      leg.rental?.systemId === MYRADL_SYSTEM_ID ||
-      (leg.rental?.systemName ?? '').toLowerCase().includes('myradl')
-    if (!isMyRadl) return null
-    // Жёсткий лимит пользователя «на велике не дольше N минут».
-    if (leg.duration > maxBikeSec) return null
-    // E-bike платный всегда; в режиме «обычные» — вырезаем (страховка к серверному фильтру).
-    const electric = !!leg.rental?.propulsionType && leg.rental.propulsionType !== 'HUMAN'
-    if (electric && classicOnly) return null
-    const freeFloating = !leg.rental?.fromStationName
-    hasBike = true
-    const info: BikeLegInfo = {
-      startStation: freeFloating ? null : nearestStation(leg.from, stations),
-      endStation: nearestStation(leg.to, stations),
-      tooLong: !electric && leg.duration > FREE_LIMIT_SEC,
-      electric,
-      freeFloating,
-      swapStation: null,
-      // всё доступное вокруг старта этапа (вкл. свободностоящие) — чтобы набрать на группу
-      nearby: nearbyStations(leg.from, supply, 600, 6),
-    }
-    // «Веломарафон»: этап дольше бесплатных 30 мин → станция у середины пути для смены велика.
-    if (info.tooLong && leg.legGeometry?.points) {
-      const pts = decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
-      const mid = pts[Math.floor(pts.length * 0.55)]
-      if (mid) {
-        // Доки MyRadl всегда 0 (flex-станции), возврат принимают везде — нужны лишь велики.
-        const cand = stations.filter(s => s.bikes > 0)
-        const sw = nearestStation({ lat: mid[1], lon: mid[0] }, cand, 600)
-        if (sw && sw.id !== info.startStation?.id && sw.id !== info.endStation?.id) info.swapStation = sw
-      }
-    }
-    if (info.tooLong) warnLong = true
-    if (electric) hasElectric = true
-    bikeLegs.set(i, info)
-  }
-
-  return { it, hasBike, warnLong, hasElectric, bikeLegs }
-}
+import type { ItineraryView, Place, Station } from './types'
 
 export default function App() {
   const [from, setFrom] = useState<Place | null>(null)
@@ -97,92 +38,30 @@ export default function App() {
   const [favVer, setFavVer] = useState(0) // форс-обновление списка любимых
   const [nowTick, setNowTick] = useState(Date.now()) // для живого отсчёта до отправления
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
-  // Режим «Поехали»: null = выключен, число = индекс текущего этапа.
-  const [journeyLeg, setJourneyLeg] = useState<number | null>(null)
-  const [startedAt, setStartedAt] = useState<number | null>(null) // старт поездки для таймера
-  const [arrived, setArrived] = useState(false) // экран «прибыли»
-  const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null)
   const [liveStations, setLiveStations] = useState<Station[]>([])
   const searchCtrl = useRef<AbortController | null>(null) // laufende Suche abbrechbar
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
 
+  const { theme: themeMode, toggleTheme } = useTheme()
+
+  const selectedView = views?.[sel] ?? null
+  const journey = useJourney(selectedView)
+  const { legIndex: journeyLeg, startedAt, arrived, userPos, distToEnd } = journey
+
+  // Beim Start: Stationen laden und einmalig den Standort holen (für das Stationen-Widget).
   useEffect(() => {
-    loadStations().then(s => setLiveStations(s)).catch(() => {})
-    getGeolocation().then(pos => {
-      if (pos) setUserPos(pos)
-    }).catch(() => {})
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        p => setUserPos({ lat: p.coords.latitude, lon: p.coords.longitude }),
-        () => {},
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
-    }
-  }, [])
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
-    // Standard: helles Theme; Dark nur, wenn der Nutzer es selbst gewählt hat
-    return localStorage.getItem('radl.theme') === 'dark' ? 'dark' : 'light'
-  })
-
-  useEffect(() => {
-    localStorage.setItem('radl.theme', themeMode)
-    const root = document.documentElement
-    root.classList.remove('light-theme', 'dark-theme')
-    if (themeMode === 'light') root.classList.add('light-theme')
-    else root.classList.add('dark-theme')
-  }, [themeMode])
-
-  function toggleTheme() {
-    setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'))
-  }
-
-  const journeyView = journeyLeg != null && views ? (views[sel] ?? null) : null
-
-  // Слежение за позицией + не давать экрану гаснуть, пока едем.
-  useEffect(() => {
-    if (journeyLeg == null) {
-      setUserPos(null)
-      return
-    }
-    if (!navigator.geolocation) return
-    const id = navigator.geolocation.watchPosition(
-      p => setUserPos({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 },
-    )
-    let lock: WakeLockSentinel | undefined
-    navigator.wakeLock
-      ?.request('screen')
-      .then(l => {
-        lock = l
-      })
+    loadStations().then(setLiveStations).catch(() => {})
+    getGeolocation()
+      .then(pos => journey.setUserPos(pos))
       .catch(() => {})
-    return () => {
-      navigator.geolocation.clearWatch(id)
-      lock?.release().catch(() => {})
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [journeyLeg != null])
+  }, [])
+  const journeyView = journeyLeg != null ? selectedView : null
 
-  // Автопереход: доехал до конца этапа (<70 м) — включаем следующий.
+  // Neue Suche oder andere Route gewählt — Los-Modus verlassen.
   useEffect(() => {
-    if (journeyLeg == null || !userPos || !journeyView) return
-    const legs = journeyView.it.legs
-    const leg = legs[journeyLeg]
-    const d = haversine(userPos, { lat: leg.to.lat, lon: leg.to.lon })
-    if (d < 70 && journeyLeg < legs.length - 1) {
-      setJourneyLeg(journeyLeg + 1)
-      navigator.vibrate?.(200)
-    }
+    journey.exit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userPos])
-
-  // Новый поиск или другая карточка — выходим из режима «Поехали».
-  useEffect(() => {
-    setJourneyLeg(null)
-    setStartedAt(null)
-    setArrived(false)
   }, [sel, views])
 
   // Тик раз в 30с для отсчёта «Abfahrt in X» (только когда есть результаты).
@@ -199,26 +78,6 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [journeyLeg, arrived])
 
-  function startJourney() {
-    setJourneyLeg(0)
-    setStartedAt(Date.now())
-    setArrived(false)
-  }
-
-  function exitJourney() {
-    setJourneyLeg(null)
-    setStartedAt(null)
-    setArrived(false)
-  }
-
-  const distToEnd =
-    journeyLeg != null && userPos && journeyView
-      ? haversine(userPos, {
-          lat: journeyView.it.legs[journeyLeg].to.lat,
-          lon: journeyView.it.legs[journeyLeg].to.lon,
-        })
-      : null
-
   async function search(f: Place | null = from, t: Place | null = to) {
     if (!f || !t) return
     // Vorherige Suche abbrechen — sonst kann eine alte Antwort die neue überschreiben.
@@ -232,37 +91,19 @@ export default function App() {
     const when = timeMode !== 'now' && timeVal ? new Date(timeVal) : undefined
     const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}
     try {
-      const [res, stations, freeBikes] = await Promise.all([
-        plan(f, t, { classicOnly: bikeType === 'classic', ...timeOpts }, ctrl.signal),
-        loadStations(),
-        loadFreeBikes().catch(() => []),
-      ])
+      const [stations, freeBikes] = await Promise.all([loadStations(), loadFreeBikes()])
       if (ctrl.signal.aborted) return
-      // для подсчёта доступности учитываем и свободностоящие велики
+      // für die Verfügbarkeit zählen auch freistehende Räder mit
       const supply = [...stations, ...clusterFreeBikes(freeBikes)]
-      const toViews = (its: Itinerary[]) =>
-        its
-          .map(it => buildView(it, stations, supply, maxBike * 60, bikeType === 'classic'))
-          .filter((v): v is ItineraryView => v !== null)
-          // чисто пешие варианты не интересны — приложение про велик и транспорт
-          .filter(v => v.hasBike || v.it.legs.some(l => l.mode !== 'WALK'))
-      const sig = (v: ItineraryView) =>
-        `${v.it.startTime}|${v.it.endTime}|${v.it.legs.map(l => l.mode + (l.routeShortName ?? '')).join(',')}`
-
-      let list = toViews([...(res.direct ?? []), ...res.itineraries])
-      // Лимит вело-времени мог съесть всё (вечером MOTIS любит длинные вело-варианты) —
-      // добираем чистый транспорт вторым запросом.
-      if (list.length < 2) {
-        const res2 = await plan(f, t, { walkOnly: true, ...timeOpts }, ctrl.signal)
-        if (ctrl.signal.aborted) return
-        const seen = new Set(list.map(sig))
-        for (const v of toViews([...(res2.direct ?? []), ...res2.itineraries])) {
-          if (!seen.has(sig(v))) list.push(v)
-        }
-      }
-      list = list
-        .sort((a, b) => +new Date(a.it.endTime) - +new Date(b.it.endTime))
-        .slice(0, 7)
+      const list = await searchRoutes(f, t, {
+        stations,
+        supply,
+        maxBikeSec: maxBike * 60,
+        classicOnly: bikeType === 'classic',
+        time: timeOpts,
+        signal: ctrl.signal,
+      })
+      if (ctrl.signal.aborted) return
       setViews(list)
       setSel(0)
       // Погода на время старта лучшего варианта в точке отправления.
@@ -311,10 +152,10 @@ export default function App() {
           startedAt={startedAt}
           arrived={arrived}
           routeLabel={from && to ? `${shortPlace(from)} → ${shortPlace(to)}` : ''}
-          onPrev={() => setJourneyLeg(Math.max(0, journeyLeg - 1))}
-          onNext={() => setJourneyLeg(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
-          onArrive={() => setArrived(true)}
-          onExit={exitJourney}
+          onPrev={() => journey.goTo(Math.max(0, journeyLeg - 1))}
+          onNext={() => journey.goTo(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
+          onArrive={journey.markArrived}
+          onExit={journey.exit}
         >
           <MapView
             view={journeyView}
@@ -563,7 +404,7 @@ export default function App() {
             bikesNeeded={bikes}
             now={nowTick}
             onSelect={() => setSel(i)}
-            onGo={startJourney}
+            onGo={journey.start}
           />
         ))}
         <div className="sig">

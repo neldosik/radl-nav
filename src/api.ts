@@ -1,3 +1,5 @@
+import { parseFreeBikes, parseStations } from './gbfs'
+import type { GbfsFreeBike, GbfsStationInfo, GbfsStationStatus, GbfsVehicleType } from './gbfs'
 import type { FreeBike, GeocodeMatch, LatLon, PlanResponse, Station } from './types'
 
 const MOTIS = 'https://api.transitous.org/api'
@@ -134,105 +136,43 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal
   return r.json()
 }
 
-interface GbfsStationInfo {
-  station_id: string
-  name: string
-  lat: number
-  lon: number
+/** Holt einen GBFS-Feed; bei Fehler null statt Exception. */
+async function gbfs(feed: string): Promise<unknown> {
+  try {
+    const r = await fetch(`${GBFS}/${feed}.json`)
+    return r.ok ? await r.json() : null
+  } catch {
+    return null
+  }
 }
 
-interface GbfsStationStatus {
-  station_id: string
-  num_bikes_available: number
-  num_docks_available?: number
-  vehicle_types_available?: { vehicle_type_id: string; count: number }[]
-}
-
-interface GbfsVehicleType {
-  vehicle_type_id: string
-  form_factor?: string
-  propulsion_type?: string
-}
-
-interface GbfsFreeBike {
-  bike_id: string
-  lat?: number
-  lon?: number
-  vehicle_type_id?: string
-  is_reserved?: boolean
-  is_disabled?: boolean
-  station_id?: string // gesetzt => Rad steht an einer Station (schon in station_status gezählt)
-}
+type FeedData = { data?: Record<string, unknown> } | null
+const feedList = <T>(d: FeedData, key: string): T[] | null =>
+  (d?.data?.[key] as T[] | undefined) ?? null
 
 /** Freistehende MyRadl-Räder (nicht an einer Station) — können ebenfalls geliehen werden. */
 export async function loadFreeBikes(): Promise<FreeBike[]> {
-  try {
-    const [fb, types] = await Promise.all([
-      fetch(`${GBFS}/free_bike_status.json`).then(r => (r.ok ? r.json() : null)),
-      fetch(`${GBFS}/vehicle_types.json`).then(r => (r.ok ? r.json() : null)).catch(() => null),
-    ])
-    if (!fb?.data?.bikes) return []
-    const electric = new Set<string>()
-    for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
-      if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
-    }
-    // WICHTIG: free_bike_status enthält ALLE Räder — auch die an Stationen
-    // (~4100 von ~4500 haben station_id). Ohne diesen Filter würden Stationsräder
-    // doppelt gezählt (einmal via station_status, einmal hier).
-    return ((fb.data?.bikes ?? []) as GbfsFreeBike[])
-      .filter(b => !b.station_id)
-      .filter(b => !b.is_disabled && !b.is_reserved && typeof b.lat === 'number' && typeof b.lon === 'number')
-      .map(b => ({
-        id: b.bike_id,
-        lat: b.lat!,
-        lon: b.lon!,
-        electric: !!b.vehicle_type_id && electric.has(b.vehicle_type_id),
-      }))
-  } catch (e) {
-    console.warn('GBFS free bikes loading failed:', e)
-    return []
-  }
+  const [fb, types] = (await Promise.all([gbfs('free_bike_status'), gbfs('vehicle_types')])) as [
+    FeedData,
+    FeedData,
+  ]
+  return parseFreeBikes(
+    feedList<GbfsFreeBike>(fb, 'bikes'),
+    feedList<GbfsVehicleType>(types, 'vehicle_types'),
+  )
 }
 
 /** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek). */
 export async function loadStations(): Promise<Station[]> {
-  try {
-    const [info, status, types] = await Promise.all([
-      fetch(`${GBFS}/station_information.json`).then(r => (r.ok ? r.json() : null)),
-      fetch(`${GBFS}/station_status.json`).then(r => (r.ok ? r.json() : null)),
-      fetch(`${GBFS}/vehicle_types.json`).then(r => (r.ok ? r.json() : null)).catch(() => null),
-    ])
-
-    if (!info?.data?.stations || !status?.data?.stations) return []
-
-    const electric = new Set<string>()
-    for (const vt of (types?.data?.vehicle_types ?? []) as GbfsVehicleType[]) {
-      if (vt.propulsion_type && vt.propulsion_type !== 'human') electric.add(vt.vehicle_type_id)
-    }
-
-    const statusById = new Map<string, GbfsStationStatus>()
-    for (const s of (status.data?.stations ?? []) as GbfsStationStatus[]) statusById.set(s.station_id, s)
-
-    return ((info.data?.stations ?? []) as GbfsStationInfo[]).map(si => {
-      const st = statusById.get(si.station_id)
-      let ebikes = 0
-      for (const v of st?.vehicle_types_available ?? []) {
-        if (electric.has(v.vehicle_type_id)) ebikes += v.count
-      }
-      const total = st?.num_bikes_available ?? 0
-      return {
-        id: si.station_id,
-        name: si.name,
-        lat: si.lat,
-        lon: si.lon,
-        bikes: Math.max(0, total - ebikes),
-        ebikes,
-        docks: st?.num_docks_available ?? null,
-      }
-    })
-  } catch (e) {
-    console.warn('GBFS stations loading failed:', e)
-    return []
-  }
+  const [info, status, types] = (await Promise.all([
+    gbfs('station_information'),
+    gbfs('station_status'),
+    gbfs('vehicle_types'),
+  ])) as [FeedData, FeedData, FeedData]
+  return parseStations(
+    feedList<GbfsStationInfo>(info, 'stations'),
+    feedList<GbfsStationStatus>(status, 'stations'),
+    feedList<GbfsVehicleType>(types, 'vehicle_types'),
+  )
 }
 
