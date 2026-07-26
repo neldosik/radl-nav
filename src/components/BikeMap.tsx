@@ -67,14 +67,15 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
 
   ctx.shadowColor = 'transparent'
   ctx.lineWidth = selected ? 3 : 2
-  ctx.strokeStyle = selected ? '#ec3013' : '#312e81'
+  // Petrol für die gewählte Station, Tinte für die übrigen — wie in der Oberfläche
+  ctx.strokeStyle = selected ? '#1f7a6f' : '#24211c'
   ctx.stroke()
 
   // Text
   ctx.font = 'bold 12px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#1e1b4b'
+  ctx.fillStyle = '#24211c'
   ctx.fillText(text, w / 2, h / 2 - 1)
 
   return ctx.getImageData(0, 0, w * dpr, h * dpr)

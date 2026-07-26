@@ -9,13 +9,16 @@ export function mapStyleUrl(theme: ThemeMode): string {
     : 'https://tiles.openfreemap.org/styles/liberty'
 }
 
-/** Farbe der Etappenlinie — Transit-Farbe muss auf dunkler Karte sichtbar bleiben. */
+/**
+ * Farbe der Etappenlinie — gleiche Sprache wie die Oberfläche:
+ * Petrol fürs Rad, warmes Grau für Fußwege, Tinte für den ÖPNV.
+ */
 export function routeColors(theme: ThemeMode) {
   return {
-    bike: '#ec3013',
-    walk: theme === 'dark' ? '#b9b5b5' : '#9b9797',
-    transit: theme === 'dark' ? '#f3f2f2' : '#201e1d',
-    casing: theme === 'dark' ? '#000000' : '#0e1116',
+    bike: theme === 'dark' ? '#35a091' : '#1f7a6f',
+    walk: theme === 'dark' ? '#8f887d' : '#a49c8d',
+    transit: theme === 'dark' ? '#f4f1ea' : '#24211c',
+    casing: theme === 'dark' ? '#12100f' : '#24211c',
   }
 }
 

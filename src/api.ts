@@ -112,11 +112,23 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
     }
   }
   const precip = precs[bi] ?? 0
+  // Die nächsten Stunden mitgeben — daraus baut die Oberfläche den Regenverlauf.
+  const hourly: WeatherHour[] = []
+  for (let i = bi; i < Math.min(times.length, bi + 12); i++) {
+    const p = precs[i] ?? 0
+    hourly.push({
+      timeLabel: times[i]?.slice(11, 16) ?? '',
+      temp: Math.round(temps[i] ?? 0),
+      precip: p,
+      rain: p >= 0.3,
+    })
+  }
   return {
     temp: Math.round(temps[bi] ?? 0),
     precip,
     rain: precip >= 0.3,
     timeLabel: times[bi]?.slice(11, 16) ?? '',
+    hourly,
   }
 }
 

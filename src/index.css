@@ -935,6 +935,56 @@ button {
   gap: 2px;
 }
 
+.results-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Abfahrtszähler in der geöffneten Karte */
+.depart-in {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.depart-in.urgent {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* Dünner Zeitstrahl der Etappen über der Karte */
+.route-timeline-bar {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.timeline-seg {
+  border-radius: 3px;
+  background: var(--chip);
+}
+
+.timeline-seg.bar-bike {
+  background: var(--accent);
+}
+
+.timeline-seg.bar-transit {
+  background: var(--ink);
+}
+
+.timeline-seg.bar-walk {
+  background: var(--line-strong);
+}
+
 /* ── Untere Reiter ── */
 .tabbar {
   flex: none;
@@ -1222,6 +1272,32 @@ button {
   font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* Filterleiste über der Räder-Karte */
+.bm-filter-bar {
+  gap: 6px;
+  padding: 0 6px;
+  height: 40px;
+}
+
+.bm-filter-chip {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bm-filter-chip.active {
+  background: var(--accent);
+  color: #fff;
 }
 
 .bm-locate {
@@ -1580,6 +1656,62 @@ button {
   gap: 14px;
 }
 
+/* Großes Etappensymbol im unteren Blatt */
+.j-bigico {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--chip);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.j-bigico.bike {
+  background: var(--accent);
+  color: #fff;
+}
+
+.j-bigico.line {
+  background: var(--ink);
+  color: var(--card);
+}
+
+/* Vorschau der nächsten Etappen */
+.j-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--chip);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.j-chip.bike {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.j-chip.line {
+  background: var(--chip);
+  color: var(--ink);
+}
+
+.j-chip.sel {
+  outline: 2px solid var(--accent);
+}
+
 .j-legmain {
   flex: 1;
   min-width: 0;
@@ -1804,41 +1936,50 @@ button {
   margin-bottom: 10px;
 }
 
+/* Abschnitt im Blatt (Typ, Zeitlimit) */
+.filter-card {
+  margin-bottom: 18px;
+}
+
 .filter-type-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 18px;
 }
 
-.filter-card {
+.filter-type-card {
   border: 1.5px solid var(--line-strong);
   background: var(--card);
   border-radius: var(--r-card);
   padding: 14px;
   text-align: center;
   cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  display: block;
+  width: 100%;
 }
 
-.filter-card.on {
+.filter-type-card.active {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
 
-.filter-card .ft-icon {
+/* zweite Karte ist immer das E-Bike — Terracotta statt Petrol */
+.filter-type-card:nth-child(2) .ft-icon {
+  color: var(--warn);
+}
+
+.filter-type-card:nth-child(2).active {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.ft-icon {
   color: var(--accent);
   display: flex;
   justify-content: center;
   margin-bottom: 6px;
-}
-
-.filter-card.ebike .ft-icon {
-  color: var(--warn);
-}
-
-.filter-card.ebike.on {
-  border-color: var(--warn);
-  background: var(--warn-soft);
 }
 
 .ft-name {
@@ -1855,22 +1996,22 @@ button {
 .filter-time-pills {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
 }
 
-.filter-time-pills button {
+.filter-time-pill {
   flex: 1;
   height: 46px;
   border-radius: 12px;
   background: var(--card);
   border: 1px solid var(--line-strong);
+  font-family: inherit;
   font-weight: 600;
   font-size: 14px;
   color: var(--ink);
   cursor: pointer;
 }
 
-.filter-time-pills button.on {
+.filter-time-pill.active {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
@@ -1883,24 +2024,80 @@ button {
   color: var(--paper);
 }
 
-/* Wetterliste */
+/* Auszeichnungen im Fahrtenbuch */
+.badges-box {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.achieve-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.achieve-badge.unlocked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.achieve-badge.locked {
+  color: var(--faint);
+  opacity: 0.65;
+}
+
+/* Stündlicher Wetterverlauf */
 .weather-hourly-list {
   display: flex;
-  gap: 10px;
-  overflow-x: auto;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
   padding: 4px 0 10px;
+}
+
+.weather-hour-row {
+  display: grid;
+  grid-template-columns: 62px 28px 52px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.weather-hour-row.rain {
+  background: var(--warn-soft);
 }
 
 .wh-time,
 .wh-temp,
 .wh-precip {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--muted);
-  text-align: center;
+}
+
+.wh-temp {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.weather-hour-row.rain .wh-precip {
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .wh-icon {
-  font-size: 18px;
+  font-size: 16px;
   text-align: center;
 }
 
