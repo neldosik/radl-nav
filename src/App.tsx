@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
-import MapPicker from './components/MapPicker'
-import BikeMap from './components/BikeMap'
-import History from './components/History'
 import FilterModal from './components/FilterModal'
+
+const MapPicker = lazy(() => import('./components/MapPicker'))
+const BikeMap = lazy(() => import('./components/BikeMap'))
+const History = lazy(() => import('./components/History'))
 import { addTrip } from './history'
 import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations } from './api'
 import type { WeatherAtTime } from './api'
@@ -164,45 +165,51 @@ export default function App() {
 
   if (pickOnMap) {
     return (
-      <MapPicker
-        title={pickOnMap === 'from'
-          ? (lang === 'en' ? 'Select Start on Map' : 'Startpunkt auf Karte wählen')
-          : (lang === 'en' ? 'Select Destination on Map' : 'Zielpunkt auf Karte wählen')
-        }
-        initial={pickOnMap === 'from' ? from : to}
-        theme={themeMode}
-        lang={lang}
-        onPick={p => {
-          if (pickOnMap === 'from') setFrom(p)
-          else setTo(p)
-          setPickOnMap(null)
-        }}
-        onClose={() => setPickOnMap(null)}
-      />
+      <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
+        <MapPicker
+          title={pickOnMap === 'from'
+            ? (lang === 'en' ? 'Select Start on Map' : 'Startpunkt auf Karte wählen')
+            : (lang === 'en' ? 'Select Destination on Map' : 'Zielpunkt auf Karte wählen')
+          }
+          initial={pickOnMap === 'from' ? from : to}
+          theme={themeMode}
+          lang={lang}
+          onPick={p => {
+            if (pickOnMap === 'from') setFrom(p)
+            else setTo(p)
+            setPickOnMap(null)
+          }}
+          onClose={() => setPickOnMap(null)}
+        />
+      </Suspense>
     )
   }
 
   if (showBikeMap) {
     return (
-      <BikeMap
-        userPos={userPos}
-        theme={themeMode}
-        lang={lang}
-        onSelectPlace={p => {
-          setFrom(p)
-          setShowBikeMap(false)
-        }}
-        onClose={() => setShowBikeMap(false)}
-      />
+      <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
+        <BikeMap
+          userPos={userPos}
+          theme={themeMode}
+          lang={lang}
+          onSelectPlace={p => {
+            setFrom(p)
+            setShowBikeMap(false)
+          }}
+          onClose={() => setShowBikeMap(false)}
+        />
+      </Suspense>
     )
   }
 
   if (showHistory) {
     return (
-      <History
-        lang={lang}
-        onClose={() => setShowHistory(false)}
-      />
+      <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
+        <History
+          lang={lang}
+          onClose={() => setShowHistory(false)}
+        />
+      </Suspense>
     )
   }
 
@@ -337,10 +344,13 @@ export default function App() {
             const saved = savedPlaces.find(p => p.id === s.id)
             const target = to ?? from
             const labelText = s.id === 'home' ? t('home', lang) : s.id === 'work' ? t('work', lang) : t('uni', lang)
+            const curHour = new Date().getHours()
+            const isSmart = (curHour >= 7 && curHour < 10 && s.id === 'work') || (curHour >= 16 && curHour < 20 && s.id === 'home')
+
             return (
               <button
                 key={s.id}
-                className={`quick-preset-chip${saved ? ' active' : ' empty'}`}
+                className={`quick-preset-chip${saved ? ' active' : ' empty'}${isSmart ? ' smart-commute' : ''}`}
                 onClick={() => {
                   if (saved) {
                     setTo(saved.place)
@@ -355,6 +365,7 @@ export default function App() {
                 title={saved ? `Ziel: ${saved.place.name}` : `Als ${labelText} speichern`}
               >
                 <span>{saved ? s.emoji : '＋'}</span> {labelText}
+                {isSmart && <span className="smart-tag">⚡</span>}
                 {saved && <span className="preset-dot" />}
               </button>
             )

@@ -111,9 +111,25 @@ export default function ItineraryCard({
   }
 
   const stripLegs = it.legs.filter(l => !(l.mode === 'WALK' && l.duration < 90))
+  const totalDurationSec = Math.max(1, it.legs.reduce((acc, l) => acc + l.duration, 0))
 
   return (
     <div className={`route${selected ? ' sel' : ''}`}>
+      <div className="route-timeline-bar">
+        {it.legs.map((l, i) => {
+          const pct = Math.max(3, (l.duration / totalDurationSec) * 100)
+          const k = legKind(l)
+          const colorClass = k === 'bike' ? 'bar-bike' : k === 'line' ? 'bar-transit' : 'bar-walk'
+          return (
+            <span
+              key={i}
+              className={`timeline-seg ${colorClass}`}
+              style={{ width: `${pct}%` }}
+              title={`${mins(l.duration)}′ ${legLabel(l)}`}
+            />
+          )
+        })}
+      </div>
       <div className="route-main" onClick={onSelect}>
         <span className="route-idx">{String(index + 1).padStart(2, '0')}</span>
         <div className="route-body">

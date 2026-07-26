@@ -973,6 +973,29 @@ body {
   color: #fff;
 }
 
+/* Visual timeline bar at top of itinerary card */
+.route-timeline-bar {
+  display: flex;
+  height: 5px;
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+  background: var(--color-neutral-200);
+}
+.timeline-seg {
+  height: 100%;
+  transition: opacity 0.2s;
+}
+.timeline-seg.bar-bike {
+  background: #ec3013;
+}
+.timeline-seg.bar-transit {
+  background: #2563eb;
+}
+.timeline-seg.bar-walk {
+  background: #9ca3af;
+}
+
 /* Übersichtskarte über der Trefferliste — zeigt den Weg vor dem Losfahren */
 .results-map {
   position: relative;
@@ -1756,6 +1779,26 @@ body {
 .quick-preset-chip.active {
   border-color: var(--color-accent);
   font-weight: 800;
+}
+
+.quick-preset-chip.smart-commute {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1.5px rgba(245, 158, 11, 0.4);
+  animation: smart-pulse 2s infinite;
+}
+
+.smart-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  color: #f59e0b;
+  margin-left: 2px;
+}
+
+@keyframes smart-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  70% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
 }
 
 /* Noch nicht belegter Platz: gestrichelt und blass — „hier kann etwas rein" */
