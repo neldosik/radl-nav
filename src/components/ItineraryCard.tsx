@@ -104,6 +104,11 @@ export default function ItineraryCard({
   } else if (view.warnLong) {
     tagKind = 'warn'
     tagText = lang === 'en' ? 'Bike ride > 30 free mins' : 'Rad länger als 30 Freiminuten'
+  } else if (minGot != null && minGot <= 2) {
+    tagKind = 'warn'
+    tagText = lang === 'en'
+      ? `⚠️ High demand: only ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} left`
+      : `⚠️ Hohe Nachfrage: nur noch ${minGot} ${bikeWord(minGot)} frei`
   } else if (minGot != null) {
     tagText = lang === 'en'
       ? `0 € with sub · ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} free`

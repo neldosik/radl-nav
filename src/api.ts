@@ -27,12 +27,22 @@ export async function reverseGeocode(lat: number, lon: number, signal?: AbortSig
   return arr?.[0]?.name ?? 'Mein Standort'
 }
 
+export interface WeatherHour {
+  timeLabel: string
+  temp: number
+  precip: number
+  rain: boolean
+}
+
 export interface WeatherAtTime {
   temp: number // °C
   precip: number // mm pro Stunde
   rain: boolean // spürbarer Regen
   timeLabel: string // HH:MM Vorhersagestunde
+  hourly?: WeatherHour[]
 }
+
+
 
 export interface ElevationProfile {
   gain: number // Aufstieg in Metern (↗)
@@ -203,19 +213,43 @@ export async function loadFreeBikes(): Promise<FreeBike[]> {
   )
 }
 
-/** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek). */
+const STATIONS_CACHE_KEY = 'radl.stations_cache'
+
+/** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek, inkl. Offline-Кэш). */
 export async function loadStations(): Promise<Station[]> {
-  const [info, status, types, fb] = (await Promise.all([
-    gbfs('station_information'),
-    gbfs('station_status'),
-    gbfs('vehicle_types'),
-    gbfs('free_bike_status'),
-  ])) as [FeedData, FeedData, FeedData, FeedData]
-  return parseStations(
-    feedList<GbfsStationInfo>(info, 'stations'),
-    feedList<GbfsStationStatus>(status, 'stations'),
-    feedList<GbfsVehicleType>(types, 'vehicle_types'),
-    feedList<GbfsFreeBike>(fb, 'bikes'),
-  )
+  try {
+    const [info, status, types, fb] = (await Promise.all([
+      gbfs('station_information'),
+      gbfs('station_status'),
+      gbfs('vehicle_types'),
+      gbfs('free_bike_status'),
+    ])) as [FeedData, FeedData, FeedData, FeedData]
+
+    const parsed = parseStations(
+      feedList<GbfsStationInfo>(info, 'stations'),
+      feedList<GbfsStationStatus>(status, 'stations'),
+      feedList<GbfsVehicleType>(types, 'vehicle_types'),
+      feedList<GbfsFreeBike>(fb, 'bikes'),
+    )
+
+    if (parsed.length > 0) {
+      try {
+        localStorage.setItem(STATIONS_CACHE_KEY, JSON.stringify({ at: Date.now(), data: parsed }))
+      } catch {}
+      return parsed
+    }
+  } catch {
+    // Ошибка сети — пробуем достать из оффлайн-кэша
+  }
+
+  try {
+    const cached = localStorage.getItem(STATIONS_CACHE_KEY)
+    if (cached) {
+      const { data } = JSON.parse(cached)
+      if (Array.isArray(data)) return data
+    }
+  } catch {}
+
+  return []
 }
 

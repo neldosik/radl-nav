@@ -96,6 +96,19 @@ export default function JourneyMode({
 
   const bikeSec = bikeStartedAt.current ? Math.floor((now - bikeStartedAt.current) / 1000) : 0
 
+  // Screen Wake Lock API — keep display awake while riding
+  useEffect(() => {
+    let wakeLock: any = null
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(lock => {
+        wakeLock = lock
+      }).catch(() => {})
+    }
+    return () => {
+      wakeLock?.release().catch(() => {})
+    }
+  }, [])
+
   // Get-off alert vibration when transit leg reaches final ~200m or 1 min
   useEffect(() => {
     if (!isTransitLeg || vibratedTransit.current) return
@@ -222,6 +235,13 @@ export default function JourneyMode({
       <div className="j-map">{children}</div>
 
       <div className="j-panel">
+        {isBikeLeg && (
+          <div className="turn-guidance-bar">
+            <span>🚴 {lang === 'en' ? 'Navigate towards' : 'Fahre Richtung'}: <b>»{toName}«</b></span>
+            {distText && <span className="tg-dist">({distText})</span>}
+          </div>
+        )}
+
         {isNearDropoff ? (
           <div className="timer-banner urgent">
             📍 {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}

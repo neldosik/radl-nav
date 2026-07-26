@@ -45,6 +45,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherAtTime | null>(null)
   const [favRoutes, setFavRoutes] = useState<FavRoute[]>(() => loadFavRoutes())
+  const [showWeatherModal, setShowWeatherModal] = useState(false)
   const [nowTick, setNowTick] = useState(Date.now())
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   const [showBikeMap, setShowBikeMap] = useState(false)
@@ -496,7 +497,12 @@ export default function App() {
           </div>
         )}
         {hasResults && weather && (
-          <div className={`weather${weather.rain ? ' rain' : ''}`}>
+          <div
+            className={`weather${weather.rain ? ' rain' : ''}`}
+            onClick={() => setShowWeatherModal(true)}
+            style={{ cursor: 'pointer' }}
+            title="Klick für почасовой прогноз осадков"
+          >
             {weather.rain
               ? dict[lang].weatherRain(weather.timeLabel, weather.precip.toFixed(1), weather.temp)
               : dict[lang].weatherDry(weather.timeLabel, weather.temp)}
@@ -564,6 +570,31 @@ export default function App() {
           onSelectMaxBike={setMaxBike}
           onClose={() => setShowFilterModal(false)}
         />
+      )}
+
+      {showWeatherModal && weather?.hourly && (
+        <div className="filter-modal-backdrop" onClick={() => setShowWeatherModal(false)}>
+          <div className="filter-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-grabber" />
+            <div className="filter-modal-head">
+              <div className="filter-modal-title">
+                <span>🌦️ {lang === 'en' ? 'Weather Radar & Rain Forecast' : 'Wetter-Radar & Niederschlag'}</span>
+              </div>
+              <button className="filter-modal-close" onClick={() => setShowWeatherModal(false)}>✕</button>
+            </div>
+
+            <div className="weather-hourly-list">
+              {weather.hourly.map((h, i) => (
+                <div key={i} className={`weather-hour-row${h.rain ? ' rain' : ''}`}>
+                  <span className="wh-time">{h.timeLabel} Uhr</span>
+                  <span className="wh-icon">{h.rain ? '🌧️' : '☀️'}</span>
+                  <span className="wh-temp">{h.temp}°C</span>
+                  <span className="wh-precip">{h.precip > 0 ? `${h.precip.toFixed(1)} mm/h` : (lang === 'en' ? 'Dry' : 'Trocken')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -973,6 +973,58 @@ body {
   color: #fff;
 }
 
+/* Turn guidance banner in JourneyMode */
+.turn-guidance-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: color-mix(in srgb, #ec3013 12%, transparent);
+  border: 1px solid #ec3013;
+  color: #c2270f;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.tg-dist {
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
+
+/* Hourly Weather Radar Modal */
+.weather-hourly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 6px;
+}
+.weather-hour-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--color-neutral-100);
+  font-size: 13px;
+  font-weight: 600;
+}
+.weather-hour-row.rain {
+  background: color-mix(in srgb, #2563eb 12%, transparent);
+  color: #1d4ed8;
+}
+.wh-time {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  width: 70px;
+}
+.wh-temp {
+  font-weight: 700;
+}
+.wh-precip {
+  font-size: 12px;
+  color: var(--color-neutral-600);
+}
+
 /* Visual timeline bar at top of itinerary card */
 .route-timeline-bar {
   display: flex;
