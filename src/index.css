@@ -2090,6 +2090,22 @@ body {
   color: var(--color-neutral-500);
 }
 
+.app-footer {
+  text-align: center;
+  padding: 24px 16px 36px;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  font-family: var(--font-heading);
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+
+.app-footer b {
+  color: var(--color-accent);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
 .ebike-bat-info {
   font-size: 11px;
   font-weight: 700;

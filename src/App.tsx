@@ -527,6 +527,10 @@ export default function App() {
         )}
       </section>
 
+      <footer className="app-footer">
+        <span>Made with ❤️ by <b>NELD</b> · Radl Navi Munich</span>
+      </footer>
+
       {showFilterModal && (
         <div className="filter-modal-backdrop" onClick={() => setShowFilterModal(false)}>
           <div className="filter-modal" onClick={e => e.stopPropagation()}>
