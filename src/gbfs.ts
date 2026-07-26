@@ -37,6 +37,7 @@ export interface GbfsFreeBike {
   station_id?: string
   current_range_meters?: number
   battery_level?: number
+  current_fuel_percent?: number
 }
 
 /** IDs aller Fahrzeugtypen mit Motor (propulsion_type != "human"). */
@@ -93,8 +94,9 @@ export function parseStations(
     let maxRange: number | undefined = undefined
 
     for (const eb of eBikesAtStation) {
-      if (eb.battery_level != null) {
-        const pct = Math.round(eb.battery_level <= 1 ? eb.battery_level * 100 : eb.battery_level)
+      const rawBat = eb.current_fuel_percent ?? eb.battery_level
+      if (rawBat != null) {
+        const pct = Math.round(rawBat <= 1 ? rawBat * 100 : rawBat)
         if (maxBat == null || pct > maxBat) maxBat = pct
       }
       if (eb.current_range_meters != null) {
@@ -139,7 +141,8 @@ export function parseFreeBikes(
     .filter(b => typeof b.lat === 'number' && typeof b.lon === 'number')
     .map(b => {
       const isElec = !!b.vehicle_type_id && electric.has(b.vehicle_type_id)
-      const batteryPercent = b.battery_level != null ? Math.round(b.battery_level <= 1 ? b.battery_level * 100 : b.battery_level) : undefined
+      const rawBat = b.current_fuel_percent ?? b.battery_level
+      const batteryPercent = rawBat != null ? Math.round(rawBat <= 1 ? rawBat * 100 : rawBat) : undefined
       const rangeKm = b.current_range_meters ? Math.round(b.current_range_meters / 1000) : (batteryPercent != null ? Math.round((batteryPercent / 100) * 35) : undefined)
       return {
         id: b.bike_id,

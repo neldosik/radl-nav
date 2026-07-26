@@ -82,7 +82,6 @@ export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelec
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const userMarker = useRef<maplibregl.Marker | null>(null)
-  const touchStartX = useRef<number | null>(null)
   const [supply, setSupply] = useState<Station[] | null>(null)
   const [selected, setSelected] = useState<Station | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'classic' | 'ebike'>('all')
@@ -100,21 +99,7 @@ export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelec
     }
   }, [onClose])
 
-  function handleTouchStart(e: React.TouchEvent) {
-    if (e.touches.length === 1) {
-      touchStartX.current = e.touches[0].clientX
-    }
-  }
 
-  function handleTouchEnd(e: React.TouchEvent) {
-    if (touchStartX.current !== null && e.changedTouches.length === 1) {
-      const deltaX = e.changedTouches[0].clientX - touchStartX.current
-      if (deltaX > 80 && touchStartX.current < 80) {
-        onClose()
-      }
-    }
-    touchStartX.current = null
-  }
 
   useEffect(() => {
     let alive = true
@@ -240,7 +225,7 @@ export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelec
   const walkDistM = selected && userPos ? Math.round(haversine(userPos, { lat: selected.lat, lon: selected.lon })) : null
 
   return (
-    <div className="picker" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="picker">
       <div className="picker-top">
         <span>{t('bmTitle', lang)}</span>
         <button className="picker-x" onClick={onClose}>

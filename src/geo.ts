@@ -5,7 +5,7 @@ import type { FreeBike, LatLon, Station } from './types'
  * werden zusammengefasst, um Hunderte einzelne Pins auf der Karte zu vermeiden.
  */
 export function clusterFreeBikes(bikes: FreeBike[]): Station[] {
-  const grid = new Map<string, { lat: number; lon: number; n: number; bikes: number; ebikes: number }>()
+  const grid = new Map<string, { lat: number; lon: number; n: number; bikes: number; ebikes: number; maxBat?: number; maxRange?: number }>()
   for (const b of bikes) {
     const key = `${Math.round(b.lat / 0.0005)}|${Math.round(b.lon / 0.0008)}`
     let g = grid.get(key)
@@ -16,8 +16,17 @@ export function clusterFreeBikes(bikes: FreeBike[]): Station[] {
     g.lat += b.lat
     g.lon += b.lon
     g.n++
-    if (b.electric) g.ebikes++
-    else g.bikes++
+    if (b.electric) {
+      g.ebikes++
+      if (b.batteryPercent != null && (g.maxBat == null || b.batteryPercent > g.maxBat)) {
+        g.maxBat = b.batteryPercent
+      }
+      if (b.rangeKm != null && (g.maxRange == null || b.rangeKm > g.maxRange)) {
+        g.maxRange = b.rangeKm
+      }
+    } else {
+      g.bikes++
+    }
   }
   return [...grid.entries()].map(([key, g]) => ({
     id: `free-${key}`,
@@ -27,8 +36,9 @@ export function clusterFreeBikes(bikes: FreeBike[]): Station[] {
     bikes: g.bikes,
     ebikes: g.ebikes,
     docks: null,
-    batteryPercent: g.ebikes > 0 ? 85 : undefined,
-    rangeKm: g.ebikes > 0 ? 25 : undefined,
+    maxChargePercent: g.maxBat,
+    batteryPercent: g.maxBat,
+    rangeKm: g.maxRange,
   }))
 }
 

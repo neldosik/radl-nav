@@ -21,7 +21,6 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const nameTimer = useRef<number | undefined>(undefined)
-  const touchStartX = useRef<number | null>(null)
   const [name, setName] = useState('…')
 
   // Geste: Zurück per Android/iOS Zurück-Button
@@ -63,22 +62,6 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function handleTouchStart(e: React.TouchEvent) {
-    if (e.touches.length === 1) {
-      touchStartX.current = e.touches[0].clientX
-    }
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    if (touchStartX.current !== null && e.changedTouches.length === 1) {
-      const deltaX = e.changedTouches[0].clientX - touchStartX.current
-      if (deltaX > 80 && touchStartX.current < 80) {
-        onClose()
-      }
-    }
-    touchStartX.current = null
-  }
-
   function confirm() {
     const m = map.current
     if (!m) return
@@ -87,7 +70,7 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
   }
 
   return (
-    <div className="picker" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="picker">
       <div className="picker-top">
         <span>{title}</span>
         <button className="picker-x" onClick={onClose}>
