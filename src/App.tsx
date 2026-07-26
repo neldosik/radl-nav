@@ -11,9 +11,9 @@ import { clusterFreeBikes } from './geo'
 import { searchRoutes } from './routing'
 import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
-import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, shortPlace, upsertSaved } from './places'
+import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { SavedPlace } from './places'
-import { BikeIcon, BoltIcon, LogoMark, SendIcon, StarIcon, SwapIcon } from './icons'
+import { BikeIcon, BoltIcon, BookmarkIcon, LogoMark, SendIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place, Station } from './types'
 
 export default function App() {
@@ -41,6 +41,14 @@ export default function App() {
   const [liveStations, setLiveStations] = useState<Station[]>([])
   const searchCtrl = useRef<AbortController | null>(null) // laufende Suche abbrechbar
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
+  const [presetHint, setPresetHint] = useState<string | null>(null) // kurze Rückmeldung zu Orten
+
+  // Hinweis nach kurzer Zeit wieder ausblenden
+  useEffect(() => {
+    if (!presetHint) return
+    const id = window.setTimeout(() => setPresetHint(null), 3000)
+    return () => window.clearTimeout(id)
+  }, [presetHint])
 
   const { theme: themeMode, toggleTheme } = useTheme()
 
@@ -222,31 +230,48 @@ export default function App() {
         <div className="quick-presets-row">
           {PRESET_SLOTS.map(s => {
             const saved = savedPlaces.find(p => p.id === s.id)
+            const target = to ?? from // was gerade gespeichert werden könnte
             return (
               <button
                 key={s.id}
-                className={`quick-preset-chip${saved ? ' active' : ''}`}
+                className={`quick-preset-chip${saved ? ' active' : ' empty'}`}
                 onClick={() => {
                   if (saved) {
                     setTo(saved.place)
-                  } else if (to) {
-                    const next = upsertSaved(s, to)
-                    setSavedPlaces(next)
-                  } else if (from) {
-                    const next = upsertSaved(s, from)
-                    setSavedPlaces(next)
+                    setPresetHint(null)
+                  } else if (target) {
+                    setSavedPlaces(upsertSaved(s, target))
+                    setPresetHint(`»${shortPlace(target)}« als ${s.label} gespeichert`)
+                  } else {
+                    // leerer Platz und nichts zum Speichern — kurz erklären statt still bleiben
+                    setPresetHint(`Erst Ziel wählen, dann als ${s.label} speichern`)
                   }
                 }}
                 title={saved ? `Ziel: ${saved.place.name}` : `Als ${s.label} speichern`}
               >
-                <span>{s.emoji}</span> {s.label}
+                <span>{saved ? s.emoji : '＋'}</span> {s.label}
                 {saved && <span className="preset-dot" />}
               </button>
             )
           })}
+          {savedPlaces.length > 0 && (
+            <button
+              className="quick-preset-chip clear"
+              onClick={() => {
+                for (const s of PRESET_SLOTS) removeSaved(s.id)
+                setSavedPlaces(loadSaved())
+                setPresetHint('Gespeicherte Orte gelöscht')
+              }}
+              title="Gespeicherte Orte löschen"
+            >
+              ✕
+            </button>
+          )}
         </div>
+        {presetHint && <div className="preset-hint">{presetHint}</div>}
 
         <div className="controls">
+          <div className="ctl-group">
           <span className="ctl-label">Zeit</span>
           <div className="seg seg-auto">
             {(['now', 'depart', 'arrive'] as const).map(m => (
@@ -259,6 +284,7 @@ export default function App() {
               </button>
             ))}
           </div>
+          </div>
           {timeMode !== 'now' && (
             <input
               className="time-input"
@@ -270,33 +296,38 @@ export default function App() {
         </div>
 
         <div className="controls">
-          <span className="ctl-label">Räder</span>
-          <div className="seg">
-            {[1, 2, 3, 4].map(n => (
-              <button
-                key={n}
-                className={`seg-btn${bikes === n ? ' on' : ''}`}
-                onClick={() => setBikes(n)}
-              >
-                {n}
-              </button>
-            ))}
+          {/* Label und Schalter bleiben zusammen, auch wenn die Zeile umbricht */}
+          <div className="ctl-group">
+            <span className="ctl-label">Räder</span>
+            <div className="seg">
+              {[1, 2, 3, 4].map(n => (
+                <button
+                  key={n}
+                  className={`seg-btn${bikes === n ? ' on' : ''}`}
+                  onClick={() => setBikes(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <span className="ctl-label">Rad ≤</span>
-          <div className="seg">
-            {[10, 15, 20, 30].map(n => (
-              <button
-                key={n}
-                className={`seg-btn${maxBike === n ? ' on' : ''}`}
-                onClick={() => {
-                  setMaxBike(n)
-                  localStorage.setItem('radl.maxbike', String(n))
-                }}
-              >
-                {n}′
-              </button>
-            ))}
+          <div className="ctl-group">
+            <span className="ctl-label">Rad ≤</span>
+            <div className="seg">
+              {[10, 15, 20, 30].map(n => (
+                <button
+                  key={n}
+                  className={`seg-btn${maxBike === n ? ' on' : ''}`}
+                  onClick={() => {
+                    setMaxBike(n)
+                    localStorage.setItem('radl.maxbike', String(n))
+                  }}
+                >
+                  {n}′
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="seg seg-auto">
@@ -330,9 +361,9 @@ export default function App() {
                   addFavRoute(from, to)
                   setFavVer(v => v + 1)
                 }}
-                title="Route merken"
+                title="Diese Strecke merken"
               >
-                <StarIcon size={12} /> merken
+                <BookmarkIcon size={12} /> Strecke merken
               </button>
             ) : (
               <div className="fav-placeholder" />

@@ -4,6 +4,7 @@ import type { ItineraryView, Leg } from '../types'
 import { gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
 import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
+import { FREE_LIMIT_SEC } from '../routing'
 import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
 
@@ -71,30 +72,34 @@ export default function JourneyMode({
   const last = legIndex === legs.length - 1
   const total = String(legs.length).padStart(2, '0')
   const elapsedMs = startedAt ? now - startedAt : 0
-  const elapsedSec = Math.floor(elapsedMs / 1000)
 
   const isBikeLeg = k === 'bike'
   const warned5Min = useRef(false)
   const warned2Min = useRef(false)
+  // Das Rad-Zeitfenster startet beim Aufsteigen, nicht beim Start der Fahrt —
+  // sonst frisst der Fußweg zur Station die Freiminuten auf.
+  const bikeStartedAt = useRef<number | null>(null)
 
-  // Rückgabe-Timer: Warnung bei 23 Min (5 Min verbleibend) & 26 Min (2 Min verbleibend)
+  useEffect(() => {
+    bikeStartedAt.current = isBikeLeg ? Date.now() : null
+    warned5Min.current = false
+    warned2Min.current = false
+  }, [legIndex, isBikeLeg])
+
+  const bikeSec = bikeStartedAt.current ? Math.floor((now - bikeStartedAt.current) / 1000) : 0
+
+  // Rückgabe-Warnung: 5 Min und 2 Min vor Ende des kostenlosen Fensters
   useEffect(() => {
     if (!isBikeLeg) return
-    if (elapsedSec >= 23 * 60 && elapsedSec < 26 * 60 && !warned5Min.current) {
+    if (bikeSec >= FREE_LIMIT_SEC - 5 * 60 && bikeSec < FREE_LIMIT_SEC - 2 * 60 && !warned5Min.current) {
       warned5Min.current = true
       playWarningSound()
     }
-    if (elapsedSec >= 26 * 60 && !warned2Min.current) {
+    if (bikeSec >= FREE_LIMIT_SEC - 2 * 60 && !warned2Min.current) {
       warned2Min.current = true
       playWarningSound()
     }
-  }, [elapsedSec, isBikeLeg])
-
-  // Bei Etappenwechsel Warn-Flags zurücksetzen
-  useEffect(() => {
-    warned5Min.current = false
-    warned2Min.current = false
-  }, [legIndex])
+  }, [bikeSec, isBikeLeg])
 
   // ── Ankunftsscreen ──
   if (arrived) {
@@ -152,8 +157,8 @@ export default function JourneyMode({
     }
   }
 
-  // Rückgabe-Timer Warn-Banner
-  const remainingSec = Math.max(0, 28 * 60 - elapsedSec)
+  // Rückgabe-Timer Warn-Banner (Puffer: 28 statt 30 Min, wie die Tankanzeige im Auto)
+  const remainingSec = Math.max(0, FREE_LIMIT_SEC - bikeSec)
   const remainingMins = Math.ceil(remainingSec / 60)
 
   return (
@@ -188,7 +193,7 @@ export default function JourneyMode({
       <div className="j-panel">
         {isBikeLeg && !b?.electric && (
           <div className={`timer-banner${remainingMins <= 5 ? ' urgent' : ''}`}>
-            ⏱️ Rad-Timer: Noch <b>{remainingMins} Min</b> Freifahrt (28 Min limit)
+            ⏱️ Rad-Timer: Noch <b>{remainingMins} Min</b> Freifahrt (Puffer bis 28 Min)
           </div>
         )}
 

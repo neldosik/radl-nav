@@ -104,6 +104,13 @@ export const StarIcon = ({ size = 16 }: P) => (
   </svg>
 )
 
+/** Lesezeichen — für gemerkte Strecken, klar unterscheidbar vom Stern für Orte. */
+export const BookmarkIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+)
+
 export const PinIcon = ({ size = 16 }: P) => (
   <svg {...base(size)}>
     <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />

@@ -13,6 +13,19 @@ interface Props {
 
 const RECENTS_KEY = 'radl.recents'
 
+/**
+ * Untertitel für einen Treffer: der kleinste sinnvolle Bereich zuerst.
+ * „Deutschland, Bayern" steht bei jedem Münchner Treffer und hilft nicht —
+ * der Stadtteil (adminLevel 9) unterscheidet Olympiapark Süd/Ost/West.
+ */
+function areaLabel(m: GeocodeMatch): string {
+  const areas = (m.areas ?? []).filter(a => a.name)
+  const byDetail = [...areas].sort((a, b) => (b.adminLevel ?? 0) - (a.adminLevel ?? 0))
+  // Staat (2) und Bundesland (4) nur zeigen, wenn es nichts Genaueres gibt
+  const useful = byDetail.filter(a => (a.adminLevel ?? 0) > 4)
+  return (useful.length ? useful : byDetail).slice(0, 2).map(a => a.name).join(' · ')
+}
+
 function loadRecents(): Place[] {
   try {
     return JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]')
@@ -183,11 +196,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
             >
               <span className="d-main">
                 <span className="d-name">{m.name}</span>
-                {m.areas?.length ? (
-                  <span className="d-area">
-                    {m.areas.map(a => a.name).filter(Boolean).slice(0, 2).join(', ')}
-                  </span>
-                ) : null}
+                {areaLabel(m) ? <span className="d-area">{areaLabel(m)}</span> : null}
               </span>
             </button>
           ))}

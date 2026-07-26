@@ -348,6 +348,13 @@ body {
   margin-top: 3px;
 }
 
+/* Label + Schalter als Einheit — bricht nie getrennt um */
+.ctl-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .ctl-label {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -1459,6 +1466,27 @@ body {
 .quick-preset-chip.active {
   border-color: var(--color-accent);
   font-weight: 800;
+}
+
+/* Noch nicht belegter Platz: gestrichelt und blass — „hier kann etwas rein" */
+.quick-preset-chip.empty {
+  border-style: dashed;
+  color: var(--color-neutral-600);
+  background: transparent;
+  font-weight: 400;
+}
+
+.quick-preset-chip.clear {
+  border-style: solid;
+  color: var(--color-neutral-600);
+  padding: 4px 7px;
+}
+
+.preset-hint {
+  font-size: 11.5px;
+  color: var(--color-accent-700);
+  padding: 2px 2px 0;
+  animation: rn-fade 0.2s ease both;
 }
 
 .preset-dot {
