@@ -4,7 +4,9 @@ import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
-import StationWidget from './components/StationWidget'
+import BikeMap from './components/BikeMap'
+import History from './components/History'
+import { addTrip } from './history'
 import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations } from './api'
 import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
@@ -14,7 +16,7 @@ import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, LogoMark, SendIcon, SwapIcon } from './icons'
-import type { ItineraryView, Place, Station } from './types'
+import type { ItineraryView, Place } from './types'
 
 export default function App() {
   const [from, setFrom] = useState<Place | null>(null)
@@ -38,7 +40,8 @@ export default function App() {
   const [favVer, setFavVer] = useState(0) // форс-обновление списка любимых
   const [nowTick, setNowTick] = useState(Date.now()) // для живого отсчёта до отправления
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
-  const [liveStations, setLiveStations] = useState<Station[]>([])
+  const [showBikeMap, setShowBikeMap] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null) // laufende Suche abbrechbar
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
   const [presetHint, setPresetHint] = useState<string | null>(null) // kurze Rückmeldung zu Orten
@@ -56,9 +59,8 @@ export default function App() {
   const journey = useJourney(selectedView)
   const { legIndex: journeyLeg, startedAt, arrived, userPos, distToEnd } = journey
 
-  // Beim Start: Stationen laden und einmalig den Standort holen (für das Stationen-Widget).
+  // Beim Start einmalig den Standort holen (für Karte und „Räder in der Nähe").
   useEffect(() => {
-    loadStations().then(setLiveStations).catch(() => {})
     getGeolocation()
       .then(pos => journey.setUserPos(pos))
       .catch(() => {})
@@ -162,7 +164,23 @@ export default function App() {
           routeLabel={from && to ? `${shortPlace(from)} → ${shortPlace(to)}` : ''}
           onPrev={() => journey.goTo(Math.max(0, journeyLeg - 1))}
           onNext={() => journey.goTo(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
-          onArrive={journey.markArrived}
+          onArrive={() => {
+            // Fahrt in der Historie festhalten (nur lokal)
+            const legs = journeyView.it.legs
+            const bikeMin = [...journeyView.bikeLegs.keys()].reduce(
+              (n, i) => n + Math.round(legs[i].duration / 60),
+              0,
+            )
+            addTrip({
+              from: from ? shortPlace(from) : 'Start',
+              to: to ? shortPlace(to) : 'Ziel',
+              seconds: startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0,
+              legs: legs.length,
+              bikeMinutes: bikeMin,
+              electric: journeyView.hasElectric,
+            })
+            journey.markArrived()
+          }}
           onExit={journey.exit}
         >
           <MapView
@@ -199,9 +217,18 @@ export default function App() {
           <span className="poster-name">RADL NAVI</span>
           <span className="poster-sub">MYRADL + MVV</span>
         </div>
-        <button className="theme-toggle-btn" onClick={toggleTheme} title="Design umschalten">
-          {themeMode === 'dark' ? '🌙 Dark' : '☀️ Light'}
-        </button>
+        <div className="poster-actions">
+          <button
+            className="theme-toggle-btn"
+            onClick={() => setShowHistory(true)}
+            title="Meine Fahrten"
+          >
+            📖 Fahrten
+          </button>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title="Design umschalten">
+            {themeMode === 'dark' ? '🌙' : '☀️'}
+          </button>
+        </div>
       </div>
 
       <div className="inputs">
@@ -369,7 +396,13 @@ export default function App() {
               <div className="fav-placeholder" />
             )}
 
-            <StationWidget userPos={userPos} stations={liveStations} onSelectStation={setFrom} />
+            <button
+              className="btn-bikemap"
+              onClick={() => setShowBikeMap(true)}
+              title="Räder in der Nähe auf der Karte"
+            >
+              <BikeIcon size={13} /> Räder in der Nähe
+            </button>
 
             <button className="btn-route-chip" disabled={!from || !to || loading} onClick={() => search()}>
               <SendIcon size={13} />
@@ -422,6 +455,11 @@ export default function App() {
           </div>
         )}
         {hasResults && (
+          <div className="results-map">
+            <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+          </div>
+        )}
+        {hasResults && (
           <div className="res-head">
             {views!.length} Routen · nach Ankunft
           </div>
@@ -458,6 +496,20 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      {showHistory && <History onClose={() => setShowHistory(false)} />}
+
+      {showBikeMap && (
+        <BikeMap
+          userPos={userPos}
+          theme={themeMode}
+          onPick={p => {
+            setFrom(p)
+            setShowBikeMap(false)
+          }}
+          onClose={() => setShowBikeMap(false)}
+        />
+      )}
 
       {pickOnMap && (
         <MapPicker

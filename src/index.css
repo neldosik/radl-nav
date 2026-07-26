@@ -551,6 +551,166 @@ body {
   min-height: 20px;
 }
 
+/* Fahrtenbuch */
+.poster-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hist-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.hist-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 2px solid var(--color-divider);
+}
+
+.hist-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 4px;
+  border-right: 1px solid var(--color-divider);
+}
+
+.hist-stat:last-child {
+  border-right: 0;
+}
+
+.hist-num {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.hist-stat.accent .hist-num {
+  color: var(--color-accent);
+}
+
+.hist-cap {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+  text-align: center;
+}
+
+.hist-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.hist-item {
+  display: flex;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.hist-when {
+  width: 74px;
+  flex: none;
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  padding-top: 2px;
+}
+
+.hist-main {
+  min-width: 0;
+}
+
+.hist-route {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.hist-meta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--color-neutral-600);
+  flex-wrap: wrap;
+}
+
+/* Karte „Räder in der Nähe" */
+.bm-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 12px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+/* Nur E-Bikes vorhanden — kostenpflichtig, daher dunkel statt Akzent */
+.bm-pin.only-e {
+  background: var(--color-neutral-800);
+}
+
+.bm-locate {
+  position: absolute;
+  right: 12px;
+  bottom: 16px;
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--color-text);
+  background: var(--color-bg);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.bm-counts {
+  font-size: 13px;
+  color: var(--color-neutral-600);
+  margin-bottom: 10px;
+}
+
+.bm-empty {
+  font-size: 13px;
+  color: var(--color-neutral-600);
+  text-align: center;
+  padding: 6px 0 2px;
+}
+
+.btn-bikemap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 6px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-bikemap:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 /* Verspätungs-Badge */
 .delay {
   display: inline-flex;
@@ -691,6 +851,15 @@ body {
 
 .msg.error {
   color: var(--color-accent-700);
+}
+
+/* Übersichtskarte über der Trefferliste — zeigt den Weg vor dem Losfahren */
+.results-map {
+  position: relative;
+  height: 30vh;
+  min-height: 170px;
+  flex: none;
+  border-bottom: 2px solid var(--color-divider);
 }
 
 .res-head {

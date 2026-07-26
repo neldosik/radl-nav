@@ -32,6 +32,7 @@ npm run deploy     # build + push dist/ в gh-pages → обновляет пр�
 | `src/api.ts` | только сеть: Transitous, GBFS, Open-Meteo |
 | `src/hooks/useJourney.ts` | Los-Modus: GPS, wake lock, автопереход этапов |
 | `src/hooks/useTheme.ts` | светлая/тёмная тема |
+| `src/history.ts` | журнал поездок и статистика (localStorage) |
 | `src/App.tsx` | композиция экранов и состояние поиска |
 
 Тестами покрыта расчётная логика (`gbfs`, `geo`, `routing`, `format`, `polyline`) —
@@ -78,6 +79,9 @@ npm run deploy     # build + push dist/ в gh-pages → обновляет пр�
 - [x] выбор точки на карте (MapPicker: центральный пин + reverse-geocode);
 - [x] карта в Los-Modus почти на весь экран (~68%), панель снизу без скролла;
 - [x] таймер поездки (mm:ss в хедере) + экран прибытия «Angekommen · X Min · маршрут»;
+- [x] карта-обзор над списком маршрутов (видно путь до «Losfahren»);
+- [x] «Räder in der Nähe» — карта великов вокруг без построения маршрута;
+- [x] журнал поездок: сколько ездил, сколько на велике, сколько сэкономил;
 - [x] учёт количества великов: разбор по нескольким станциям («3 an »A« + 1 an »B««)
       и честное «Nur X von N E-Bikes in der Nähe» + сколько рядом e-bike/обычных;
 - [ ] «веломарафон»: автосплит вело-этапа >28 мин через промежуточную станцию;
