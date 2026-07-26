@@ -474,57 +474,67 @@ export default function App() {
       {showFilterModal && (
         <div className="filter-modal-backdrop" onClick={() => setShowFilterModal(false)}>
           <div className="filter-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-grabber" />
+
             <div className="filter-modal-head">
-              <span>Fahrrad-Typ & Zeitlimit</span>
+              <div className="filter-modal-title">
+                <BikeIcon size={18} />
+                <span>Rad-Filter & Zeitlimit</span>
+              </div>
               <button className="filter-modal-close" onClick={() => setShowFilterModal(false)}>
                 ✕
               </button>
             </div>
 
-            <div className="filter-modal-section">
+            <div className="filter-card">
               <label className="filter-label">Fahrrad-Typ</label>
-              <div className="seg seg-auto font-large">
-                <button
-                  className={`seg-btn${bikeType === 'classic' ? ' on' : ''}`}
+              <div className="filter-type-grid">
+                <div
+                  className={`filter-type-card${bikeType === 'classic' ? ' active' : ''}`}
                   onClick={() => {
                     setBikeType('classic')
                     localStorage.setItem('radl.biketype', 'classic')
                   }}
                 >
-                  <BikeIcon size={15} /> Standard (30 Min frei)
-                </button>
-                <button
-                  className={`seg-btn${bikeType === 'any' ? ' on' : ''}`}
+                  <div className="ft-icon"><BikeIcon size={20} /></div>
+                  <div className="ft-name">Standard</div>
+                  <div className="ft-sub">30 Min. frei mit Abo</div>
+                </div>
+
+                <div
+                  className={`filter-type-card${bikeType === 'any' ? ' active' : ''}`}
                   onClick={() => {
                     setBikeType('any')
                     localStorage.setItem('radl.biketype', 'any')
                   }}
                 >
-                  <BoltIcon size={14} /> Alle (inkl. E-Bike)
-                </button>
+                  <div className="ft-icon"><BoltIcon size={20} /></div>
+                  <div className="ft-name">Inkl. E-Bikes</div>
+                  <div className="ft-sub">Alle Radtypen erlaubt</div>
+                </div>
               </div>
             </div>
 
-            <div className="filter-modal-section">
-              <label className="filter-label">Maximalzeit auf dem Rad (pro Etappe)</label>
-              <div className="filter-time-options">
+            <div className="filter-card">
+              <label className="filter-label">Max. Fahrzeit pro Etappe</label>
+              <div className="filter-time-pills">
                 {[10, 15, 20, 30, 9999].map(n => (
                   <button
                     key={n}
-                    className={`filter-time-btn${maxBike === n ? ' on' : ''}`}
+                    className={`filter-time-pill${maxBike === n ? ' active' : ''}`}
                     onClick={() => {
                       setMaxBike(n)
                       localStorage.setItem('radl.maxbike', String(n))
                     }}
                   >
-                    {n === 9999 ? '∞ Ohne Limit' : `${n} Min`}
+                    {n === 9999 ? '∞ Limit' : `${n}′`}
                   </button>
                 ))}
               </div>
             </div>
 
-            <button className="btn-block filter-modal-apply" onClick={() => setShowFilterModal(false)}>
-              Übernehmen
+            <button className="filter-modal-apply" onClick={() => setShowFilterModal(false)}>
+              ✓ Filter anwenden
             </button>
           </div>
         </div>

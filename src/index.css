@@ -1797,50 +1797,201 @@ body {
   white-space: nowrap;
 }
 
-.sw-btn:hover {
-  background: var(--color-accent);
-}
-
-/* ── Rückgabe-Timer & Nextbike Deep-Link ── */
-.timer-banner {
-  padding: 8px 12px;
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  border-left: 4px solid var(--color-accent);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text);
-  margin-bottom: 6px;
-}
-
-.timer-banner.urgent {
-  background: var(--color-accent);
-  color: #fff;
-  animation: rn-pulse 1s infinite;
-}
-
-.j-actions-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.j-actions-row .btn-block {
-  flex: 1;
-}
-
-.btn-block.nextbike {
-  background: var(--color-text);
-}
-
-.leg-links {
-  display: flex;
+/* ── Ultra-Premium Bottom Sheet Filter Modal ── */
+.filter-chip {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-radius: 20px;
+  height: 32px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
 }
 
-.leg-link.nextbike {
+.filter-chip:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.filter-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  animation: rn-fade 0.2s ease both;
+}
+
+.filter-modal {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: var(--color-bg);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
+  animation: rn-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.modal-grabber {
+  width: 36px;
+  height: 4px;
+  background: var(--color-divider);
+  border-radius: 2px;
+  margin: 4px auto 14px;
+  opacity: 0.6;
+}
+
+.filter-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.filter-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--color-text);
+}
+
+.filter-modal-close {
+  background: color-mix(in srgb, var(--color-neutral-300) 40%, transparent);
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.filter-modal-close:hover {
   background: var(--color-accent);
   color: #fff;
+}
+
+.filter-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.filter-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+  margin-bottom: 10px;
+}
+
+.filter-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.filter-type-card {
+  border: 2px solid var(--color-divider);
+  border-radius: 12px;
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--color-bg);
+  text-align: center;
+}
+
+.filter-type-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+}
+
+.filter-type-card.active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg));
+  box-shadow: 0 0 12px rgba(236, 48, 19, 0.15);
+}
+
+.ft-icon {
+  color: var(--color-accent);
+  margin-bottom: 4px;
+}
+
+.ft-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.ft-sub {
+  font-size: 10.5px;
+  color: var(--color-neutral-600);
+  margin-top: 2px;
+}
+
+.filter-time-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-time-pill {
+  flex: 1;
+  padding: 10px 4px;
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-divider);
+  border-radius: 10px;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.filter-time-pill.active {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+  box-shadow: 0 3px 10px rgba(236, 48, 19, 0.3);
+}
+
+.filter-modal-apply {
+  height: 46px;
+  border-radius: 12px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  background: var(--color-accent);
+  color: #ffffff;
   border: none;
+  box-shadow: 0 4px 14px rgba(236, 48, 19, 0.35);
+  cursor: pointer;
+  width: 100%;
 }
 
