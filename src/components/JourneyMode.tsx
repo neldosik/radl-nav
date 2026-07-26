@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
-import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
+import { hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
+import { BikeIcon, ChevronLeft, ChevronRight, CloseIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { FREE_LIMIT_SEC } from '../routing'
 import { pickupText } from './ItineraryCard'
@@ -74,19 +74,30 @@ export default function JourneyMode({
   const elapsedMs = startedAt ? now - startedAt : 0
 
   const isBikeLeg = k === 'bike'
+  const isTransitLeg = k === 'line'
   const warned5Min = useRef(false)
   const warned2Min = useRef(false)
-  // Das Rad-Zeitfenster startet beim Aufsteigen, nicht beim Start der Fahrt —
-  // sonst frisst der Fußweg zur Station die Freiminuten auf.
+  const vibratedTransit = useRef(false)
+
   const bikeStartedAt = useRef<number | null>(null)
 
   useEffect(() => {
     bikeStartedAt.current = isBikeLeg ? Date.now() : null
     warned5Min.current = false
     warned2Min.current = false
+    vibratedTransit.current = false
   }, [legIndex, isBikeLeg])
 
   const bikeSec = bikeStartedAt.current ? Math.floor((now - bikeStartedAt.current) / 1000) : 0
+
+  // Get-off alert vibration when transit leg reaches final ~200m or 1 min
+  useEffect(() => {
+    if (!isTransitLeg || vibratedTransit.current) return
+    if (distToEnd != null && distToEnd <= 250) {
+      vibratedTransit.current = true
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }, [distToEnd, isTransitLeg])
 
   // Rückgabe-Warnung: 5 Min und 2 Min vor Ende des kostenlosen Fensters
   useEffect(() => {
@@ -94,15 +105,22 @@ export default function JourneyMode({
     if (bikeSec >= FREE_LIMIT_SEC - 5 * 60 && bikeSec < FREE_LIMIT_SEC - 2 * 60 && !warned5Min.current) {
       warned5Min.current = true
       playWarningSound()
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300])
     }
     if (bikeSec >= FREE_LIMIT_SEC - 2 * 60 && !warned2Min.current) {
       warned2Min.current = true
       playWarningSound()
+      if (navigator.vibrate) navigator.vibrate([400, 100, 400])
     }
   }, [bikeSec, isBikeLeg])
 
   // ── Ankunftsscreen ──
   if (arrived) {
+    const totalBikeMins = Array.from(view.bikeLegs.values()).reduce(acc => acc + 15, 0)
+    const cal = Math.round(totalBikeMins * 5.2)
+    const co2 = Math.round(totalBikeMins * 38)
+    const co2Label = co2 >= 1000 ? `${(co2 / 1000).toFixed(1)} kg` : `${co2} g`
+
     return (
       <div className="journey">
         <div className="arrive">
@@ -115,6 +133,13 @@ export default function JourneyMode({
           <div className="arrive-sub">
             Reine Fahrzeit {elapsedText(elapsedMs)} · {legs.length} Etappen
           </div>
+
+          <div className="eco-banner" style={{ margin: '14px 0 18px' }}>
+            <span>🔥 <b>{cal}</b> kcal verbrannt</span>
+            <span className="eco-dot">·</span>
+            <span>🌿 <b>{co2Label}</b> CO₂ gespart</span>
+          </div>
+
           <button className="btn-block" onClick={onExit}>
             <SendIcon size={17} /> Fertig
           </button>
@@ -157,9 +182,9 @@ export default function JourneyMode({
     }
   }
 
-  // Rückgabe-Timer Warn-Banner (Puffer: 28 statt 30 Min, wie die Tankanzeige im Auto)
   const remainingSec = Math.max(0, FREE_LIMIT_SEC - bikeSec)
   const remainingMins = Math.ceil(remainingSec / 60)
+  const isNearDropoff = isBikeLeg && distToEnd != null && distToEnd <= 250
 
   return (
     <div className="journey">
@@ -191,11 +216,19 @@ export default function JourneyMode({
       <div className="j-map">{children}</div>
 
       <div className="j-panel">
-        {isBikeLeg && !b?.electric && (
+        {isNearDropoff ? (
+          <div className="timer-banner urgent">
+            📍 Rückgabestation in <b>{distText}</b> — Rad abstellen & sperren
+          </div>
+        ) : isBikeLeg && !b?.electric ? (
           <div className={`timer-banner${remainingMins <= 5 ? ' urgent' : ''}`}>
             ⏱️ Rad-Timer: Noch <b>{remainingMins} Min</b> Freifahrt (Puffer bis 28 Min)
           </div>
-        )}
+        ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
+          <div className="timer-banner urgent">
+            🚉 Nächste Station aussteigen: »{toName}«
+          </div>
+        ) : null}
 
         <div className="j-legcard">
           <span className={`j-bigico ${k}`}>
@@ -220,42 +253,33 @@ export default function JourneyMode({
 
         {infoLine && <div className={`j-info${infoWarn ? ' warn' : ''}`}>{infoLine}</div>}
 
-        <div className="j-actions-row">
-          <a className="btn-block" href={gmapsLink(leg, true)} target="_blank" rel="noreferrer">
-            <SendIcon size={16} /> Google Maps
-          </a>
-          {isBikeLeg && (
-            <a className="btn-block nextbike" href={nextbikeLink(leg)} target="_blank" rel="noreferrer">
-              <ExternalIcon size={15} /> In Nextbike öffnen
-            </a>
-          )}
-        </div>
-
         <div className="j-nav">
-          <button onClick={onPrev} disabled={legIndex === 0}>
-            <ChevronLeft size={16} /> Zurück
+          <button className="j-step" disabled={legIndex === 0} onClick={onPrev}>
+            <ChevronLeft size={16} /> Vorherige
           </button>
           {last ? (
-            <button className="next" onClick={onArrive}>
-              Angekommen <ChevronRight size={16} />
+            <button className="j-step arrive-btn" onClick={onArrive}>
+              <SendIcon size={14} /> Angekommen
             </button>
           ) : (
-            <button className="next" onClick={onNext}>
-              Weiter <ChevronRight size={16} />
+            <button className="j-step next-btn" onClick={onNext}>
+              Nächste <ChevronRight size={16} />
             </button>
           )}
         </div>
 
-        {!last && (
-          <div className="j-next-row">
-            <span className="j-next-cap">danach</span>
-            {legs.slice(legIndex + 1).map((l, i) => (
-              <span key={i} className={`badge ${legKind(l)}`}>
+        <div className="j-strips">
+          {legs.map((l, i) => {
+            const lk = legKind(l)
+            const sel = i === legIndex
+            return (
+              <button key={i} className={`j-chip ${lk}${sel ? ' sel' : ''}`}>
                 <ChipIcon leg={l} />
-              </span>
-            ))}
-          </div>
-        )}
+                <span>{mins(l.duration)}′</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

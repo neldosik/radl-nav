@@ -41,17 +41,21 @@ export interface TripStats {
   count: number
   minutes: number
   bikeMinutes: number
-  /** gesparte Euro: jede kostenlose Radetappe hätte sonst mind. 1 € gekostet */
   savedEuro: number
+  calories: number
+  co2Grams: number
 }
 
 export function tripStats(trips: TripRecord[]): TripStats {
-  const stats = { count: trips.length, minutes: 0, bikeMinutes: 0, savedEuro: 0 }
+  const stats = { count: trips.length, minutes: 0, bikeMinutes: 0, savedEuro: 0, calories: 0, co2Grams: 0 }
   for (const t of trips) {
     stats.minutes += Math.round(t.seconds / 60)
     stats.bikeMinutes += t.bikeMinutes
     // Ohne Abo kostet jede angefangene halbe Stunde 1 € (E-Bike zählt nicht als gespart)
     if (!t.electric && t.bikeMinutes > 0) stats.savedEuro += Math.ceil(t.bikeMinutes / 30)
+    // ~5 kcal per bike minute and ~38g CO2 saved per bike minute vs car
+    stats.calories += Math.round(t.bikeMinutes * 5.2)
+    stats.co2Grams += Math.round(t.bikeMinutes * 38)
   }
   return stats
 }

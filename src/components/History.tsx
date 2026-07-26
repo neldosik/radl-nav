@@ -11,6 +11,8 @@ export default function History({ onClose }: Props) {
   const [trips, setTrips] = useState(() => loadTrips())
   const s = tripStats(trips)
 
+  const co2Label = s.co2Grams >= 1000 ? `${(s.co2Grams / 1000).toFixed(1)} kg` : `${s.co2Grams} g`
+
   return (
     <div className="picker">
       <div className="picker-top">
@@ -39,6 +41,14 @@ export default function History({ onClose }: Props) {
             <span className="hist-cap">gespart</span>
           </div>
         </div>
+
+        {s.count > 0 && (
+          <div className="eco-banner">
+            <span>🔥 <b>{s.calories}</b> kcal verbrannt</span>
+            <span className="eco-dot">·</span>
+            <span>🌿 <b>{co2Label}</b> CO₂ gespart</span>
+          </div>
+        )}
 
         {trips.length === 0 ? (
           <div className="msg">
