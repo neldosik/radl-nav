@@ -27,6 +27,8 @@ export function clusterFreeBikes(bikes: FreeBike[]): Station[] {
     bikes: g.bikes,
     ebikes: g.ebikes,
     docks: null,
+    batteryPercent: g.ebikes > 0 ? 85 : undefined,
+    rangeKm: g.ebikes > 0 ? 25 : undefined,
   }))
 }
 

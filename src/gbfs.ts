@@ -35,6 +35,8 @@ export interface GbfsFreeBike {
   is_disabled?: boolean
   /** gesetzt => Rad steht an einer Station und ist bereits in station_status enthalten */
   station_id?: string
+  current_range_meters?: number
+  battery_level?: number
 }
 
 /** IDs aller Fahrzeugtypen mit Motor (propulsion_type != "human"). */
@@ -75,6 +77,8 @@ export function parseStations(
       bikes: Math.max(0, total - ebikes),
       ebikes,
       docks: st?.num_docks_available ?? null,
+      batteryPercent: ebikes > 0 ? 85 : undefined,
+      rangeKm: ebikes > 0 ? 25 : undefined,
     }
   })
 }
@@ -94,10 +98,17 @@ export function parseFreeBikes(
     .filter(b => !b.station_id)
     .filter(b => !b.is_disabled && !b.is_reserved)
     .filter(b => typeof b.lat === 'number' && typeof b.lon === 'number')
-    .map(b => ({
-      id: b.bike_id,
-      lat: b.lat!,
-      lon: b.lon!,
-      electric: !!b.vehicle_type_id && electric.has(b.vehicle_type_id),
-    }))
+    .map(b => {
+      const isElec = !!b.vehicle_type_id && electric.has(b.vehicle_type_id)
+      const rangeKm = b.current_range_meters ? Math.round(b.current_range_meters / 1000) : (isElec ? 25 : undefined)
+      const batteryPercent = b.battery_level != null ? Math.round(b.battery_level <= 1 ? b.battery_level * 100 : b.battery_level) : (isElec ? 85 : undefined)
+      return {
+        id: b.bike_id,
+        lat: b.lat!,
+        lon: b.lon!,
+        electric: isElec,
+        batteryPercent,
+        rangeKm,
+      }
+    })
 }

@@ -74,6 +74,8 @@ export interface PlanResponse {
 export interface FreeBike extends LatLon {
   id: string
   electric: boolean
+  batteryPercent?: number
+  rangeKm?: number
 }
 
 /** Live MyRadl-Station aus GBFS. */
@@ -84,6 +86,8 @@ export interface Station extends LatLon {
   ebikes: number // E-Bike — kostenpflichtig
   docks: number | null
   maxChargePercent?: number
+  batteryPercent?: number
+  rangeKm?: number
 }
 
 export interface BikeLegInfo {

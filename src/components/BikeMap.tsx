@@ -297,7 +297,11 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
             <div className="picker-name">{selected.name}</div>
             <div className="bm-counts-row">
               <span className="bm-count-pill classic">🚲 {selected.bikes} Standard</span>
-              {selected.ebikes > 0 && <span className="bm-count-pill ebike">⚡ {selected.ebikes} E-Bike</span>}
+              {selected.ebikes > 0 && (
+                <span className="bm-count-pill ebike">
+                  ⚡ {selected.ebikes} E-Bike {selected.batteryPercent ? `(🔋 ${selected.batteryPercent}% · ~${selected.rangeKm ?? 25} km)` : ''}
+                </span>
+              )}
               {walkDistM != null && (
                 <span className="bm-walk-tag">🚶 {walkDistM} m · ~{Math.max(1, Math.ceil(walkDistM / 80))} Min. Fußweg</span>
               )}

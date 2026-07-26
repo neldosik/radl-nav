@@ -173,6 +173,11 @@ export default function ItineraryCard({
                           📍 Ausleihe: {pickupText(pk.picks)}
                         </div>
                       )}
+                      {bike.electric && (
+                        <div className="ebike-bat-info">
+                          🔋 E-Bike Akku: ~85% · Reichweite ~25 km
+                        </div>
+                      )}
                       {bike.tooLong && (
                         <div className="bike-warn">
                           ⚠️ Fahrt dauert länger als 30 Min — kleine Aufzahlung.
