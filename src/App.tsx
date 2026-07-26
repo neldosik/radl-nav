@@ -17,7 +17,7 @@ import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
-import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, LogoMark, SendIcon, SwapIcon } from './icons'
+import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, DotsIcon, LogoMark, RainIcon, SendIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
 import { loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
@@ -203,7 +203,6 @@ export default function App() {
           view={journeyView}
           legIndex={journeyLeg}
           distToEnd={distToEnd}
-          hasGeo={userPos != null}
           bikesNeeded={bikes}
           now={nowTick}
           startedAt={startedAt}
@@ -329,7 +328,7 @@ export default function App() {
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
             title={t('menuTitle', lang)}
           >
-            ⋯
+            <DotsIcon size={18} />
           </button>
 
           {showHeaderMenu && (
@@ -359,7 +358,7 @@ export default function App() {
       <div className={`inputs${searchOpen ? '' : ' collapsed'}`}>
         <div className="in-card">
           <div className="in-row von">
-            <span className="in-label">{t('von', lang)}</span>
+            <span className="in-label"><span className="sr-only">{t('von', lang)}</span></span>
             <PlaceInput
               placeholder={t('startPlaceholder', lang)}
               value={from}
@@ -369,7 +368,7 @@ export default function App() {
             />
           </div>
           <div className="in-row nach">
-            <span className="in-label">{t('nach', lang)}</span>
+            <span className="in-label"><span className="sr-only">{t('nach', lang)}</span></span>
             <PlaceInput
               placeholder={t('toPlaceholder', lang)}
               value={to}
@@ -408,8 +407,9 @@ export default function App() {
                 }}
                 title={saved ? `Ziel: ${saved.place.name}` : `Als ${labelText} speichern`}
               >
-                <span>{saved ? s.emoji : '＋'}</span> {labelText}
-                {isSmart && <span className="smart-tag">⚡</span>}
+                <span className="qp-icon">{saved ? <SlotIcon id={s.id} size={13} /> : '＋'}</span>{' '}
+                {labelText}
+                {isSmart && <span className="smart-tag" />}
                 {saved && <span className="preset-dot" />}
               </button>
             )
@@ -424,7 +424,7 @@ export default function App() {
               }}
               title="Gespeicherte Orte löschen"
             >
-              ✕
+              <CloseIcon size={12} />
             </button>
           )}
 
@@ -432,6 +432,7 @@ export default function App() {
         {presetHint && <div className="preset-hint">{presetHint}</div>}
 
         <div className="controls">
+          {/* Reihe 1: Zeitwahl über die volle Breite, rechts zwei runde Knöpfe */}
           <div className="ctl-group">
             <div className="seg seg-auto">
               {(['now', 'depart', 'arrive'] as const).map(m => (
@@ -444,31 +445,19 @@ export default function App() {
                 </button>
               ))}
             </div>
-            {timeMode !== 'now' && (
-              <input
-                type="datetime-local"
-                className="time-input"
-                value={timeVal}
-                onChange={e => setTimeVal(e.target.value)}
-              />
-            )}
-          </div>
 
-          {/* Rad-Typ und Zeitlimit — direkt neben der Zeitwahl */}
-          <button
-            className="filter-chip"
-            onClick={() => setShowFilterModal(true)}
-            title={t('filterTitle', lang)}
-          >
-            {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
-            <span>
-              {bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} ·{' '}
-              {maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`}
-            </span>
-            <ChevronDown size={12} />
-          </button>
+            {/* Rad-Typ und Zeitlimit — nur Symbol, den Stand zeigt der Punkt */}
+            <button
+              className="filter-chip"
+              onClick={() => setShowFilterModal(true)}
+              aria-label={t('filterTitle', lang)}
+              title={`${bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} · ${
+                maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`
+              }`}
+            >
+              {bikeType === 'classic' ? <BikeIcon size={16} /> : <BoltIcon size={16} />}
+            </button>
 
-          <div className="ctl-row-actions">
             {from && to && (
               <button
                 className="fav-chip save"
@@ -476,17 +465,28 @@ export default function App() {
                   addFavRoute(from, to)
                   setFavRoutes(loadFavRoutes())
                 }}
+                aria-label={t('saveRoute', lang)}
                 title={t('saveRoute', lang)}
               >
-                <BookmarkIcon size={13} /> {t('saveRoute', lang)}
+                <BookmarkIcon size={15} />
               </button>
             )}
-
-            <button className="btn-route-chip" disabled={!from || !to || loading} onClick={() => search()}>
-              <SendIcon size={15} />
-              {loading ? '…' : t('routeBtn', lang)}
-            </button>
           </div>
+
+          {timeMode !== 'now' && (
+            <input
+              type="datetime-local"
+              className="time-input"
+              value={timeVal}
+              onChange={e => setTimeVal(e.target.value)}
+            />
+          )}
+
+          {/* Reihe 2: Suche über die volle Breite */}
+          <button className="btn-route-chip" disabled={!from || !to || loading} onClick={() => search()}>
+            <SendIcon size={15} />
+            {loading ? '…' : t('routeBtn', lang)}
+          </button>
         </div>
 
         {favRoutes.length > 0 && (
@@ -502,7 +502,7 @@ export default function App() {
                     setFavRoutes(loadFavRoutes())
                   }}
                 >
-                  ✕
+                  <CloseIcon size={11} />
                 </span>
               </button>
             ))}
@@ -520,9 +520,10 @@ export default function App() {
               onClick={() => setShowWeatherModal(true)}
               title={t('filterTitle', lang)}
             >
+              {weather.rain ? <RainIcon size={13} /> : <SunIcon size={13} />}
               {weather.rain
-                ? `🌧️ ${weather.temp}° · ${weather.precip.toFixed(1)} mm`
-                : `☀️ ${weather.temp}° · ${t('dry', lang)}`}
+                ? `${weather.temp}° · ${weather.precip.toFixed(1)} mm`
+                : `${weather.temp}° · ${t('dry', lang)}`}
             </button>
           )}
         </div>
@@ -608,16 +609,18 @@ export default function App() {
             <div className="modal-grabber" />
             <div className="filter-modal-head">
               <div className="filter-modal-title">
-                <span>🌦️ {lang === 'en' ? 'Weather Radar & Rain Forecast' : 'Wetter-Radar & Niederschlag'}</span>
+                <span>{lang === 'en' ? 'Weather Radar & Rain Forecast' : 'Wetter-Radar & Niederschlag'}</span>
               </div>
-              <button className="filter-modal-close" onClick={() => setShowWeatherModal(false)}>✕</button>
+              <button className="filter-modal-close" onClick={() => setShowWeatherModal(false)}>
+                <CloseIcon size={13} />
+              </button>
             </div>
 
             <div className="weather-hourly-list">
               {weather.hourly.map((h, i) => (
                 <div key={i} className={`weather-hour-row${h.rain ? ' rain' : ''}`}>
                   <span className="wh-time">{h.timeLabel} Uhr</span>
-                  <span className="wh-icon">{h.rain ? '🌧️' : '☀️'}</span>
+                  <span className="wh-icon">{h.rain ? <RainIcon size={14} /> : <SunIcon size={14} />}</span>
                   <span className="wh-temp">{h.temp}°C</span>
                   <span className="wh-precip">{h.precip > 0 ? `${h.precip.toFixed(1)} mm/h` : (lang === 'en' ? 'Dry' : 'Trocken')}</span>
                 </div>

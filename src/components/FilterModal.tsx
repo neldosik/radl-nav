@@ -1,4 +1,4 @@
-import { BikeIcon, BoltIcon } from '../icons'
+import { BikeIcon, BoltIcon, CloseIcon } from '../icons'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 
@@ -30,7 +30,7 @@ export default function FilterModal({
             <span>{t('filterTitle', lang)}</span>
           </div>
           <button className="filter-modal-close" onClick={onClose}>
-            ✕
+            <CloseIcon size={13} />
           </button>
         </div>
 

@@ -10,9 +10,10 @@ const config: CapacitorConfig = {
   },
   plugins: {
     StatusBar: {
-      overlaysWebView: false,
-      // Startwert = helles Papier; beim Themenwechsel setzt useTheme die Farbe nach
-      backgroundColor: '#f4f1ea',
+      // edge-to-edge: die Karte läuft bis unter die Uhr, lesbar über den
+      // Verlauf oben; useTheme setzt Stil und Durchsichtigkeit beim Start nach
+      overlaysWebView: true,
+      backgroundColor: '#00000000',
     },
   },
 }

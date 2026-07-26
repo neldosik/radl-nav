@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
-import { BikeIcon, BoltIcon, CloseIcon, TargetIcon } from '../icons'
+import { BikeIcon, BoltIcon, CloseIcon, TargetIcon, WalkIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
@@ -25,33 +25,78 @@ const RADIUS_M = 2500
 
 
 
+/** Fahrrad von der Seite: zwei Räder plus Rahmendreieck. Gezeichnet statt
+ *  Emoji — die rutschten auf manchen Android-Geräten von der Grundlinie und
+ *  änderten dabei die Breite der Pille. */
+function drawBike(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string) {
+  const r = s * 0.19
+  ctx.save()
+  ctx.strokeStyle = color
+  ctx.lineWidth = Math.max(1, s * 0.1)
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.arc(x + r, y + s * 0.22, r, 0, Math.PI * 2)
+  ctx.moveTo(x + s - r + r, y + s * 0.22)
+  ctx.arc(x + s - r, y + s * 0.22, r, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(x + r, y + s * 0.22)
+  ctx.lineTo(x + s * 0.42, y - s * 0.24) // Sattelstrebe
+  ctx.lineTo(x + s * 0.74, y - s * 0.24) // Oberrohr
+  ctx.lineTo(x + s - r, y + s * 0.22) // Gabel
+  ctx.moveTo(x + s * 0.42, y - s * 0.24)
+  ctx.lineTo(x + s * 0.55, y + s * 0.22) // Sitzrohr zum Tretlager
+  ctx.lineTo(x + r, y + s * 0.22) // Kettenstrebe
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** Blitz für E-Bikes — gefüllt, damit er auch klein noch trägt. */
+function drawBolt(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(x + s * 0.66, y - s * 0.5)
+  ctx.lineTo(x + s * 0.16, y + s * 0.08)
+  ctx.lineTo(x + s * 0.44, y + s * 0.08)
+  ctx.lineTo(x + s * 0.34, y + s * 0.5)
+  ctx.lineTo(x + s * 0.84, y - s * 0.08)
+  ctx.lineTo(x + s * 0.56, y - s * 0.08)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
 function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolean, filterType: string): ImageData {
   const showE = ebikes > 0 && filterType !== 'classic'
   const showC = bikes > 0 && filterType !== 'ebike'
-
-  const eStr = showE ? `⚡ ${ebikes}` : ''
-  const cStr = showC ? `🚲 ${bikes}` : ''
-  const text = showE && showC ? `${eStr}  |  ${cStr}` : showE ? eStr : cStr
 
   const dpr = 2
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')!
 
-  ctx.font = 'bold 13px system-ui, -apple-system, sans-serif'
-  const textW = ctx.measureText(text).width
-  const w = Math.max(54, Math.ceil(textW) + 22)
+  const ICON = 14
+  const GAP = 4 // zwischen Symbol und Zahl
+  const SPLIT = 9 // zwischen den beiden Gruppen
+  const FONT = 'bold 13px system-ui, -apple-system, sans-serif'
+
+  ctx.font = FONT
+  const cW = showC ? ICON + GAP + ctx.measureText(String(bikes)).width : 0
+  const eW = showE ? ICON + GAP + ctx.measureText(String(ebikes)).width : 0
+  const inner = cW + eW + (showC && showE ? SPLIT : 0)
+
+  const w = Math.max(52, Math.ceil(inner) + 22)
   const h = 32
 
   canvas.width = w * dpr
   canvas.height = h * dpr
   ctx.scale(dpr, dpr)
 
-  // Shadow
   ctx.shadowColor = 'rgba(0, 0, 0, 0.22)'
   ctx.shadowBlur = 6
   ctx.shadowOffsetY = 2
 
-  // Rounded Pill
   ctx.beginPath()
   const r = 13
   const x = 3, y = 2, width = w - 6, height = h - 6
@@ -71,12 +116,25 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
   ctx.strokeStyle = selected ? '#1f7a6f' : '#24211c'
   ctx.stroke()
 
-  // Text
-  ctx.font = 'bold 12px system-ui, -apple-system, sans-serif'
-  ctx.textAlign = 'center'
+  const mid = h / 2 - 1
+  let cur = (w - inner) / 2
+
+  ctx.font = FONT
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#24211c'
-  ctx.fillText(text, w / 2, h / 2 - 1)
+
+  if (showC) {
+    drawBike(ctx, cur, mid, ICON, '#24211c')
+    ctx.fillStyle = '#24211c'
+    ctx.fillText(String(bikes), cur + ICON + GAP, mid)
+    cur += cW + SPLIT
+  }
+  if (showE) {
+    // Terracotta wie überall, wo etwas Geld kostet
+    drawBolt(ctx, cur, mid, ICON, '#b4552a')
+    ctx.fillStyle = '#b4552a'
+    ctx.fillText(String(ebikes), cur + ICON + GAP, mid)
+  }
 
   return ctx.getImageData(0, 0, w * dpr, h * dpr)
 }
@@ -305,14 +363,22 @@ export default function BikeMap({
           <>
             <div className="picker-name">{selected.name}</div>
             <div className="bm-counts-row">
-              <span className="bm-count-pill classic">🚲 {selected.bikes} {t('bmStandard', lang)}</span>
+              <span className="bm-count-pill classic">
+                <BikeIcon size={13} /> {selected.bikes} {t('bmStandard', lang)}
+              </span>
               {selected.ebikes > 0 && (
                 <span className="bm-count-pill ebike">
-                  ⚡ {selected.ebikes} E-Bike {(selected.maxChargePercent ?? selected.batteryPercent) != null ? `(🔋 Max: ${selected.maxChargePercent ?? selected.batteryPercent}% · ~${selected.rangeKm ?? 25} km)` : ''}
+                  <BoltIcon size={13} /> {selected.ebikes} E-Bike
+                  {(selected.maxChargePercent ?? selected.batteryPercent) != null
+                    ? ` · Max ${selected.maxChargePercent ?? selected.batteryPercent} % · ~${selected.rangeKm ?? 25} km`
+                    : ''}
                 </span>
               )}
               {walkDistM != null && (
-                <span className="bm-walk-tag">🚶 {walkDistM} m · ~{Math.max(1, Math.ceil(walkDistM / 80))} Min. {t('bmWalk', lang)}</span>
+                <span className="bm-walk-tag">
+                  <WalkIcon size={13} /> {walkDistM} m · ~{Math.max(1, Math.ceil(walkDistM / 80))} Min.{' '}
+                  {t('bmWalk', lang)}
+                </span>
               )}
             </div>
             <button

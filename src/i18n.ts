@@ -22,13 +22,13 @@ export const dict = {
     tabBikes: 'Räder',
     tabTrips: 'Fahrten',
     dry: 'trocken',
-    lightMode: '☀️ Heller Modus',
-    darkMode: '🌙 Dunkler Modus',
-    myTrips: '📖 Meine Fahrten',
+    lightMode: 'Heller Modus',
+    darkMode: 'Dunkler Modus',
+    myTrips: 'Meine Fahrten',
     langToggle: '🇬🇧 English',
-    soundOn: '🔊 Töne an',
-    soundOff: '🔇 Töne stumm',
-    managePlaces: '📍 Orte verwalten',
+    soundOn: 'Töne an',
+    soundOff: 'Töne stumm',
+    managePlaces: 'Orte verwalten',
 
     // Inputs & Presets
     von: 'VON',
@@ -55,17 +55,17 @@ export const dict = {
     change: 'Ändern',
 
     // Badges & Filters
-    fastest: '⚡ Schnellste',
-    free100: '🚲 100% Gratis',
-    fewestTransfers: '🚶 Wenigste Umstiege',
+    fastest: 'Schnellste',
+    free100: '100 % gratis',
+    fewestTransfers: 'Wenigste Umstiege',
 
     // Filter Modal
     filterTitle: 'Rad-Filter & Zeitlimit',
-    bikeTypeLabel: 'FAHRRAD-TYP',
+    bikeTypeLabel: 'Fahrrad-Typ',
     standardSub: '30 Min. frei mit Abo',
     ebikeSub: 'Alle Radtypen erlaubt',
-    maxBikeTime: 'MAX. FAHRZEIT PRO ETAPPE',
-    applyFilter: '✓ Filter anwenden',
+    maxBikeTime: 'Max. Fahrzeit pro Etappe',
+    applyFilter: 'Filter anwenden',
 
     // Messages
     welcomeMsg: 'Wähle Start und Ziel — dann berechne ich Kombinationen aus Rad + MVV mit deinen 30 Freiminuten im Blick.',
@@ -89,7 +89,7 @@ export const dict = {
     bmLocateTitle: 'Auf meinen Standort zentrieren',
     bmStandard: 'Standard',
     bmWalk: 'Fußweg',
-    bmSelectStart: '✓ Als Start übernehmen',
+    bmSelectStart: 'Als Start übernehmen',
     bmEmptyHint: 'Tippe auf einen Pin — Details & Räder anzeigen',
 
     // JourneyMode
@@ -144,8 +144,8 @@ export const dict = {
     confirm: 'Übernehmen',
 
     // Weather
-    weatherRain: (time: string, mm: string, temp: number) => `🌧️ Regen um ${time} (${mm} mm) · ${temp}° — bei Radetappen lieber MVV`,
-    weatherDry: (time: string, temp: number) => `☀️ Trocken um ${time} · ${temp}° — gute Radzeit`,
+    weatherRain: (time: string, mm: string, temp: number) => `Regen um ${time} (${mm} mm) · ${temp}° — bei Radetappen lieber MVV`,
+    weatherDry: (time: string, temp: number) => `Trocken um ${time} · ${temp}° — gute Radzeit`,
   },
   en: {
     // Header & Menu
@@ -157,13 +157,13 @@ export const dict = {
     tabBikes: 'Bikes',
     tabTrips: 'Trips',
     dry: 'dry',
-    lightMode: '☀️ Light Mode',
-    darkMode: '🌙 Dark Mode',
-    myTrips: '📖 My Trips',
+    lightMode: 'Light Mode',
+    darkMode: 'Dark Mode',
+    myTrips: 'My Trips',
     langToggle: '🇩🇪 Deutsch',
-    soundOn: '🔊 Sound On',
-    soundOff: '🔇 Mute Sound',
-    managePlaces: '📍 Manage Places',
+    soundOn: 'Sound on',
+    soundOff: 'Mute sound',
+    managePlaces: 'Manage Places',
 
     // Inputs & Presets
     von: 'FROM',
@@ -190,17 +190,17 @@ export const dict = {
     change: 'Change',
 
     // Badges & Filters
-    fastest: '⚡ Fastest',
-    free100: '🚲 100% Free',
-    fewestTransfers: '🚶 Fewest Transfers',
+    fastest: 'Fastest',
+    free100: '100 % free',
+    fewestTransfers: 'Fewest Transfers',
 
     // Filter Modal
     filterTitle: 'Bike Filter & Time Limit',
-    bikeTypeLabel: 'BIKE TYPE',
+    bikeTypeLabel: 'Bike type',
     standardSub: '30 min free with subscription',
     ebikeSub: 'All bike types allowed',
-    maxBikeTime: 'MAX RIDING TIME PER LEG',
-    applyFilter: '✓ Apply Filter',
+    maxBikeTime: 'Max riding time per leg',
+    applyFilter: 'Apply filter',
 
     // Messages
     welcomeMsg: 'Select origin and destination — I will find combinations of bike + MVV transit keeping your 30 free minutes in mind.',
@@ -224,7 +224,7 @@ export const dict = {
     bmLocateTitle: 'Center on my location',
     bmStandard: 'Standard',
     bmWalk: 'walk',
-    bmSelectStart: '✓ Set as Start',
+    bmSelectStart: 'Set as start',
     bmEmptyHint: 'Tap a pin — see details & bikes',
 
     // JourneyMode
@@ -279,8 +279,8 @@ export const dict = {
     confirm: 'Confirm',
 
     // Weather
-    weatherRain: (time: string, mm: string, temp: number) => `🌧️ Rain at ${time} (${mm} mm) · ${temp}° — consider MVV for bike legs`,
-    weatherDry: (time: string, temp: number) => `☀️ Dry at ${time} · ${temp}° — great biking weather`,
+    weatherRain: (time: string, mm: string, temp: number) => `Rain at ${time} (${mm} mm) · ${temp}° — consider MVV for bike legs`,
+    weatherDry: (time: string, temp: number) => `Dry at ${time} · ${temp}° — great biking weather`,
   },
 } as const
 

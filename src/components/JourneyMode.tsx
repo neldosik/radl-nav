@@ -6,8 +6,10 @@ import {
   BikeIcon,
   ChevronLeft,
   ChevronRight,
+  ClockIcon,
   CloseIcon,
   ExternalIcon,
+  PinIcon,
   SendIcon,
   TargetIcon,
   WalkIcon,
@@ -23,7 +25,6 @@ interface Props {
   view: ItineraryView
   legIndex: number
   distToEnd: number | null
-  hasGeo: boolean
   bikesNeeded: number
   now: number
   startedAt: number | null
@@ -69,7 +70,6 @@ export default function JourneyMode({
   view,
   legIndex,
   distToEnd,
-  hasGeo,
   bikesNeeded,
   now,
   startedAt,
@@ -271,15 +271,16 @@ export default function JourneyMode({
 
         {isNearDropoff ? (
           <div className="timer-banner urgent">
-            📍 {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
+            <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
           </div>
         ) : isBikeLeg && !b?.electric ? (
           <div className={`timer-banner${remainingMins <= 5 ? ' urgent' : ''}`}>
-            ⏱️ {t('jmTimerFree', lang)} <b>{remainingMins} {t('jmTimerFreeMin', lang)}</b>
+            <ClockIcon size={14} /> {t('jmTimerFree', lang)}{' '}
+            <b>{remainingMins} {t('jmTimerFreeMin', lang)}</b>
           </div>
         ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
           <div className="timer-banner urgent">
-            🚉 {t('jmExitNext', lang)} »{toName}«
+            <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
           </div>
         ) : null}
       </div>
@@ -305,7 +306,6 @@ export default function JourneyMode({
               ) : delay != null && delay !== 0 ? (
                 <span className="delay">{delay > 0 ? `+${delay}` : delay} Min</span>
               ) : null}
-              {hasGeo && distText && <span className="j-dist-badge">≈ {distText}</span>}
             </div>
             <div className="j-legsub">
               {hm(leg.startTime)} · {fromName} → {toName}

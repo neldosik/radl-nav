@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  clearTrips,
   exactWhen,
   loadTrips,
   removeTrip,
@@ -10,7 +9,7 @@ import {
   weeklyChartData,
   whenLabel,
 } from '../history'
-import { BikeIcon, CloseIcon, TrashIcon } from '../icons'
+import { BikeIcon, BookmarkIcon, CloseIcon, TrashIcon } from '../icons'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 
@@ -32,13 +31,15 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
   const favorite = topRoute(trips)
 
   const maxMins = Math.max(1, ...chartData.map(c => c.mins))
+  // ohne Antippen bleibt sonst kein einziger Wert sichtbar
+  const shownDay = pickedDay ?? chartData.reduce((a, b) => (b.mins > a.mins ? b : a)).day
   const co2Label = s.co2Grams >= 1000 ? `${(s.co2Grams / 1000).toFixed(1)} kg` : `${s.co2Grams} g`
 
   // Achievement Badges
   const badges = [
-    { id: 'km50', label: '🥉 50 km Radler', unlocked: s.bikeMinutes >= 120 },
-    { id: 'save25', label: '🥈 25 € Gespart', unlocked: s.savedEuro >= 25 },
-    { id: 'eco10', label: '🥇 Eco-Held 10kg', unlocked: s.co2Grams >= 10000 },
+    { id: 'km50', label: '50 km Radler', unlocked: s.bikeMinutes >= 120 },
+    { id: 'save25', label: '25 € gespart', unlocked: s.savedEuro >= 25 },
+    { id: 'eco10', label: 'Eco-Held 10 kg', unlocked: s.co2Grams >= 10000 },
   ]
 
   return (
@@ -77,14 +78,14 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
         {s.count > 0 && (
           <>
             <div className="eco-banner">
-              <span>🔥 <b>{s.calories}</b> {t('jmCalBurned', lang)}</span>
-              <span className="eco-dot">·</span>
-              <span>🌿 <b>{co2Label}</b> {t('jmCo2Saved', lang)}</span>
+              <span><b>{s.calories}</b> {t('jmCalBurned', lang)}</span>
+              <span className="eco-dot" />
+              <span><b>{co2Label}</b> {t('jmCo2Saved', lang)}</span>
             </div>
 
             {favorite && (
               <div className="top-route-box">
-                ⭐ {favorite}
+                <BookmarkIcon size={12} /> {favorite}
               </div>
             )}
 
@@ -98,7 +99,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
               <div className="chart-bars">
                 {chartData.map(d => {
                   const hPct = Math.round((d.mins / maxMins) * 100)
-                  const on = pickedDay === d.day
+                  const on = shownDay === d.day
                   return (
                     <button
                       key={d.day}
@@ -169,19 +170,6 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
         )}
       </div>
 
-      {trips.length > 0 && (
-        <div className="picker-bottom">
-          <button
-            className="btn-block ghost"
-            onClick={() => {
-              clearTrips()
-              setTrips([])
-            }}
-          >
-            {t('histClear', lang)}
-          </button>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { geocode, getGeolocation, reverseGeocode } from '../api'
 import { loadSaved, PRESET_SLOTS, removeSaved, upsertSaved } from '../places'
-import { CloseIcon, PinIcon, StarIcon, TargetIcon } from '../icons'
+import { CloseIcon, PinIcon, SlotIcon, StarIcon, TargetIcon } from '../icons'
 import type { GeocodeMatch, Place } from '../types'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
@@ -105,7 +105,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
     }
   }
 
-  function saveAs(slot: { id: string; emoji: string; label: string }) {
+  function saveAs(slot: { id: string; label: string }) {
     if (!value) return
     upsertSaved(slot, { name: value.name.replace(/^📍\s*/, ''), lat: value.lat, lon: value.lon })
     setSaveOpen(false)
@@ -116,7 +116,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
     if (!value) return
     const label = window.prompt(t('customName', lang), '')?.trim()
     if (!label) return
-    saveAs({ id: `custom-${Date.now()}`, emoji: '⭐', label })
+    saveAs({ id: `custom-${Date.now()}`, label })
   }
 
   const saved = loadSaved()
@@ -175,7 +175,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
             <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => saveAs(s)}>
               <span className="d-main">
                 <span className="d-name">
-                  {s.emoji} {s.label}
+                  <SlotIcon id={s.id} size={13} /> {s.label}
                   {usedIds.has(s.id) ? ' · ersetzen' : ''}
                 </span>
               </span>
@@ -236,7 +236,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
                 <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => select(s.place)}>
                   <span className="d-main">
                     <span className="d-name">
-                      {s.emoji} {s.label}
+                      <SlotIcon id={s.id} size={13} /> {s.label}
                     </span>
                     <span className="d-area">{s.place.name}</span>
                   </span>

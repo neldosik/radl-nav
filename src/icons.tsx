@@ -21,12 +21,15 @@ export const WalkIcon = ({ size = 14 }: P) => (
   </svg>
 )
 
+/** Fahrrad von der Seite. Der frühere Punkt über dem Rahmen las sich klein
+ *  wie ein Störfleck; jetzt tragen zwei Räder und ein Rahmendreieck die Form. */
 export const BikeIcon = ({ size = 15 }: P) => (
   <svg {...base(size)}>
-    <circle cx="18.5" cy="17.5" r="3.5" />
-    <circle cx="5.5" cy="17.5" r="3.5" />
-    <circle cx="15" cy="5" r="1" />
-    <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
+    <circle cx="5.5" cy="17" r="4" />
+    <circle cx="18.5" cy="17" r="4" />
+    <path d="M5.5 17 10 7.5h4.5L18.5 17" />
+    <path d="M10 7.5 12.5 17H5.5" />
+    <path d="M8.5 7.5h3" />
   </svg>
 )
 
@@ -123,6 +126,56 @@ export const PinIcon = ({ size = 16 }: P) => (
     <circle cx="12" cy="10" r="3" />
   </svg>
 )
+
+export const ClockIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+)
+
+export const SunIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" />
+  </svg>
+)
+
+export const RainIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <path d="M6 15a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.5 1.4A3.6 3.6 0 0 1 17 15z" />
+    <path d="M8 18.5 7 21M12 18.5 11 21M16 18.5 15 21" />
+  </svg>
+)
+
+export const HomeIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />
+  </svg>
+)
+
+export const FilterIcon = ({ size = 16 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3 6h18M7 12h10M10 18h4" />
+  </svg>
+)
+
+/** Drei Punkte für das Kopfmenü — der Glyph „⋯" wirkte im 36px-Kreis leer. */
+export const DotsIcon = ({ size = 18 }: P) => (
+  <svg {...base(size)} fill="currentColor" stroke="none">
+    <circle cx="5" cy="12" r="1.9" />
+    <circle cx="12" cy="12" r="1.9" />
+    <circle cx="19" cy="12" r="1.9" />
+  </svg>
+)
+
+/** Symbol eines gemerkten Ortes — ersetzt die früheren Emoji im Datensatz. */
+export const SlotIcon = ({ id, size = 14 }: { id: string; size?: number }) => {
+  if (id === 'home') return <HomeIcon size={size} />
+  if (id === 'work') return <BookmarkIcon size={size} />
+  if (id === 'school') return <StarIcon size={size} />
+  return <PinIcon size={size} />
+}
 
 export const LogoMark = ({ size = 26 }: P) => (
   <svg {...base(size)}>

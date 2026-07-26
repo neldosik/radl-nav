@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
+import { BikeIcon, BoltIcon, ExternalIcon, PinIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { decodePolyline } from '../polyline'
 import { fetchElevationProfile } from '../api'
@@ -94,7 +94,7 @@ export default function ItineraryCard({
   let tagKind = 'ok'
   let tagText = lang === 'en' ? '0 € with subscription' : '0 € mit Deutschlandticket'
   if (short) {
-    tagKind = 'warn'
+    tagKind = 'alert'
     tagText = lang === 'en'
       ? `Only ${short.pk.got} of ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'bikes'} nearby`
       : `Nur ${short.pk.got} von ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'Rädern'} in der Nähe`
@@ -105,10 +105,10 @@ export default function ItineraryCard({
     tagKind = 'warn'
     tagText = lang === 'en' ? 'Bike ride > 30 free mins' : 'Rad länger als 30 Freiminuten'
   } else if (minGot != null && minGot <= 2) {
-    tagKind = 'warn'
+    tagKind = 'alert'
     tagText = lang === 'en'
-      ? `⚠️ High demand: only ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} left`
-      : `⚠️ Hohe Nachfrage: nur noch ${minGot} ${bikeWord(minGot)} frei`
+      ? `High demand: only ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} left`
+      : `Hohe Nachfrage: nur noch ${minGot} ${bikeWord(minGot)} frei`
   } else if (minGot != null) {
     tagText = lang === 'en'
       ? `0 € with sub · ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} free`
@@ -139,17 +139,17 @@ export default function ItineraryCard({
         <div className="route-badges-row">
           {isFastest && (
             <span className="badge-highlight fastest">
-              {lang === 'en' ? '⚡ Fastest' : '⚡ Schnellste'}
+              {lang === 'en' ? 'Fastest' : 'Schnellste'}
             </span>
           )}
           {isFree && (
             <span className="badge-highlight free">
-              {lang === 'en' ? '🚲 100% free' : '🚲 100% gratis'}
+              <BikeIcon size={11} /> {lang === 'en' ? '100 % free' : '100 % gratis'}
             </span>
           )}
           {isFewestTransfers && (
             <span className="badge-highlight transfers">
-              {lang === 'en' ? '🚶 Fewest changes' : '🚶 Wenigste Umstiege'}
+              {lang === 'en' ? 'Fewest changes' : 'Wenigste Umstiege'}
             </span>
           )}
         </div>
@@ -221,17 +221,20 @@ export default function ItineraryCard({
                     <div className="bike-details">
                       {pk && (
                         <div className="pickup-info">
-                          📍 Ausleihe: {pickupText(pk.picks)}
+                          <PinIcon size={12} /> Ausleihe: {pickupText(pk.picks)}
                         </div>
                       )}
                       {bike.electric && (
                         <div className="ebike-bat-info">
-                          ⚡ E-Bike {bike.startStation?.maxChargePercent != null ? `· Max Akku: ${bike.startStation.maxChargePercent}% (≈${bike.startStation.rangeKm ?? 25} km)` : '(1,50 €/30 Min)'}
+                          <BoltIcon size={12} /> E-Bike{' '}
+                          {bike.startStation?.maxChargePercent != null
+                            ? `· Max ${bike.startStation.maxChargePercent} % · ~${bike.startStation.rangeKm ?? 25} km`
+                            : '· 1,50 €/30 Min'}
                         </div>
                       )}
                       {bike.tooLong && (
                         <div className="bike-warn">
-                          ⚠️ Fahrt dauert länger als 30 Min — kleine Aufzahlung.
+                          Fahrt dauert länger als 30 Min — kleine Aufzahlung.
                         </div>
                       )}
                     </div>

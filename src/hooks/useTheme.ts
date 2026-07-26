@@ -3,15 +3,19 @@ import type { ThemeMode } from '../mapStyle'
 
 const KEY = 'radl.theme'
 
-/** In der Android-Hülle die native Statusleiste mitfärben — dort greift
- *  `meta[name=theme-color]` nicht, deshalb blieb die Leiste hell. */
+/** In der Android-Hülle die Statusleiste behandeln — dort greift
+ *  `meta[name=theme-color]` nicht. Die Leiste liegt durchsichtig über dem
+ *  Inhalt (edge-to-edge), damit die Karte bis unter die Uhr läuft; lesbar
+ *  bleibt sie durch den Verlauf `.picker-map::before` / `.journey::before`
+ *  und die Abstände aus `env(safe-area-inset-top)`. */
 function paintNativeStatusBar(theme: ThemeMode): void {
   const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
   if (!cap?.isNativePlatform?.()) return
   import('@capacitor/status-bar')
     .then(({ StatusBar, Style }) => {
       const dark = theme === 'dark'
-      StatusBar.setBackgroundColor({ color: dark ? '#1b1917' : '#f4f1ea' }).catch(() => {})
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
+      StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {})
       // Style.Light = heller Hintergrund mit dunklen Symbolen
       StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }).catch(() => {})
     })

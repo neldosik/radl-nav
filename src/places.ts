@@ -2,16 +2,16 @@ import type { Place } from './types'
 
 export interface SavedPlace {
   id: string
-  emoji: string
   label: string
   place: Place
 }
 
-/** Vordefinierte Slots — werden erst nach Konfiguration angezeigt. */
-export const PRESET_SLOTS: { id: string; emoji: string; label: string }[] = [
-  { id: 'home', emoji: '🏠', label: 'Zuhause' },
-  { id: 'work', emoji: '💼', label: 'Arbeit' },
-  { id: 'school', emoji: '🎓', label: 'Uni' },
+/** Vordefinierte Slots — werden erst nach Konfiguration angezeigt.
+ *  Das Symbol kommt aus `SlotIcon` anhand der `id`, früher lag hier ein Emoji. */
+export const PRESET_SLOTS: { id: string; label: string }[] = [
+  { id: 'home', label: 'Zuhause' },
+  { id: 'work', label: 'Arbeit' },
+  { id: 'school', label: 'Uni' },
 ]
 
 const KEY = 'radl.saved'
@@ -30,7 +30,7 @@ function persist(list: SavedPlace[]) {
 
 /** Ort in Slot speichern/überschreiben (Preset oder eigener Slot). */
 export function upsertSaved(
-  slot: { id: string; emoji: string; label: string },
+  slot: { id: string; label: string },
   place: Place,
 ): SavedPlace[] {
   // Slots in fester Reihenfolge: Presets oben, eigene nach Zeit.
