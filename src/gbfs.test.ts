@@ -99,3 +99,30 @@ describe('parseFreeBikes', () => {
     expect(out[0].electric).toBe(true)
   })
 })
+
+describe('parseStations · Mietlinks', () => {
+  it('reicht rental_uris aus station_information durch', () => {
+    const info: GbfsStationInfo[] = [
+      {
+        station_id: 's1',
+        name: 'Leonrodplatz',
+        lat: 48.15,
+        lon: 11.55,
+        rental_uris: {
+          android: 'https://app.nextbike.net/station?id=s1',
+          ios: 'https://app.nextbike.net/station?id=s1',
+          web: 'https://nxtb.it/p/s1',
+        },
+      },
+    ]
+    const status: GbfsStationStatus[] = [{ station_id: 's1', num_bikes_available: 4 }]
+    const [st] = parseStations(info, status, TYPES)
+    expect(st.rentalUris?.android).toBe('https://app.nextbike.net/station?id=s1')
+    expect(st.rentalUris?.web).toBe('https://nxtb.it/p/s1')
+  })
+
+  it('bleibt ohne rental_uris undefined statt zu werfen', () => {
+    const status: GbfsStationStatus[] = [{ station_id: 's1', num_bikes_available: 4 }]
+    expect(parseStations(INFO, status, TYPES)[0].rentalUris).toBeUndefined()
+  })
+})

@@ -11,6 +11,7 @@ export interface GbfsStationInfo {
   name: string
   lat: number
   lon: number
+  rental_uris?: { android?: string; ios?: string; web?: string }
 }
 
 export interface GbfsStationStatus {
@@ -114,6 +115,7 @@ export function parseStations(
       name: si.name,
       lat: si.lat,
       lon: si.lon,
+      rentalUris: si.rental_uris,
       bikes: Math.max(0, total - ebikes),
       ebikes,
       docks: st?.num_docks_available ?? null,

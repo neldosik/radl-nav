@@ -699,8 +699,7 @@ button {
   cursor: default;
 }
 
-.btn-block.ghost,
-.btn-block.nextbike {
+.btn-block.ghost {
   background: transparent;
   border: 1px solid var(--accent);
   color: var(--accent);
@@ -1703,6 +1702,30 @@ button {
   gap: 5px;
 }
 
+/* Station übernehmen und direkt in Nextbike öffnen — eine Reihe */
+.bm-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.bm-actions .btn-block {
+  flex: 1;
+}
+
+.bm-rent {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: var(--r-card);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .bm-walk-tag {
   font-size: 13px;
   color: var(--muted);
@@ -2112,6 +2135,23 @@ button {
 
 .j-nav-prev:disabled {
   opacity: 0.35;
+}
+
+/* Nextbike-Ausleihe: gleiche Reihe wie Zurück/Weiter, damit der Karte
+   keine ganze Zeile verloren geht */
+.j-nav-bike {
+  width: 68px;
+  height: 64px;
+  flex: none;
+  border-radius: 16px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
 }
 
 /* Weiter / Angekommen: breit und deutlich */

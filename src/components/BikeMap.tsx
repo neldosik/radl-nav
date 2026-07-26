@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
-import { BikeIcon, BoltIcon, CloseIcon, TargetIcon, WalkIcon } from '../icons'
+import { pickRentalUri } from '../format'
+import { BikeIcon, BoltIcon, CloseIcon, ExternalIcon, TargetIcon, WalkIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
@@ -381,12 +382,25 @@ export default function BikeMap({
                 </span>
               )}
             </div>
-            <button
-              className="btn-block"
-              onClick={() => onSelectPlace({ name: selected.name, lat: selected.lat, lon: selected.lon })}
-            >
-              {t('bmSelectStart', lang)}
-            </button>
+            <div className="bm-actions">
+              <button
+                className="btn-block"
+                onClick={() => onSelectPlace({ name: selected.name, lat: selected.lat, lon: selected.lon })}
+              >
+                {t('bmSelectStart', lang)}
+              </button>
+              {/* Deep-Link auf genau diese Station aus station_information.rental_uris */}
+              <a
+                className="bm-rent"
+                href={pickRentalUri(selected.rentalUris)}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={t('bmOpenNextbike', lang)}
+                title={t('bmOpenNextbike', lang)}
+              >
+                <ExternalIcon size={17} />
+              </a>
+            </div>
           </>
         ) : (
           <div className="bm-empty">{t('bmEmptyHint', lang)}</div>

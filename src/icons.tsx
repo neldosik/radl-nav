@@ -169,11 +169,27 @@ export const DotsIcon = ({ size = 18 }: P) => (
   </svg>
 )
 
-/** Symbol eines gemerkten Ortes — ersetzt die früheren Emoji im Datensatz. */
+export const BriefcaseIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+    <path d="M9 7.5V5.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.5v2" />
+    <path d="M3 12.5h18" />
+  </svg>
+)
+
+export const GraduationIcon = ({ size = 14 }: P) => (
+  <svg {...base(size)}>
+    <path d="M12 4 2 9l10 5 10-5z" />
+    <path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5" />
+  </svg>
+)
+
+/** Symbol eines gemerkten Ortes — ersetzt die früheren Emoji im Datensatz.
+ *  Lesezeichen und Stern sagten nichts über Arbeit und Schule aus. */
 export const SlotIcon = ({ id, size = 14 }: { id: string; size?: number }) => {
   if (id === 'home') return <HomeIcon size={size} />
-  if (id === 'work') return <BookmarkIcon size={size} />
-  if (id === 'school') return <StarIcon size={size} />
+  if (id === 'work') return <BriefcaseIcon size={size} />
+  if (id === 'school') return <GraduationIcon size={size} />
   return <PinIcon size={size} />
 }
 

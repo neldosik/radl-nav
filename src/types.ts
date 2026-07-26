@@ -82,6 +82,8 @@ export interface FreeBike extends LatLon {
 export interface Station extends LatLon {
   id: string
   name: string
+  /** Deep-Links aus `station_information.rental_uris` (alle 778 Stationen liefern sie) */
+  rentalUris?: { android?: string; ios?: string; web?: string }
   bikes: number // klassische Räder (30 Freiminuten mit Abo)
   ebikes: number // E-Bike — kostenpflichtig
   docks: number | null

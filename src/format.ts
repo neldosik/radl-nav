@@ -92,11 +92,18 @@ export function gmapsFullBikeLink(it: Itinerary): string | null {
  *  `nextbike.de/bm/location/?lat=…` gibt es nicht — das lief auf eine 404. */
 const NEXTBIKE_APP = 'https://app.nextbike.net/'
 
+/** Je Plattform den passenden Mietlink — der Android-Link taugt auf dem iPhone nicht. */
+export function pickRentalUri(
+  uris: { android?: string; ios?: string; web?: string } | undefined,
+  ua = navigator.userAgent,
+): string {
+  if (/iPhone|iPad|iPod/i.test(ua) && uris?.ios) return uris.ios
+  if (/Android/i.test(ua) && uris?.android) return uris.android
+  return uris?.web ?? NEXTBIKE_APP
+}
+
 /** Deep-Link in die Nextbike-App oder Nextbike-Webseite zur Ausleihe/Reservierung. */
 export function nextbikeLink(leg: Leg, ua = navigator.userAgent): string {
   const r = leg.rental
-  // Der Android-Link taugt auf dem iPhone nicht — je Plattform den passenden nehmen
-  if (/iPhone|iPad|iPod/i.test(ua) && r?.rentalUriIOS) return r.rentalUriIOS
-  if (/Android/i.test(ua) && r?.rentalUriAndroid) return r.rentalUriAndroid
-  return r?.rentalUriWeb ?? NEXTBIKE_APP
+  return pickRentalUri({ android: r?.rentalUriAndroid, ios: r?.rentalUriIOS, web: r?.rentalUriWeb }, ua)
 }

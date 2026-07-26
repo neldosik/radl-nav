@@ -11,7 +11,7 @@ export interface SavedPlace {
 export const PRESET_SLOTS: { id: string; label: string }[] = [
   { id: 'home', label: 'Zuhause' },
   { id: 'work', label: 'Arbeit' },
-  { id: 'school', label: 'Uni' },
+  { id: 'school', label: 'Schule' },
 ]
 
 const KEY = 'radl.saved'

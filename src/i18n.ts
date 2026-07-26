@@ -37,7 +37,7 @@ export const dict = {
     toPlaceholder: 'Ziel',
     home: 'Zuhause',
     work: 'Arbeit',
-    uni: 'Uni',
+    uni: 'Schule',
 
     // Time & Controls
     time: 'Zeit',
@@ -89,6 +89,7 @@ export const dict = {
     bmLocateTitle: 'Auf meinen Standort zentrieren',
     bmStandard: 'Standard',
     bmWalk: 'Fußweg',
+    bmOpenNextbike: 'In Nextbike öffnen',
     bmSelectStart: 'Als Start übernehmen',
     bmEmptyHint: 'Tippe auf einen Pin — Details & Räder anzeigen',
 
@@ -172,7 +173,7 @@ export const dict = {
     toPlaceholder: 'Destination',
     home: 'Home',
     work: 'Work',
-    uni: 'Uni',
+    uni: 'Schule',
 
     // Time & Controls
     time: 'Time',
@@ -224,6 +225,7 @@ export const dict = {
     bmLocateTitle: 'Center on my location',
     bmStandard: 'Standard',
     bmWalk: 'walk',
+    bmOpenNextbike: 'Open in Nextbike',
     bmSelectStart: 'Set as start',
     bmEmptyHint: 'Tap a pin — see details & bikes',
 

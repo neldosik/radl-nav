@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
+import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
 import { BikeIcon, BoltIcon, ExternalIcon, PinIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { decodePolyline } from '../polyline'
@@ -243,10 +243,10 @@ export default function ItineraryCard({
                   {leg.rental?.rentalUriWeb && (
                     <div className="leg-links">
                       <a
-                        href={leg.rental.rentalUriWeb}
+                        href={nextbikeLink(leg)}
                         target="_blank"
                         rel="noreferrer"
-                        className="leg-link nextbike"
+                        className="leg-link"
                       >
                         <ExternalIcon size={12} /> Auf Nextbike öffnen
                       </a>

@@ -315,22 +315,24 @@ export default function JourneyMode({
 
         {infoLine && <div className={`j-info${infoWarn ? ' warn' : ''}`}>{infoLine}</div>}
 
-        {/* Beim Rad: Ausleihe direkt in der Nextbike-App öffnen */}
-        {isBikeLeg && (
-          <a
-            className="btn-block nextbike"
-            href={nextbikeLink(leg)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <ExternalIcon size={15} /> {lang === 'en' ? 'Open in Nextbike' : 'In Nextbike öffnen'}
-          </a>
-        )}
-
         <div className="j-nav">
           <button className="j-nav-prev" disabled={legIndex === 0} onClick={onPrev} title={t('jmPrev', lang)}>
             <ChevronLeft size={24} />
           </button>
+          {/* Beim Rad: Ausleihe in der Nextbike-App. Als eigene Zeile nahm der
+              Knopf der Karte zu viel weg — jetzt in derselben Reihe. */}
+          {isBikeLeg && (
+            <a
+              className="j-nav-bike"
+              href={nextbikeLink(leg)}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={lang === 'en' ? 'Open in Nextbike' : 'In Nextbike öffnen'}
+              title={lang === 'en' ? 'Open in Nextbike' : 'In Nextbike öffnen'}
+            >
+              <ExternalIcon size={20} />
+            </a>
+          )}
           {last ? (
             <button className="j-nav-next" onClick={onArrive}>
               {t('jmArrivedBtn', lang)} <SendIcon size={20} />

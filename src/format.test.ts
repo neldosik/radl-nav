@@ -9,6 +9,7 @@ import {
   lineShort,
   mins,
   nextbikeLink,
+  pickRentalUri,
 } from './format'
 import { decodePolyline } from './polyline'
 import type { Itinerary, Leg } from './types'
@@ -161,5 +162,31 @@ describe('nextbikeLink', () => {
 
   it('landet ohne jeden Link auf der Nextbike-App statt auf einer 404', () => {
     expect(nextbikeLink(leg(), ANDROID)).toBe('https://app.nextbike.net/')
+  })
+})
+
+describe('pickRentalUri', () => {
+  const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 15)'
+  const uris = {
+    android: 'https://app.nextbike.net/station?id=7',
+    ios: 'https://app.nextbike.net/station?id=7',
+    web: 'https://nxtb.it/p/7',
+  }
+
+  it('nimmt auf Android den App-Link der Station', () => {
+    expect(pickRentalUri(uris, ANDROID)).toBe(uris.android)
+  })
+
+  it('nimmt auf dem iPhone den iOS-Link', () => {
+    expect(pickRentalUri(uris, IOS)).toBe(uris.ios)
+  })
+
+  it('nimmt am Rechner den Web-Link', () => {
+    expect(pickRentalUri(uris, 'Mozilla/5.0 (Windows NT 10.0)')).toBe(uris.web)
+  })
+
+  it('weicht ohne Links auf die Nextbike-App aus', () => {
+    expect(pickRentalUri(undefined, ANDROID)).toBe('https://app.nextbike.net/')
   })
 })
