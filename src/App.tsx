@@ -17,8 +17,13 @@ import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, re
 import type { SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, LogoMark, SendIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
+import { loadLanguage, saveLanguage, t } from './i18n'
+import type { Language } from './i18n'
 
 export default function App() {
+  const [lang, setLang] = useState<Language>(() => loadLanguage())
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => localStorage.getItem('radl.sound') !== 'false')
+
   const [from, setFrom] = useState<Place | null>(null)
   const [to, setTo] = useState<Place | null>(null)
   const [bikes] = useState(1)
@@ -47,6 +52,18 @@ export default function App() {
   const searchCtrl = useRef<AbortController | null>(null)
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
   const [presetHint, setPresetHint] = useState<string | null>(null)
+
+  function toggleLang() {
+    const next = lang === 'de' ? 'en' : 'de'
+    setLang(next)
+    saveLanguage(next)
+  }
+
+  function toggleSound() {
+    const next = !soundEnabled
+    setSoundEnabled(next)
+    localStorage.setItem('radl.sound', String(next))
+  }
 
   useEffect(() => {
     if (!presetHint) return
@@ -85,8 +102,8 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [journeyLeg, arrived])
 
-  async function search(f: Place | null = from, t: Place | null = to) {
-    if (!f || !t) return
+  async function search(f: Place | null = from, tPl: Place | null = to) {
+    if (!f || !tPl) return
     searchCtrl.current?.abort()
     const ctrl = new AbortController()
     searchCtrl.current = ctrl
@@ -100,7 +117,7 @@ export default function App() {
       const [stations, freeBikes] = await Promise.all([loadStations(), loadFreeBikes()])
       if (ctrl.signal.aborted) return
       const supply = [...stations, ...clusterFreeBikes(freeBikes)]
-      const list = await searchRoutes(f, t, {
+      const list = await searchRoutes(f, tPl, {
         stations,
         supply,
         maxBikeSec: maxBike * 60,
@@ -121,7 +138,7 @@ export default function App() {
       }
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
-        setError(e?.message ?? 'Suche fehlgeschlagen')
+        setError(e?.message ?? (lang === 'en' ? 'Search failed' : 'Suche fehlgeschlagen'))
       }
     } finally {
       if (!ctrl.signal.aborted) setLoading(false)
@@ -135,16 +152,19 @@ export default function App() {
     if (tmp && from) search(to, tmp)
   }
 
-  function runFav(f: Place, t: Place) {
+  function runFav(f: Place, tPl: Place) {
     setFrom(f)
-    setTo(t)
-    search(f, t)
+    setTo(tPl)
+    search(f, tPl)
   }
 
   if (pickOnMap) {
     return (
       <MapPicker
-        title={pickOnMap === 'from' ? 'Startpunkt auf Karte wählen' : 'Zielpunkt auf Karte wählen'}
+        title={pickOnMap === 'from'
+          ? (lang === 'en' ? 'Select Start on Map' : 'Startpunkt auf Karte wählen')
+          : (lang === 'en' ? 'Select Destination on Map' : 'Zielpunkt auf Karte wählen')
+        }
         initial={pickOnMap === 'from' ? from : to}
         theme={themeMode}
         onPick={p => {
@@ -233,6 +253,8 @@ export default function App() {
   }
 
   const hasResults = !!views && views.length > 0
+  const minDuration = views ? Math.min(...views.map(v => v.it.duration)) : Infinity
+  const minTransfers = views ? Math.min(...views.map(v => v.it.legs.length)) : Infinity
 
   return (
     <div className="app">
@@ -240,13 +262,13 @@ export default function App() {
         <div className="poster-brand">
           <LogoMark size={20} />
           <span className="poster-name">RADL NAVI</span>
-          <span className="poster-sub">MYRADL + MVV</span>
+          <span className="poster-sub">{t('appSub', lang)}</span>
         </div>
         <div className="header-menu-container">
           <button
             className="header-menu-btn"
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-            title="Hauptmenü"
+            title={t('menuTitle', lang)}
           >
             ⋯
           </button>
@@ -254,7 +276,13 @@ export default function App() {
           {showHeaderMenu && (
             <div className="header-dropdown" onClick={() => setShowHeaderMenu(false)}>
               <button className="header-menu-item" onClick={toggleTheme}>
-                {themeMode === 'dark' ? '☀️ Heller Modus' : '🌙 Dunkler Modus'}
+                {themeMode === 'dark' ? t('lightMode', lang) : t('darkMode', lang)}
+              </button>
+              <button className="header-menu-item" onClick={toggleLang}>
+                {t('langToggle', lang)}
+              </button>
+              <button className="header-menu-item" onClick={toggleSound}>
+                {soundEnabled ? t('soundOn', lang) : t('soundOff', lang)}
               </button>
               <button
                 className="header-menu-item"
@@ -263,7 +291,7 @@ export default function App() {
                   setShowHeaderMenu(false)
                 }}
               >
-                📖 Meine Fahrten
+                {t('myTrips', lang)}
               </button>
             </div>
           )}
@@ -272,21 +300,21 @@ export default function App() {
 
       <div className="inputs">
         <div className="in-row von">
-          <span className="in-label">VON</span>
+          <span className="in-label">{t('von', lang)}</span>
           <PlaceInput
-            placeholder="Startpunkt"
+            placeholder={t('startPlaceholder', lang)}
             value={from}
             onSelect={setFrom}
             onPickOnMap={() => setPickOnMap('from')}
           />
         </div>
         <div className="in-row nach">
-          <button className="btn-swap" onClick={swap} title="Start und Ziel tauschen">
+          <button className="btn-swap" onClick={swap} title="Start / Ziel tauschen">
             <SwapIcon size={14} />
           </button>
-          <span className="in-label">NACH</span>
+          <span className="in-label">{t('nach', lang)}</span>
           <PlaceInput
-            placeholder="Ziel"
+            placeholder={t('toPlaceholder', lang)}
             value={to}
             onSelect={setTo}
             onPickOnMap={() => setPickOnMap('to')}
@@ -297,6 +325,7 @@ export default function App() {
           {PRESET_SLOTS.map(s => {
             const saved = savedPlaces.find(p => p.id === s.id)
             const target = to ?? from
+            const labelText = s.id === 'home' ? t('home', lang) : s.id === 'work' ? t('work', lang) : t('uni', lang)
             return (
               <button
                 key={s.id}
@@ -307,14 +336,14 @@ export default function App() {
                     setPresetHint(null)
                   } else if (target) {
                     setSavedPlaces(upsertSaved(s, target))
-                    setPresetHint(`»${shortPlace(target)}« als ${s.label} gespeichert`)
+                    setPresetHint(`»${shortPlace(target)}« ${s.label}`)
                   } else {
-                    setPresetHint(`Erst Ziel wählen, dann als ${s.label} speichern`)
+                    setPresetHint(`Ziel wählen, dann als ${labelText} speichern`)
                   }
                 }}
-                title={saved ? `Ziel: ${saved.place.name}` : `Als ${s.label} speichern`}
+                title={saved ? `Ziel: ${saved.place.name}` : `Als ${labelText} speichern`}
               >
-                <span>{saved ? s.emoji : '＋'}</span> {s.label}
+                <span>{saved ? s.emoji : '＋'}</span> {labelText}
                 {saved && <span className="preset-dot" />}
               </button>
             )
@@ -325,7 +354,7 @@ export default function App() {
               onClick={() => {
                 for (const s of PRESET_SLOTS) removeSaved(s.id)
                 setSavedPlaces(loadSaved())
-                setPresetHint('Gespeicherte Orte gelöscht')
+                setPresetHint(lang === 'en' ? 'Saved places cleared' : 'Gespeicherte Orte gelöscht')
               }}
               title="Gespeicherte Orte löschen"
             >
@@ -337,7 +366,7 @@ export default function App() {
 
         <div className="controls">
           <div className="ctl-group">
-            <span className="ctl-label">Zeit</span>
+            <span className="ctl-label">{t('time', lang)}</span>
             <div className="seg seg-auto">
               {(['now', 'depart', 'arrive'] as const).map(m => (
                 <button
@@ -345,7 +374,7 @@ export default function App() {
                   className={`seg-btn${timeMode === m ? ' on' : ''}`}
                   onClick={() => pickTimeMode(m)}
                 >
-                  {m === 'now' ? 'Jetzt' : m === 'depart' ? 'Abfahrt' : 'Ankunft'}
+                  {m === 'now' ? t('now', lang) : m === 'depart' ? t('depart', lang) : t('arrive', lang)}
                 </button>
               ))}
             </div>
@@ -360,15 +389,15 @@ export default function App() {
           </div>
 
           <div className="ctl-group">
-            <span className="ctl-label">Rad</span>
+            <span className="ctl-label">{t('bike', lang)}</span>
             <button
               className="filter-chip"
               onClick={() => setShowFilterModal(true)}
-              title="Fahrrad-Typ & Zeitlimit anpassen"
+              title="Fahrrad-Typ & Zeitlimit"
             >
               {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
               <span>
-                {bikeType === 'classic' ? 'Standard' : 'E-Bike'} · {maxBike === 9999 ? '∞ Limit' : `≤ ${maxBike}′`}
+                {bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} · {maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`}
               </span>
               <ChevronDown size={12} />
             </button>
@@ -382,9 +411,9 @@ export default function App() {
                   addFavRoute(from, to)
                   setFavVer(v => v + 1)
                 }}
-                title="Diese Strecke merken"
+                title={t('saveRoute', lang)}
               >
-                <BookmarkIcon size={12} /> Strecke merken
+                <BookmarkIcon size={12} /> {t('saveRoute', lang)}
               </button>
             ) : (
               <div className="fav-placeholder" />
@@ -393,14 +422,14 @@ export default function App() {
             <button
               className="btn-bikemap"
               onClick={() => setShowBikeMap(true)}
-              title="Räder in der Nähe auf der Karte"
+              title={t('bikesNearby', lang)}
             >
-              <BikeIcon size={13} /> Räder in der Nähe
+              <BikeIcon size={13} /> {t('bikesNearby', lang)}
             </button>
 
             <button className="btn-route-chip" disabled={!from || !to || loading} onClick={() => search()}>
               <SendIcon size={13} />
-              {loading ? '…' : 'Route'}
+              {loading ? '…' : t('routeBtn', lang)}
             </button>
           </div>
         </div>
@@ -431,14 +460,13 @@ export default function App() {
         {error && <div className="msg error">{error}</div>}
         {!error && !views && !loading && (
           <div className="msg">
-            Wähle Start und Ziel — dann berechne ich Kombinationen aus Rad + MVV mit deinen 30
-            Freiminuten im Blick.
+            {t('welcomeMsg', lang)}
           </div>
         )}
-        {loading && <div className="msg">Berechne Rad + MVV …</div>}
+        {loading && <div className="msg">{t('calculating', lang)}</div>}
         {views && views.length === 0 && (
           <div className="msg">
-            Unter «Rad {maxBike === 9999 ? '∞' : `≤ ${maxBike} Min`}» nichts gefunden — erhöhe das Limit oder wähle andere Punkte.
+            {t('noRoutesFound', lang)}
           </div>
         )}
         {hasResults && weather && (
@@ -455,18 +483,27 @@ export default function App() {
         )}
         {hasResults && (
           <div className="results-list">
-            {views.map((v, i) => (
-              <ItineraryCard
-                key={i}
-                view={v}
-                index={i}
-                selected={i === sel}
-                bikesNeeded={bikes}
-                now={nowTick}
-                onSelect={() => setSel(i)}
-                onGo={() => journey.start()}
-              />
-            ))}
+            {views.map((v, i) => {
+              const isFastest = v.it.duration === minDuration
+              const isFree = !v.hasElectric && !v.warnLong
+              const isFewestTransfers = v.it.legs.length === minTransfers
+              return (
+                <ItineraryCard
+                  key={i}
+                  view={v}
+                  index={i}
+                  selected={i === sel}
+                  bikesNeeded={bikes}
+                  now={nowTick}
+                  isFastest={isFastest}
+                  isFree={isFree}
+                  isFewestTransfers={isFewestTransfers}
+                  lang={lang}
+                  onSelect={() => setSel(i)}
+                  onGo={() => journey.start()}
+                />
+              )
+            })}
           </div>
         )}
       </section>
@@ -479,7 +516,7 @@ export default function App() {
             <div className="filter-modal-head">
               <div className="filter-modal-title">
                 <BikeIcon size={18} />
-                <span>Rad-Filter & Zeitlimit</span>
+                <span>{t('filterTitle', lang)}</span>
               </div>
               <button className="filter-modal-close" onClick={() => setShowFilterModal(false)}>
                 ✕
@@ -487,7 +524,7 @@ export default function App() {
             </div>
 
             <div className="filter-card">
-              <label className="filter-label">Fahrrad-Typ</label>
+              <label className="filter-label">{t('bikeTypeLabel', lang)}</label>
               <div className="filter-type-grid">
                 <div
                   className={`filter-type-card${bikeType === 'classic' ? ' active' : ''}`}
@@ -498,7 +535,7 @@ export default function App() {
                 >
                   <div className="ft-icon"><BikeIcon size={20} /></div>
                   <div className="ft-name">Standard</div>
-                  <div className="ft-sub">30 Min. frei mit Abo</div>
+                  <div className="ft-sub">{t('standardSub', lang)}</div>
                 </div>
 
                 <div
@@ -509,14 +546,14 @@ export default function App() {
                   }}
                 >
                   <div className="ft-icon"><BoltIcon size={20} /></div>
-                  <div className="ft-name">Inkl. E-Bikes</div>
-                  <div className="ft-sub">Alle Radtypen erlaubt</div>
+                  <div className="ft-name">E-Bikes</div>
+                  <div className="ft-sub">{t('ebikeSub', lang)}</div>
                 </div>
               </div>
             </div>
 
             <div className="filter-card">
-              <label className="filter-label">Max. Fahrzeit pro Etappe</label>
+              <label className="filter-label">{t('maxBikeTime', lang)}</label>
               <div className="filter-time-pills">
                 {[10, 15, 20, 30, 9999].map(n => (
                   <button
@@ -527,14 +564,14 @@ export default function App() {
                       localStorage.setItem('radl.maxbike', String(n))
                     }}
                   >
-                    {n === 9999 ? '∞ Limit' : `${n}′`}
+                    {n === 9999 ? t('noLimit', lang) : `${n}′`}
                   </button>
                 ))}
               </div>
             </div>
 
             <button className="filter-modal-apply" onClick={() => setShowFilterModal(false)}>
-              ✓ Filter anwenden
+              {t('applyFilter', lang)}
             </button>
           </div>
         </div>

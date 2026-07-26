@@ -1,5 +1,5 @@
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, gmapsLink, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
+import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
 import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 
@@ -16,6 +16,10 @@ interface Props {
   selected: boolean
   bikesNeeded: number
   now: number
+  isFastest?: boolean
+  isFree?: boolean
+  isFewestTransfers?: boolean
+  lang?: 'de' | 'en'
   onSelect: () => void
   onGo: () => void
 }
@@ -41,13 +45,16 @@ export default function ItineraryCard({
   selected,
   bikesNeeded,
   now,
+  isFastest = false,
+  isFree = false,
+  isFewestTransfers = false,
+  lang = 'de',
   onSelect,
   onGo,
 }: Props) {
   const { it } = view
   const departIn = Math.round((new Date(it.startTime).getTime() - now) / 60000)
 
-  // Verfügbarkeit von Rädern in der Nähe (mit Aufteilung nach Stationen)
   const bikeInfos = [...view.bikeLegs.values()]
   const pickups = bikeInfos.map(b => ({
     b,
@@ -56,20 +63,23 @@ export default function ItineraryCard({
   const short = pickups.find(p => p.pk.got < bikesNeeded)
   const minGot = pickups.length ? Math.min(...pickups.map(p => p.pk.got)) : null
 
-  // Routen-Tag (eine Zeile)
   let tagKind = 'ok'
-  let tagText = '0 € mit Deutschlandticket'
+  let tagText = lang === 'en' ? '0 € with subscription' : '0 € mit Deutschlandticket'
   if (short) {
     tagKind = 'warn'
-    tagText = `Nur ${short.pk.got} von ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'Rädern'} in der Nähe`
+    tagText = lang === 'en'
+      ? `Only ${short.pk.got} of ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'bikes'} nearby`
+      : `Nur ${short.pk.got} von ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'Rädern'} in der Nähe`
   } else if (view.hasElectric) {
     tagKind = 'warn'
     tagText = 'E-Bike · 1,50 €/30 Min'
   } else if (view.warnLong) {
     tagKind = 'warn'
-    tagText = 'Rad länger als 30 Freiminuten'
+    tagText = lang === 'en' ? 'Bike ride > 30 free mins' : 'Rad länger als 30 Freiminuten'
   } else if (minGot != null) {
-    tagText = `0 € mit Deutschlandticket · ${minGot} ${bikeWord(minGot)} frei`
+    tagText = lang === 'en'
+      ? `0 € with sub · ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} free`
+      : `0 € mit Deutschlandticket · ${minGot} ${bikeWord(minGot)} frei`
   }
 
   const stripLegs = it.legs.filter(l => !(l.mode === 'WALK' && l.duration < 90))
@@ -79,6 +89,16 @@ export default function ItineraryCard({
       <div className="route-main" onClick={onSelect}>
         <span className="route-idx">{String(index + 1).padStart(2, '0')}</span>
         <div className="route-body">
+          {(isFastest || isFree || isFewestTransfers) && (
+            <div className="route-badges-row">
+              {isFastest && <span className="badge-highlight fastest">{lang === 'en' ? '⚡ Fastest' : '⚡ Schnellste'}</span>}
+              {isFree && <span className="badge-highlight free">{lang === 'en' ? '🚲 100% Free' : '🚲 100% Gratis'}</span>}
+              {isFewestTransfers && (
+                <span className="badge-highlight transfers">{lang === 'en' ? '🚶 Fewest Transfers' : '🚶 Wenigste Umstiege'}</span>
+              )}
+            </div>
+          )}
+
           <div className="route-durrow">
             <span className="route-dur">{mins(it.duration)}</span>
             <span className="route-times">
@@ -114,121 +134,62 @@ export default function ItineraryCard({
         <div className="legs">
           {departIn >= -1 && departIn <= 120 && (
             <div className={`depart-in${departIn <= 3 ? ' urgent' : ''}`}>
-              ▶ {departIn <= 0 ? 'Abfahrt jetzt' : `Abfahrt in ${departIn} Min`}
+              ▶ {departIn <= 0 ? (lang === 'en' ? 'Depart now' : 'Abfahrt jetzt') : (lang === 'en' ? `Depart in ${departIn} min` : `Abfahrt in ${departIn} Min`)}
             </div>
           )}
           {it.legs.map((leg, i) => {
             const k = legKind(leg)
-            const b = view.bikeLegs.get(i)
-            const fromName =
-              leg.from.name === 'START' ? 'Start' : leg.from.name || b?.startStation?.name || ''
-            const toName =
-              leg.to.name === 'END' ? 'Ziel' : leg.to.name || b?.endStation?.name || ''
+            const bike = view.bikeLegs.get(i)
+            const pk = bike ? planPickup(bike.nearby, bike.electric, bikesNeeded) : null
             return (
-              <div className="leg" key={i}>
-                <span className="leg-time">{hm(leg.startTime)}</span>
-                <span className={`leg-ico ${k}`}>
+              <div key={i} className={`leg ${k}`}>
+                <div className="leg-time">
+                  {hm(leg.startTime)}–{hm(leg.endTime)}
+                </div>
+                <div className="leg-icon">
                   <KindIcon leg={leg} />
-                </span>
+                </div>
                 <div className="leg-body">
-                  <div className="leg-title">
-                    {legLabel(leg)}
-                    {leg.routeShortName ? ` ${leg.routeShortName}` : ''} · {mins(leg.duration)} Min{' '}
+                  <div className="leg-head">
+                    <span className="leg-title">{legLabel(leg)}</span>
                     <DelayTag leg={leg} />
                   </div>
-                  <div className="leg-sub">
-                    {fromName} → {toName}
-                    {leg.headsign ? ` · Ri. ${leg.headsign}` : ''}
-                  </div>
-                  {b &&
-                    (() => {
-                      const pk = planPickup(b.nearby, b.electric, bikesNeeded)
-                      const pl = b.electric ? 'E-Bikes' : 'Räder'
-                      // Einzelnes Rad — kurze Zeile wie bisher
-                      if (bikesNeeded === 1) {
-                        if (!b.startStation) return null
-                        return (
-                          <div className="leg-sub stat">
-                            {b.startStation.bikes} {bikeWord(b.startStation.bikes)} an »
-                            {b.startStation.name}«
-                            {b.startStation.ebikes ? ` (+${b.startStation.ebikes} E-Bike)` : ''}
-                            {b.endStation ? `; zurückgeben: »${b.endStation.name}«` : ''}
-                          </div>
-                        )
-                      }
-                      return (
-                        <>
-                          {pk.got >= bikesNeeded ? (
-                            <div className="leg-sub stat">
-                              {bikesNeeded} {pl}: {pickupText(pk.picks)}
-                            </div>
-                          ) : (
-                            <>
-                              <div className="leg-sub warn">
-                                Nur {pk.got} von {bikesNeeded} {pl} in der Nähe
-                              </div>
-                              <div className="leg-sub stat">
-                                In der Nähe: {pk.totalElectric} E-Bikes · {pk.totalClassic} Standard
-                                {pk.picks.length > 0 ? ` — ${pickupText(pk.picks)}` : ''}
-                              </div>
-                            </>
-                          )}
-                          {b.endStation && (
-                            <div className="leg-sub stat">zurückgeben: »{b.endStation.name}«</div>
-                          )}
-                        </>
-                      )
-                    })()}
-                  {b?.freeFloating && <div className="leg-sub stat">Freistehendes Rad (keine Station)</div>}
-                  {b?.electric && <div className="leg-sub warn">E-Bike — keine Freiminuten</div>}
-                  {b?.tooLong && (
-                    <div className="leg-sub warn">
-                      {mins(leg.duration)} Min — Rad unterwegs wechseln, sonst 1 €
+                  {leg.headsign && <div className="leg-sub">Richtung: {leg.headsign}</div>}
+
+                  {k === 'bike' && bike && (
+                    <div className="bike-details">
+                      {pk && (
+                        <div className="pickup-info">
+                          📍 Ausleihe: {pickupText(pk.picks)}
+                        </div>
+                      )}
+                      {bike.tooLong && (
+                        <div className="bike-warn">
+                          ⚠️ Fahrt dauert länger als 30 Min — kleine Aufzahlung.
+                        </div>
+                      )}
                     </div>
                   )}
-                  {b?.swapStation && (
-                    <div className="leg-sub swap">
-                      🔁 Rad wechseln bei »{b.swapStation.name}« ({b.swapStation.bikes}{' '}
-                      {bikeWord(b.swapStation.bikes)}) — bleibt gratis
+
+                  {leg.rental?.rentalUriWeb && (
+                    <div className="leg-links">
+                      <a
+                        href={leg.rental.rentalUriWeb}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="leg-link nextbike"
+                      >
+                        <ExternalIcon size={12} /> Auf Nextbike öffnen
+                      </a>
                     </div>
                   )}
-                </div>
-                <div className="leg-links">
-                  {k === 'bike' && (
-                    <a
-                      className="leg-link nextbike"
-                      href={nextbikeLink(leg)}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="In Nextbike App öffnen"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <BikeIcon size={14} />
-                    </a>
-                  )}
-                  <a
-                    className="leg-link"
-                    href={gmapsLink(leg)}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="In Google Maps öffnen"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <ExternalIcon size={16} />
-                  </a>
                 </div>
               </div>
             )
           })}
 
-          <button
-            className="btn-block"
-            onClick={e => {
-              e.stopPropagation()
-              onGo()
-            }}
-          >
-            <SendIcon size={17} /> Losfahren
+          <button className="btn-block btn-go" onClick={onGo}>
+            <SendIcon size={15} /> {lang === 'en' ? 'Start Navigation' : 'LOS — Navigation starten'}
           </button>
         </div>
       )}

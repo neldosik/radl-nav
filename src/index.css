@@ -71,17 +71,80 @@
   --color-text: #f3f3f3;
   --color-accent: #ec3013;
   --color-accent-2: #ff5238;
-  --color-divider: rgba(255, 255, 255, 0.2);
+  --color-divider: rgba(255, 255, 255, 0.16);
 
   --color-neutral-300: #2a2a2a;
-  --color-neutral-500: #888888;
-  --color-neutral-600: #aaaaaa;
-  --color-neutral-700: #cccccc;
-  --color-neutral-800: #e0e0e0;
+  --color-neutral-500: #999999;
+  --color-neutral-600: #bbbbbb;
+  --color-neutral-700: #dddddd;
+  --color-neutral-800: #f0f0f0;
 
   --color-accent-700: #ff5238;
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.75);
   color-scheme: dark;
+}
+
+/* Route Badges */
+.route-badges-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.badge-highlight {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.badge-highlight.fastest {
+  background: #ec3013;
+  color: #ffffff;
+}
+
+.badge-highlight.free {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.badge-highlight.transfers {
+  background: #6366f1;
+  color: #ffffff;
+}
+
+/* Dark mode specific override fixes */
+.dark-theme .drop {
+  background: #242424;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark-theme .drop button:hover {
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.dark-theme .route {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark-theme .route.sel {
+  background: #252525;
+  border-color: var(--color-accent);
+}
+
+.dark-theme .quick-preset-chip {
+  background: #252525;
+  color: #f3f3f3;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-theme .quick-preset-chip.active {
+  background: color-mix(in srgb, var(--color-accent) 20%, #252525);
+  border-color: var(--color-accent);
 }
 
 * {
