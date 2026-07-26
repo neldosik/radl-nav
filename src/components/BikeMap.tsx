@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { loadFreeBikes, loadStations } from '../api'
-import { clusterFreeBikes, nearbyStations } from '../geo'
+import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { BikeIcon, BoltIcon, CloseIcon, TargetIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
+import { dict, t } from '../i18n'
+import type { Language } from '../i18n'
 
 interface Props {
   userPos: LatLon | null
   theme?: ThemeMode
+  lang?: Language
   /** Station als Startpunkt übernehmen */
   onSelectPlace: (p: Place) => void
   onClose: () => void
@@ -18,15 +21,7 @@ interface Props {
 const MUNICH: LatLon = { lat: 48.137, lon: 11.575 }
 const RADIUS_M = 2500
 
-function distMeters(a: LatLon, b: LatLon): number {
-  const R = 6371000
-  const dLat = (b.lat - a.lat) * Math.PI / 180
-  const dLon = (b.lon - a.lon) * Math.PI / 180
-  const sa = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(sa), Math.sqrt(1 - sa)))
-}
+
 
 function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolean, filterType: string): ImageData {
   const showE = ebikes > 0 && filterType !== 'classic'
@@ -83,7 +78,7 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
   return ctx.getImageData(0, 0, w * dpr, h * dpr)
 }
 
-export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClose }: Props) {
+export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelectPlace, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const userMarker = useRef<maplibregl.Marker | null>(null)
@@ -242,14 +237,14 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
   const list = supply ? nearbyStations(center, supply, RADIUS_M, 100) : []
   const totalBikes = list.reduce((n, x) => n + x.station.bikes, 0)
   const totalE = list.reduce((n, x) => n + x.station.ebikes, 0)
-  const walkDistM = selected && userPos ? distMeters(userPos, { lat: selected.lat, lon: selected.lon }) : null
+  const walkDistM = selected && userPos ? Math.round(haversine(userPos, { lat: selected.lat, lon: selected.lon })) : null
 
   return (
     <div className="picker" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <div className="picker-top">
-        <span>Räder in der Nähe</span>
+        <span>{t('bmTitle', lang)}</span>
         <button className="picker-x" onClick={onClose}>
-          <CloseIcon size={14} /> ZURÜCK
+          <CloseIcon size={14} /> {t('bmBack', lang)}
         </button>
       </div>
 
@@ -257,8 +252,8 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
         <div ref={canvas} className="picker-canvas" />
         <div className="picker-hint">
           {supply == null
-            ? 'Lade Räder …'
-            : `${totalBikes} Standard-Räder · ${totalE} E-Bikes im Umkreis`}
+            ? t('bmLoading', lang)
+            : dict[lang].bmSummary(totalBikes, totalE)}
         </div>
 
         <div className="bm-filter-bar">
@@ -266,25 +261,25 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
             className={`bm-filter-chip${filterType === 'all' ? ' active' : ''}`}
             onClick={() => setFilterType('all')}
           >
-            <BikeIcon size={14} /> Alle
+            <BikeIcon size={14} /> {t('bmAll', lang)}
           </button>
           <button
             className={`bm-filter-chip${filterType === 'classic' ? ' active' : ''}`}
             onClick={() => setFilterType('classic')}
           >
-            <BikeIcon size={14} /> Fahrrad
+            <BikeIcon size={14} /> {t('bmClassic', lang)}
           </button>
           <button
             className={`bm-filter-chip${filterType === 'ebike' ? ' active' : ''}`}
             onClick={() => setFilterType('ebike')}
           >
-            <BoltIcon size={14} /> E-Bike
+            <BoltIcon size={14} /> {t('bmEbike', lang)}
           </button>
         </div>
 
         <button
           className="bm-locate"
-          title="Auf meinen Standort zentrieren"
+          title={t('bmLocateTitle', lang)}
           onClick={() => map.current?.easeTo({ center: [center.lon, center.lat], zoom: 15 })}
         >
           <TargetIcon size={18} />
@@ -296,25 +291,25 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
           <>
             <div className="picker-name">{selected.name}</div>
             <div className="bm-counts-row">
-              <span className="bm-count-pill classic">🚲 {selected.bikes} Standard</span>
+              <span className="bm-count-pill classic">🚲 {selected.bikes} {t('bmStandard', lang)}</span>
               {selected.ebikes > 0 && (
                 <span className="bm-count-pill ebike">
                   ⚡ {selected.ebikes} E-Bike {selected.batteryPercent ? `(🔋 ${selected.batteryPercent}% · ~${selected.rangeKm ?? 25} km)` : ''}
                 </span>
               )}
               {walkDistM != null && (
-                <span className="bm-walk-tag">🚶 {walkDistM} m · ~{Math.max(1, Math.ceil(walkDistM / 80))} Min. Fußweg</span>
+                <span className="bm-walk-tag">🚶 {walkDistM} m · ~{Math.max(1, Math.ceil(walkDistM / 80))} Min. {t('bmWalk', lang)}</span>
               )}
             </div>
             <button
               className="btn-block"
               onClick={() => onSelectPlace({ name: selected.name, lat: selected.lat, lon: selected.lon })}
             >
-              ✓ Als Start übernehmen
+              {t('bmSelectStart', lang)}
             </button>
           </>
         ) : (
-          <div className="bm-empty">Tippe auf einen Pin — Details & Räder anzeigen</div>
+          <div className="bm-empty">{t('bmEmptyHint', lang)}</div>
         )}
       </div>
     </div>

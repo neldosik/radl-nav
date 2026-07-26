@@ -5,16 +5,19 @@ import { CloseIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
+import { t } from '../i18n'
+import type { Language } from '../i18n'
 
 interface Props {
   title: string
   initial?: LatLon | null
   theme?: ThemeMode
+  lang?: Language
   onPick: (p: Place) => void
   onClose: () => void
 }
 
-export default function MapPicker({ title, initial, theme = 'light', onPick, onClose }: Props) {
+export default function MapPicker({ title, initial, theme = 'light', lang = 'de', onPick, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const nameTimer = useRef<number | undefined>(undefined)
@@ -48,7 +51,7 @@ export default function MapPicker({ title, initial, theme = 'light', onPick, onC
       window.clearTimeout(nameTimer.current)
       setName('…')
       nameTimer.current = window.setTimeout(async () => {
-        setName(await reverseGeocode(c.lat, c.lng).catch(() => 'Kartenpunkt'))
+        setName(await reverseGeocode(c.lat, c.lng).catch(() => t('mapPoint', lang)))
       }, 350)
     }
     m.on('load', update)
@@ -80,7 +83,7 @@ export default function MapPicker({ title, initial, theme = 'light', onPick, onC
     const m = map.current
     if (!m) return
     const c = m.getCenter()
-    onPick({ name: name && name !== '…' ? name : 'Kartenpunkt', lat: c.lat, lon: c.lng })
+    onPick({ name: name && name !== '…' ? name : t('mapPoint', lang), lat: c.lat, lon: c.lng })
   }
 
   return (
@@ -88,18 +91,18 @@ export default function MapPicker({ title, initial, theme = 'light', onPick, onC
       <div className="picker-top">
         <span>{title}</span>
         <button className="picker-x" onClick={onClose}>
-          <CloseIcon size={14} /> ZURÜCK
+          <CloseIcon size={14} /> {t('bmBack', lang)}
         </button>
       </div>
       <div className="picker-map">
         <div ref={canvas} className="picker-canvas" />
         <div className="picker-pin" />
-        <div className="picker-hint">Karte verschieben — Pin zeigt dein Ziel</div>
+        <div className="picker-hint">{t('moveMapHint', lang)}</div>
       </div>
       <div className="picker-bottom">
         <div className="picker-name">{name}</div>
         <button className="btn-block" onClick={confirm}>
-          Übernehmen
+          {t('confirm', lang)}
         </button>
       </div>
     </div>

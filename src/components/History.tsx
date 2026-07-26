@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { clearTrips, loadTrips, topRoute, tripStats, weeklyChartData, whenLabel } from '../history'
 import { BikeIcon, CloseIcon } from '../icons'
+import { t } from '../i18n'
+import type { Language } from '../i18n'
 
 interface Props {
+  lang?: Language
   onClose: () => void
 }
 
 /** Fahrtenbuch & Rider Analytics Dashboard */
-export default function History({ onClose }: Props) {
+export default function History({ lang = 'de', onClose }: Props) {
   const [trips, setTrips] = useState(() => loadTrips())
   const s = tripStats(trips)
   const chartData = weeklyChartData(trips)
@@ -26,9 +29,9 @@ export default function History({ onClose }: Props) {
   return (
     <div className="picker">
       <div className="picker-top">
-        <span>Meine Fahrten & Stat</span>
+        <span>{t('histTitle', lang)}</span>
         <button className="picker-x" onClick={onClose}>
-          <CloseIcon size={14} /> ZURÜCK
+          <CloseIcon size={14} /> {t('bmBack', lang)}
         </button>
       </div>
 
@@ -36,38 +39,38 @@ export default function History({ onClose }: Props) {
         <div className="hist-stats">
           <div className="hist-stat">
             <span className="hist-num">{s.count}</span>
-            <span className="hist-cap">Fahrten</span>
+            <span className="hist-cap">{t('histTrips', lang)}</span>
           </div>
           <div className="hist-stat">
             <span className="hist-num">{s.minutes}</span>
-            <span className="hist-cap">Minuten</span>
+            <span className="hist-cap">{t('histMinutes', lang)}</span>
           </div>
           <div className="hist-stat">
             <span className="hist-num">{s.bikeMinutes}</span>
-            <span className="hist-cap">Min auf dem Rad</span>
+            <span className="hist-cap">{t('histBikeMin', lang)}</span>
           </div>
           <div className="hist-stat accent">
             <span className="hist-num">{s.savedEuro} €</span>
-            <span className="hist-cap">gespart</span>
+            <span className="hist-cap">{t('histSaved', lang)}</span>
           </div>
         </div>
 
         {s.count > 0 && (
           <>
             <div className="eco-banner">
-              <span>🔥 <b>{s.calories}</b> kcal verbrannt</span>
+              <span>🔥 <b>{s.calories}</b> {t('jmCalBurned', lang)}</span>
               <span className="eco-dot">·</span>
-              <span>🌿 <b>{co2Label}</b> CO₂ gespart</span>
+              <span>🌿 <b>{co2Label}</b> {t('jmCo2Saved', lang)}</span>
             </div>
 
             {favorite && (
               <div className="top-route-box">
-                ⭐ Lieblingstrecke: <b>{favorite}</b>
+                ⭐ {favorite}
               </div>
             )}
 
             <div className="chart-box">
-              <div className="chart-title">Wochenübersicht (Rad-Minuten):</div>
+              <div className="chart-title">{t('histWeekTitle', lang)}</div>
               <div className="chart-bars">
                 {chartData.map(d => {
                   const hPct = Math.round((d.mins / maxMins) * 100)
@@ -99,26 +102,26 @@ export default function History({ onClose }: Props) {
 
         {trips.length === 0 ? (
           <div className="msg">
-            Noch keine Fahrten. Nach „Angekommen" landet jede Fahrt hier — nur auf diesem Gerät.
+            {t('histEmpty', lang)}
           </div>
         ) : (
           <div className="hist-list">
-            {trips.map(t => (
-              <div className="hist-item" key={t.id}>
-                <div className="hist-when">{whenLabel(t.at)}</div>
+            {trips.map(tRec => (
+              <div className="hist-item" key={tRec.id}>
+                <div className="hist-when">{whenLabel(tRec.at)}</div>
                 <div className="hist-main">
                   <div className="hist-route">
-                    {t.from} → {t.to}
+                    {tRec.from} → {tRec.to}
                   </div>
                   <div className="hist-meta">
-                    {Math.max(1, Math.round(t.seconds / 60))} Min · {t.legs} Etappen
-                    {t.bikeMinutes > 0 && (
+                    {Math.max(1, Math.round(tRec.seconds / 60))} Min · {tRec.legs} {t('jmLegs', lang)}
+                    {tRec.bikeMinutes > 0 && (
                       <>
                         {' · '}
-                        <BikeIcon size={11} /> {t.bikeMinutes} Min
+                        <BikeIcon size={11} /> {tRec.bikeMinutes} Min
                       </>
                     )}
-                    {t.electric && ' · E-Bike'}
+                    {tRec.electric && ' · E-Bike'}
                   </div>
                 </div>
               </div>
@@ -136,7 +139,7 @@ export default function History({ onClose }: Props) {
               setTrips([])
             }}
           >
-            Verlauf löschen
+            {t('histClear', lang)}
           </button>
         </div>
       )}

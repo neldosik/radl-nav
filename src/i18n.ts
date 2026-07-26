@@ -65,10 +65,81 @@ export const dict = {
     welcomeMsg: 'Wähle Start und Ziel — dann berechne ich Kombinationen aus Rad + MVV mit deinen 30 Freiminuten im Blick.',
     calculating: 'Berechne Rad + MVV …',
     noRoutesFound: 'Keine passenden Routen gefunden — passe die Filter an.',
+    networkError: 'Keine Verbindung — prüfe dein Internet.',
+    retry: 'Erneut versuchen',
 
     // Navigation & Map
     borrowBtn: 'Leihen',
     startAsPoint: 'Als Start übernehmen',
+
+    // BikeMap
+    bmTitle: 'Räder in der Nähe',
+    bmBack: 'ZURÜCK',
+    bmLoading: 'Lade Räder …',
+    bmSummary: (classic: number, ebike: number) => `${classic} Standard-Räder · ${ebike} E-Bikes im Umkreis`,
+    bmAll: 'Alle',
+    bmClassic: 'Fahrrad',
+    bmEbike: 'E-Bike',
+    bmLocateTitle: 'Auf meinen Standort zentrieren',
+    bmStandard: 'Standard',
+    bmWalk: 'Fußweg',
+    bmSelectStart: '✓ Als Start übernehmen',
+    bmEmptyHint: 'Tippe auf einen Pin — Details & Räder anzeigen',
+
+    // JourneyMode
+    jmGoMode: 'Los-Modus',
+    jmLeg: 'ETAPPE',
+    jmEnd: 'ENDE',
+    jmPrev: 'Vorherige',
+    jmNext: 'Nächste',
+    jmArrived: 'Angekommen',
+    jmArrivedBtn: 'Angekommen',
+    jmFinish: 'Fertig',
+    jmGoalReached: 'Ziel erreicht',
+    jmTravelTime: 'Reine Fahrzeit',
+    jmLegs: 'Etappen',
+    jmCalBurned: 'kcal verbrannt',
+    jmCo2Saved: 'CO₂ gespart',
+    jmTimerFree: 'Rad-Timer: Noch',
+    jmTimerFreeMin: 'Min Freifahrt (Puffer bis 28 Min)',
+    jmDropoff: 'Rückgabestation in',
+    jmDropoffAction: '— Rad abstellen & sperren',
+    jmExitNext: 'Nächste Station aussteigen:',
+
+    // History
+    histTitle: 'Meine Fahrten & Stat',
+    histTrips: 'Fahrten',
+    histMinutes: 'Minuten',
+    histBikeMin: 'Min auf dem Rad',
+    histSaved: 'gespart',
+    histWeekTitle: 'Wochenübersicht (Rad-Minuten):',
+    histEmpty: 'Noch keine Fahrten. Nach „Angekommen" landet jede Fahrt hier — nur auf diesem Gerät.',
+    histClear: 'Verlauf löschen',
+
+    // ItineraryCard
+    freeWithSub: '0 € mit Deutschlandticket',
+    eBikeCost: 'E-Bike · 1,50 €/30 Min',
+    bikeTooLong: 'Rad länger als 30 Freiminuten',
+    direction: 'Richtung:',
+    startNav: 'LOS — Navigation starten',
+    departNow: 'Abfahrt jetzt',
+    departIn: 'Abfahrt in',
+
+    // PlaceInput
+    myLocation: 'Mein Standort',
+    locating: 'Bestimme…',
+    pickOnMap: 'Auf der Karte wählen',
+    saveAs: 'Speichern als',
+    customName: 'Eigener Name…',
+    mapPoint: 'Kartenpunkt',
+
+    // MapPicker
+    moveMapHint: 'Karte verschieben — Pin zeigt dein Ziel',
+    confirm: 'Übernehmen',
+
+    // Weather
+    weatherRain: (time: string, mm: string, temp: number) => `🌧️ Regen um ${time} (${mm} mm) · ${temp}° — bei Radetappen lieber MVV`,
+    weatherDry: (time: string, temp: number) => `☀️ Trocken um ${time} · ${temp}° — gute Radzeit`,
   },
   en: {
     // Header & Menu
@@ -123,15 +194,88 @@ export const dict = {
     welcomeMsg: 'Select origin and destination — I will find combinations of bike + MVV transit keeping your 30 free minutes in mind.',
     calculating: 'Calculating Bike + MVV …',
     noRoutesFound: 'No suitable routes found — try adjusting your filters.',
+    networkError: 'No connection — check your internet.',
+    retry: 'Retry',
 
     // Navigation & Map
     borrowBtn: 'Rent',
     startAsPoint: 'Set as Start',
+
+    // BikeMap
+    bmTitle: 'Bikes Nearby',
+    bmBack: 'BACK',
+    bmLoading: 'Loading bikes …',
+    bmSummary: (classic: number, ebike: number) => `${classic} standard bikes · ${ebike} E-Bikes nearby`,
+    bmAll: 'All',
+    bmClassic: 'Bike',
+    bmEbike: 'E-Bike',
+    bmLocateTitle: 'Center on my location',
+    bmStandard: 'Standard',
+    bmWalk: 'walk',
+    bmSelectStart: '✓ Set as Start',
+    bmEmptyHint: 'Tap a pin — see details & bikes',
+
+    // JourneyMode
+    jmGoMode: 'Go Mode',
+    jmLeg: 'LEG',
+    jmEnd: 'END',
+    jmPrev: 'Previous',
+    jmNext: 'Next',
+    jmArrived: 'Arrived',
+    jmArrivedBtn: 'Arrived',
+    jmFinish: 'Done',
+    jmGoalReached: 'Destination reached',
+    jmTravelTime: 'Travel time',
+    jmLegs: 'Legs',
+    jmCalBurned: 'kcal burned',
+    jmCo2Saved: 'CO₂ saved',
+    jmTimerFree: 'Bike timer: ',
+    jmTimerFreeMin: 'min free ride left (28 min buffer)',
+    jmDropoff: 'Drop-off station in',
+    jmDropoffAction: '— lock & return bike',
+    jmExitNext: 'Get off at next stop:',
+
+    // History
+    histTitle: 'My Trips & Stats',
+    histTrips: 'Trips',
+    histMinutes: 'Minutes',
+    histBikeMin: 'Min on bike',
+    histSaved: 'saved',
+    histWeekTitle: 'Weekly overview (bike minutes):',
+    histEmpty: 'No trips yet. After pressing "Arrived" each trip appears here — only on this device.',
+    histClear: 'Clear history',
+
+    // ItineraryCard
+    freeWithSub: '0 € with subscription',
+    eBikeCost: 'E-Bike · €1.50/30 min',
+    bikeTooLong: 'Bike ride > 30 free mins',
+    direction: 'Direction:',
+    startNav: 'GO — Start Navigation',
+    departNow: 'Depart now',
+    departIn: 'Depart in',
+
+    // PlaceInput
+    myLocation: 'My Location',
+    locating: 'Locating…',
+    pickOnMap: 'Pick on map',
+    saveAs: 'Save as',
+    customName: 'Custom name…',
+    mapPoint: 'Map point',
+
+    // MapPicker
+    moveMapHint: 'Move map — pin marks your destination',
+    confirm: 'Confirm',
+
+    // Weather
+    weatherRain: (time: string, mm: string, temp: number) => `🌧️ Rain at ${time} (${mm} mm) · ${temp}° — consider MVV for bike legs`,
+    weatherDry: (time: string, temp: number) => `☀️ Dry at ${time} · ${temp}° — great biking weather`,
   },
 } as const
 
-export type TranslationKey = keyof typeof dict['de']
+export type TranslationKey = {
+  [K in keyof typeof dict['de']]: typeof dict['de'][K] extends string ? K : never
+}[keyof typeof dict['de']]
 
 export function t(key: TranslationKey, lang: Language): string {
-  return dict[lang]?.[key] ?? dict['de'][key] ?? key
+  return (dict[lang]?.[key] ?? dict['de'][key] ?? key) as string
 }

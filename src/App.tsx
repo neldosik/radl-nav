@@ -6,6 +6,7 @@ import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
 import BikeMap from './components/BikeMap'
 import History from './components/History'
+import FilterModal from './components/FilterModal'
 import { addTrip } from './history'
 import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations } from './api'
 import type { WeatherAtTime } from './api'
@@ -14,10 +15,10 @@ import { searchRoutes } from './routing'
 import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
-import type { SavedPlace } from './places'
+import type { FavRoute, SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, LogoMark, SendIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
-import { loadLanguage, saveLanguage, t } from './i18n'
+import { loadLanguage, saveLanguage, t, dict } from './i18n'
 import type { Language } from './i18n'
 
 export default function App() {
@@ -42,7 +43,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherAtTime | null>(null)
-  const [favVer, setFavVer] = useState(0)
+  const [favRoutes, setFavRoutes] = useState<FavRoute[]>(() => loadFavRoutes())
   const [nowTick, setNowTick] = useState(Date.now())
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   const [showBikeMap, setShowBikeMap] = useState(false)
@@ -139,7 +140,8 @@ export default function App() {
       }
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
-        setError(e?.message ?? (lang === 'en' ? 'Search failed' : 'Suche fehlgeschlagen'))
+        const isNetwork = !navigator.onLine || e?.message?.includes('fetch') || e?.message?.includes('network')
+        setError(isNetwork ? t('networkError', lang) : (e?.message ?? t('noRoutesFound', lang)))
       }
     } finally {
       if (!ctrl.signal.aborted) setLoading(false)
@@ -169,6 +171,7 @@ export default function App() {
         }
         initial={pickOnMap === 'from' ? from : to}
         theme={themeMode}
+        lang={lang}
         onPick={p => {
           if (pickOnMap === 'from') setFrom(p)
           else setTo(p)
@@ -184,6 +187,7 @@ export default function App() {
       <BikeMap
         userPos={userPos}
         theme={themeMode}
+        lang={lang}
         onSelectPlace={p => {
           setFrom(p)
           setShowBikeMap(false)
@@ -196,6 +200,7 @@ export default function App() {
   if (showHistory) {
     return (
       <History
+        lang={lang}
         onClose={() => setShowHistory(false)}
       />
     )
@@ -213,6 +218,8 @@ export default function App() {
           now={nowTick}
           startedAt={startedAt}
           arrived={arrived}
+          soundEnabled={soundEnabled}
+          lang={lang}
           routeLabel={(from ? shortPlace(from) : '') + ' → ' + (to ? shortPlace(to) : '')}
           onPrev={() => journey.goTo(journeyLeg - 1)}
           onNext={() => journey.goTo(journeyLeg + 1)}
@@ -306,6 +313,7 @@ export default function App() {
           <PlaceInput
             placeholder={t('startPlaceholder', lang)}
             value={from}
+            lang={lang}
             onSelect={setFrom}
             onPickOnMap={() => setPickOnMap('from')}
           />
@@ -318,6 +326,7 @@ export default function App() {
           <PlaceInput
             placeholder={t('toPlaceholder', lang)}
             value={to}
+            lang={lang}
             onSelect={setTo}
             onPickOnMap={() => setPickOnMap('to')}
           />
@@ -411,7 +420,7 @@ export default function App() {
                 className="fav-chip save"
                 onClick={() => {
                   addFavRoute(from, to)
-                  setFavVer(v => v + 1)
+                  setFavRoutes(loadFavRoutes())
                 }}
                 title={t('saveRoute', lang)}
               >
@@ -436,9 +445,9 @@ export default function App() {
           </div>
         </div>
 
-        {loadFavRoutes().length > 0 && (
+        {favRoutes.length > 0 && (
           <div className="favs">
-            {loadFavRoutes().map(fr => (
+            {favRoutes.map(fr => (
               <button key={fr.id} className="fav-chip" onClick={() => runFav(fr.from, fr.to)}>
                 {shortPlace(fr.from)} → {shortPlace(fr.to)}
                 <span
@@ -446,20 +455,24 @@ export default function App() {
                   onClick={e => {
                     e.stopPropagation()
                     removeFavRoute(fr.id)
-                    setFavVer(v => v + 1)
+                    setFavRoutes(loadFavRoutes())
                   }}
                 >
                   ✕
                 </span>
               </button>
             ))}
-            <span hidden>{favVer}</span>
           </div>
         )}
       </div>
 
       <section className="results">
-        {error && <div className="msg error">{error}</div>}
+        {error && (
+          <div className="msg error">
+            {error}
+            <button className="retry-btn" onClick={() => search()}>{t('retry', lang)}</button>
+          </div>
+        )}
         {!error && !views && !loading && (
           <div className="msg">
             {t('welcomeMsg', lang)}
@@ -474,8 +487,8 @@ export default function App() {
         {hasResults && weather && (
           <div className={`weather${weather.rain ? ' rain' : ''}`}>
             {weather.rain
-              ? `🌧️ Regen um ${weather.timeLabel} (${weather.precip.toFixed(1)} mm) · ${weather.temp}° — bei Radetappen lieber MVV`
-              : `☀️ Trocken um ${weather.timeLabel} · ${weather.temp}° — gute Radzeit`}
+              ? dict[lang].weatherRain(weather.timeLabel, weather.precip.toFixed(1), weather.temp)
+              : dict[lang].weatherDry(weather.timeLabel, weather.temp)}
           </div>
         )}
         {hasResults && (
@@ -532,72 +545,14 @@ export default function App() {
       </footer>
 
       {showFilterModal && (
-        <div className="filter-modal-backdrop" onClick={() => setShowFilterModal(false)}>
-          <div className="filter-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-grabber" />
-
-            <div className="filter-modal-head">
-              <div className="filter-modal-title">
-                <BikeIcon size={18} />
-                <span>{t('filterTitle', lang)}</span>
-              </div>
-              <button className="filter-modal-close" onClick={() => setShowFilterModal(false)}>
-                ✕
-              </button>
-            </div>
-
-            <div className="filter-card">
-              <label className="filter-label">{t('bikeTypeLabel', lang)}</label>
-              <div className="filter-type-grid">
-                <div
-                  className={`filter-type-card${bikeType === 'classic' ? ' active' : ''}`}
-                  onClick={() => {
-                    setBikeType('classic')
-                    localStorage.setItem('radl.biketype', 'classic')
-                  }}
-                >
-                  <div className="ft-icon"><BikeIcon size={20} /></div>
-                  <div className="ft-name">Standard</div>
-                  <div className="ft-sub">{t('standardSub', lang)}</div>
-                </div>
-
-                <div
-                  className={`filter-type-card${bikeType === 'any' ? ' active' : ''}`}
-                  onClick={() => {
-                    setBikeType('any')
-                    localStorage.setItem('radl.biketype', 'any')
-                  }}
-                >
-                  <div className="ft-icon"><BoltIcon size={20} /></div>
-                  <div className="ft-name">E-Bikes</div>
-                  <div className="ft-sub">{t('ebikeSub', lang)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="filter-card">
-              <label className="filter-label">{t('maxBikeTime', lang)}</label>
-              <div className="filter-time-pills">
-                {[10, 15, 20, 30, 9999].map(n => (
-                  <button
-                    key={n}
-                    className={`filter-time-pill${maxBike === n ? ' active' : ''}`}
-                    onClick={() => {
-                      setMaxBike(n)
-                      localStorage.setItem('radl.maxbike', String(n))
-                    }}
-                  >
-                    {n === 9999 ? t('noLimit', lang) : `${n}′`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button className="filter-modal-apply" onClick={() => setShowFilterModal(false)}>
-              {t('applyFilter', lang)}
-            </button>
-          </div>
-        </div>
+        <FilterModal
+          bikeType={bikeType}
+          maxBike={maxBike}
+          lang={lang}
+          onSelectBikeType={setBikeType}
+          onSelectMaxBike={setMaxBike}
+          onClose={() => setShowFilterModal(false)}
+        />
       )}
     </div>
   )

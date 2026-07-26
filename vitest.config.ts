@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 
 // Testlauf getrennt von der Build-Konfiguration halten
 export default defineConfig({

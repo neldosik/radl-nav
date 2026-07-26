@@ -7,6 +7,8 @@ import { planPickup } from '../geo'
 import { FREE_LIMIT_SEC } from '../routing'
 import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
+import { t } from '../i18n'
+import type { Language } from '../i18n'
 
 interface Props {
   view: ItineraryView
@@ -17,6 +19,8 @@ interface Props {
   now: number
   startedAt: number | null
   arrived: boolean
+  soundEnabled: boolean
+  lang?: Language
   routeLabel: string
   onPrev: () => void
   onNext: () => void
@@ -58,6 +62,8 @@ export default function JourneyMode({
   now,
   startedAt,
   arrived,
+  soundEnabled,
+  lang = 'de',
   routeLabel,
   onPrev,
   onNext,
@@ -104,12 +110,12 @@ export default function JourneyMode({
     if (!isBikeLeg) return
     if (bikeSec >= FREE_LIMIT_SEC - 5 * 60 && bikeSec < FREE_LIMIT_SEC - 2 * 60 && !warned5Min.current) {
       warned5Min.current = true
-      playWarningSound()
+      if (soundEnabled) playWarningSound()
       if (navigator.vibrate) navigator.vibrate([300, 100, 300])
     }
     if (bikeSec >= FREE_LIMIT_SEC - 2 * 60 && !warned2Min.current) {
       warned2Min.current = true
-      playWarningSound()
+      if (soundEnabled) playWarningSound()
       if (navigator.vibrate) navigator.vibrate([400, 100, 400])
     }
   }, [bikeSec, isBikeLeg])
@@ -124,24 +130,24 @@ export default function JourneyMode({
     return (
       <div className="journey">
         <div className="arrive">
-          <div className="arrive-kicker">Angekommen</div>
+          <div className="arrive-kicker">{t('jmArrived', lang)}</div>
           <div className="arrive-time">
             {Math.max(1, Math.round(elapsedMs / 60000))}
             <small> Min</small>
           </div>
-          <div className="arrive-route">{routeLabel || 'Ziel erreicht'}</div>
+          <div className="arrive-route">{routeLabel || t('jmGoalReached', lang)}</div>
           <div className="arrive-sub">
-            Reine Fahrzeit {elapsedText(elapsedMs)} · {legs.length} Etappen
+            {t('jmTravelTime', lang)} {elapsedText(elapsedMs)} · {legs.length} {t('jmLegs', lang)}
           </div>
 
           <div className="eco-banner" style={{ margin: '14px 0 18px' }}>
-            <span>🔥 <b>{cal}</b> kcal verbrannt</span>
+            <span>🔥 <b>{cal}</b> {t('jmCalBurned', lang)}</span>
             <span className="eco-dot">·</span>
-            <span>🌿 <b>{co2Label}</b> CO₂ gespart</span>
+            <span>🌿 <b>{co2Label}</b> {t('jmCo2Saved', lang)}</span>
           </div>
 
           <button className="btn-block" onClick={onExit}>
-            <SendIcon size={17} /> Fertig
+            <SendIcon size={17} /> {t('jmFinish', lang)}
           </button>
         </div>
       </div>
@@ -190,16 +196,16 @@ export default function JourneyMode({
     <div className="journey">
       <div className="j-poster">
         <div>
-          <div className="j-kicker">Los-Modus</div>
+          <div className="j-kicker">{t('jmGoMode', lang)}</div>
           <div className="j-etappe">
-            ETAPPE {String(legIndex + 1).padStart(2, '0')}
+            {t('jmLeg', lang)} {String(legIndex + 1).padStart(2, '0')}
             <small> / {total}</small>
           </div>
         </div>
         <div className="j-head-right">
           {startedAt != null && <div className="j-timer">{elapsedText(elapsedMs)}</div>}
           <button className="j-end" onClick={onExit}>
-            <CloseIcon size={12} /> ENDE
+            <CloseIcon size={12} /> {t('jmEnd', lang)}
           </button>
         </div>
       </div>
@@ -218,15 +224,15 @@ export default function JourneyMode({
       <div className="j-panel">
         {isNearDropoff ? (
           <div className="timer-banner urgent">
-            📍 Rückgabestation in <b>{distText}</b> — Rad abstellen & sperren
+            📍 {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
           </div>
         ) : isBikeLeg && !b?.electric ? (
           <div className={`timer-banner${remainingMins <= 5 ? ' urgent' : ''}`}>
-            ⏱️ Rad-Timer: Noch <b>{remainingMins} Min</b> Freifahrt (Puffer bis 28 Min)
+            ⏱️ {t('jmTimerFree', lang)} <b>{remainingMins} {t('jmTimerFreeMin', lang)}</b>
           </div>
         ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
           <div className="timer-banner urgent">
-            🚉 Nächste Station aussteigen: »{toName}«
+            🚉 {t('jmExitNext', lang)} »{toName}«
           </div>
         ) : null}
 
@@ -255,15 +261,15 @@ export default function JourneyMode({
 
         <div className="j-nav">
           <button className="j-step" disabled={legIndex === 0} onClick={onPrev}>
-            <ChevronLeft size={16} /> Vorherige
+            <ChevronLeft size={16} /> {t('jmPrev', lang)}
           </button>
           {last ? (
             <button className="j-step arrive-btn" onClick={onArrive}>
-              <SendIcon size={14} /> Angekommen
+              <SendIcon size={14} /> {t('jmArrivedBtn', lang)}
             </button>
           ) : (
             <button className="j-step next-btn" onClick={onNext}>
-              Nächste <ChevronRight size={16} />
+              {t('jmNext', lang)} <ChevronRight size={16} />
             </button>
           )}
         </div>

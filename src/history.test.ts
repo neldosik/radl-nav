@@ -36,7 +36,7 @@ describe('tripStats', () => {
   })
 
   it('kommt mit leerer Liste klar', () => {
-    expect(tripStats([])).toEqual({ count: 0, minutes: 0, bikeMinutes: 0, savedEuro: 0 })
+    expect(tripStats([])).toEqual({ count: 0, minutes: 0, bikeMinutes: 0, savedEuro: 0, calories: 0, co2Grams: 0 })
   })
 })
 

@@ -141,9 +141,6 @@ export default function ItineraryCard({
             const k = legKind(leg)
             const bike = view.bikeLegs.get(i)
             const pk = bike ? planPickup(bike.nearby, bike.electric, bikesNeeded) : null
-            const bikeMins = Math.round(leg.duration / 60)
-            const elevGain = Math.max(4, Math.round(bikeMins * 1.6))
-            const elevLoss = Math.max(2, Math.round(bikeMins * 1.1))
 
             return (
               <div key={i} className={`leg ${k}`}>
@@ -160,12 +157,6 @@ export default function ItineraryCard({
                   </div>
                   {leg.headsign && <div className="leg-sub">Richtung: {leg.headsign}</div>}
 
-                  {k === 'bike' && (
-                    <div className="elev-pill" title="Höhenprofil">
-                      ↗ +{elevGain}m · ↘ -{elevLoss}m
-                    </div>
-                  )}
-
                   {k === 'bike' && bike && (
                     <div className="bike-details">
                       {pk && (
@@ -175,7 +166,7 @@ export default function ItineraryCard({
                       )}
                       {bike.electric && (
                         <div className="ebike-bat-info">
-                          🔋 E-Bike Akku: ~85% · Reichweite ~25 km
+                          ⚡ E-Bike (1,50 €/30 Min)
                         </div>
                       )}
                       {bike.tooLong && (

@@ -3,10 +3,13 @@ import { geocode, getGeolocation, reverseGeocode } from '../api'
 import { loadSaved, PRESET_SLOTS, removeSaved, upsertSaved } from '../places'
 import { CloseIcon, PinIcon, StarIcon, TargetIcon } from '../icons'
 import type { GeocodeMatch, Place } from '../types'
+import { t } from '../i18n'
+import type { Language } from '../i18n'
 
 interface Props {
   placeholder: string
   value: Place | null
+  lang?: Language
   onSelect: (p: Place | null) => void
   onPickOnMap?: () => void
 }
@@ -39,7 +42,7 @@ function saveRecent(p: Place) {
   localStorage.setItem(RECENTS_KEY, JSON.stringify(list))
 }
 
-export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }: Props) {
+export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, onPickOnMap }: Props) {
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<GeocodeMatch[]>([])
   const [open, setOpen] = useState(false)
@@ -93,7 +96,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
     setLocating(true)
     try {
       const pos = await getGeolocation()
-      const name = await reverseGeocode(pos.lat, pos.lon).catch(() => 'Mein Standort')
+      const name = await reverseGeocode(pos.lat, pos.lon).catch(() => t('myLocation', lang))
       select({ name, lat: pos.lat, lon: pos.lon }, false)
     } catch {
       // Ruhig: Zugriff verweigert oder Zeitüberschreitung
@@ -111,7 +114,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
 
   function saveCustom() {
     if (!value) return
-    const label = window.prompt('Name des Ortes:', '')?.trim()
+    const label = window.prompt(t('customName', lang), '')?.trim()
     if (!label) return
     saveAs({ id: `custom-${Date.now()}`, emoji: '⭐', label })
   }
@@ -136,7 +139,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
         <>
           <button
             className="in-btn star"
-            title="Ort speichern"
+            title={t('saveAs', lang)}
             onMouseDown={e => e.preventDefault()}
             onClick={() => setSaveOpen(o => !o)}
           >
@@ -157,7 +160,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
       ) : (
         <button
           className="in-btn"
-          title="Mein Standort"
+          title={t('myLocation', lang)}
           onMouseDown={e => e.preventDefault()}
           onClick={useMyLocation}
         >
@@ -167,7 +170,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
 
       {saveOpen && value && (
         <div className="drop">
-          <div className="save-title">Speichern als</div>
+          <div className="save-title">{t('saveAs', lang)}</div>
           {PRESET_SLOTS.map(s => (
             <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => saveAs(s)}>
               <span className="d-main">
@@ -180,7 +183,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
           ))}
           <button onMouseDown={e => e.preventDefault()} onClick={saveCustom}>
             <span className="d-main">
-              <span className="d-name">＋ Eigener Name…</span>
+              <span className="d-name">＋ {t('customName', lang)}</span>
             </span>
           </button>
         </div>
@@ -208,7 +211,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
                   <TargetIcon size={16} />
                 </span>
                 <span className="d-main">
-                  <span className="d-name">{locating ? 'Bestimme…' : 'Mein Standort'}</span>
+                  <span className="d-name">{locating ? t('locating', lang) : t('myLocation', lang)}</span>
                 </span>
               </button>
 
@@ -224,7 +227,7 @@ export default function PlaceInput({ placeholder, value, onSelect, onPickOnMap }
                     <PinIcon size={16} />
                   </span>
                   <span className="d-main">
-                    <span className="d-name">Auf der Karte wählen</span>
+                    <span className="d-name">{t('pickOnMap', lang)}</span>
                   </span>
                 </button>
               )}

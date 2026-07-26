@@ -956,6 +956,23 @@ body {
   color: var(--color-accent-700);
 }
 
+.retry-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 22px;
+  border: 1.5px solid var(--color-accent-700);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--color-accent-700);
+  font: 600 13px/1 var(--font);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.retry-btn:hover {
+  background: var(--color-accent-700);
+  color: #fff;
+}
+
 /* Übersichtskarte über der Trefferliste — zeigt den Weg vor dem Losfahren */
 .results-map {
   position: relative;

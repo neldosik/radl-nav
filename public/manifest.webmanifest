@@ -1,7 +1,7 @@
 {
   "name": "Radl Navi",
   "short_name": "RadlNavi",
-  "description": "Мюнхен: маршруты велик (MyRadl) + общественный транспорт",
+  "description": "München: Rad (MyRadl) + MVV Routen — kostenlos navigieren",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

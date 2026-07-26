@@ -13,6 +13,7 @@ self.addEventListener('fetch', event => {
 
   // Автоматический кэш тайлов карты (MapLibre vector/raster tiles, cartography, fonts)
   const isMapAsset =
+    url.hostname.includes('openfreemap') ||
     url.hostname.includes('cartocdn') ||
     url.hostname.includes('basemaps') ||
     url.hostname.includes('openstreetmap') ||
