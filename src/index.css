@@ -2090,3 +2090,130 @@ body {
   color: var(--color-neutral-500);
 }
 
+/* ── Nextbike-style BikeMap Markers & Filters ── */
+.bm-pill-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  color: #1e1b4b;
+  border: 2px solid #312e81;
+  border-radius: 18px;
+  padding: 4px 10px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.bm-pill-marker:hover,
+.bm-pill-marker.selected {
+  transform: scale(1.12);
+  border-color: var(--color-accent);
+  box-shadow: 0 6px 18px rgba(236, 48, 19, 0.45);
+  z-index: 100 !important;
+}
+
+.bm-pill-sec {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.bm-pill-sec.ebike {
+  color: #0284c7;
+}
+
+.bm-pill-div {
+  width: 1px;
+  height: 12px;
+  background: #cbd5e1;
+}
+
+.bm-filter-bar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 5px 6px;
+  border-radius: 24px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.dark-theme .bm-filter-bar {
+  background: rgba(30, 30, 30, 0.94);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.bm-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 18px;
+  padding: 6px 13px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bm-filter-chip.active {
+  background: #312e81;
+  color: #ffffff;
+  border-color: #312e81;
+  box-shadow: 0 2px 8px rgba(49, 46, 129, 0.35);
+}
+
+.dark-theme .bm-filter-chip.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(236, 48, 19, 0.4);
+}
+
+.bm-counts-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.bm-count-pill {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--color-neutral-300);
+  color: var(--color-text);
+}
+
+.bm-count-pill.classic {
+  background: color-mix(in srgb, var(--color-text) 10%, var(--color-surface));
+}
+
+.bm-count-pill.ebike {
+  background: color-mix(in srgb, #0284c7 15%, var(--color-surface));
+  color: #0284c7;
+}
+
+.bm-walk-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-neutral-600);
+}
+
