@@ -76,7 +76,7 @@ export default function JourneyMode({
   const k = legKind(leg)
   const b = view.bikeLegs.get(legIndex)
   const last = legIndex === legs.length - 1
-  const total = String(legs.length).padStart(2, '0')
+
   const elapsedMs = startedAt ? now - startedAt : 0
 
   const isBikeLeg = k === 'bike'
@@ -153,14 +153,23 @@ export default function JourneyMode({
             {t('jmTravelTime', lang)} {elapsedText(elapsedMs)} · {legs.length} {t('jmLegs', lang)}
           </div>
 
-          <div className="eco-banner" style={{ margin: '14px 0 18px' }}>
-            <span>🔥 <b>{cal}</b> {t('jmCalBurned', lang)}</span>
-            <span className="eco-dot">·</span>
-            <span>🌿 <b>{co2Label}</b> {t('jmCo2Saved', lang)}</span>
+          <div className="arrive-stats">
+            <div className="arrive-stat">
+              <b>{cal}</b>
+              <span>kcal</span>
+            </div>
+            <div className="arrive-stat">
+              <b>{co2Label}</b>
+              <span>CO₂</span>
+            </div>
+            <div className="arrive-stat">
+              <b>{view.hasElectric ? '1,50 €' : '0 €'}</b>
+              <span>{lang === 'en' ? 'cost' : 'Kosten'}</span>
+            </div>
           </div>
 
-          <button className="btn-block" onClick={onExit}>
-            <SendIcon size={17} /> {t('jmFinish', lang)}
+          <button className="arrive-btn" onClick={onExit}>
+            {t('jmFinish', lang)}
           </button>
         </div>
       </div>
@@ -207,40 +216,33 @@ export default function JourneyMode({
 
   return (
     <div className="journey">
-      <div className="j-poster">
-        <div>
-          <div className="j-kicker">{t('jmGoMode', lang)}</div>
-          <div className="j-etappe">
-            {t('jmLeg', lang)} {String(legIndex + 1).padStart(2, '0')}
-            <small> / {total}</small>
-          </div>
-        </div>
-        <div className="j-head-right">
-          {startedAt != null && <div className="j-timer">{elapsedText(elapsedMs)}</div>}
-          <button className="j-end" onClick={onExit}>
-            <CloseIcon size={12} /> {t('jmEnd', lang)}
-          </button>
-        </div>
-      </div>
-
-      <div className="j-progress">
-        {legs.map((_, i) => (
-          <span
-            key={i}
-            style={{ background: i <= legIndex ? 'var(--color-accent)' : 'var(--color-neutral-300)' }}
-          />
-        ))}
-      </div>
-
       <div className="j-map">{children}</div>
 
-      <div className="j-panel">
-        {isBikeLeg && (
-          <div className="turn-guidance-bar">
-            <span>🚴 {lang === 'en' ? 'Navigate towards' : 'Fahre Richtung'}: <b>»{toName}«</b></span>
-            {distText && <span className="tg-dist">({distText})</span>}
+      {/* Schwebende Kopfkarte: wohin es gerade geht + Entfernung */}
+      <div className="j-poster">
+        <div className="j-head-row">
+          <div className="j-head-card">
+            <span className={`j-head-icon ${k}`}>
+              <BigIcon leg={leg} />
+            </span>
+            <div className="j-head-main">
+              <div className="j-kicker">
+                {lang === 'en' ? 'Head towards' : 'Fahre Richtung'}
+                {startedAt != null && <span className="j-timer"> · {elapsedText(elapsedMs)}</span>}
+              </div>
+              <div className="j-head-target">{toName}</div>
+            </div>
+            {distText && (
+              <div className="j-dist-badge">
+                {distText.replace(/ ?(km|m)$/, '')}
+                <small> {distText.endsWith('km') ? 'km' : 'm'}</small>
+              </div>
+            )}
           </div>
-        )}
+          <button className="j-end" onClick={onExit} title={t('jmEnd', lang)}>
+            <CloseIcon size={20} />
+          </button>
+        </div>
 
         {isNearDropoff ? (
           <div className="timer-banner urgent">
@@ -255,6 +257,15 @@ export default function JourneyMode({
             🚉 {t('jmExitNext', lang)} »{toName}«
           </div>
         ) : null}
+      </div>
+
+      {/* Unteres Blatt: Fortschritt, aktuelle Etappe, Navigation */}
+      <div className="j-panel">
+        <div className="j-progress">
+          {legs.map((_, i) => (
+            <span key={i} className={`j-step${i <= legIndex ? ' done' : ''}`} />
+          ))}
+        </div>
 
         <div className="j-legcard">
           <span className={`j-bigico ${k}`}>

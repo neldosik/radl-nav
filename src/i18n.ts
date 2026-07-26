@@ -15,8 +15,13 @@ export const dict = {
   de: {
     // Header & Menu
     appName: 'RADL NAVI',
-    appSub: 'MYRADL + MVV',
+    appSub: 'MyRadl + MVV · München',
     menuTitle: 'Hauptmenü',
+    // Untere Reiter
+    tabRoute: 'Route',
+    tabBikes: 'Räder',
+    tabTrips: 'Fahrten',
+    dry: 'trocken',
     lightMode: '☀️ Heller Modus',
     darkMode: '🌙 Dunkler Modus',
     myTrips: '📖 Meine Fahrten',
@@ -144,8 +149,13 @@ export const dict = {
   en: {
     // Header & Menu
     appName: 'RADL NAVI',
-    appSub: 'MYRADL + MVV',
+    appSub: 'MyRadl + MVV · Munich',
     menuTitle: 'Main Menu',
+    // Bottom tabs
+    tabRoute: 'Route',
+    tabBikes: 'Bikes',
+    tabTrips: 'Trips',
+    dry: 'dry',
     lightMode: '☀️ Light Mode',
     darkMode: '🌙 Dark Mode',
     myTrips: '📖 My Trips',

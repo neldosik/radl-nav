@@ -19,7 +19,7 @@ import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, re
 import type { FavRoute, SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, LogoMark, SendIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
-import { loadLanguage, saveLanguage, t, dict } from './i18n'
+import { loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
 
 export default function App() {
@@ -48,8 +48,8 @@ export default function App() {
   const [showWeatherModal, setShowWeatherModal] = useState(false)
   const [nowTick, setNowTick] = useState(Date.now())
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
-  const [showBikeMap, setShowBikeMap] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
+  /** Untere Reiter: Route (Suche), Räder (Karte), Fahrten (Verlauf) */
+  const [tab, setTab] = useState<'route' | 'bikes' | 'trips'>('route')
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null)
@@ -190,34 +190,6 @@ export default function App() {
     )
   }
 
-  if (showBikeMap) {
-    return (
-      <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
-        <BikeMap
-          userPos={userPos}
-          theme={themeMode}
-          lang={lang}
-          onSelectPlace={p => {
-            setFrom(p)
-            setShowBikeMap(false)
-          }}
-          onClose={() => setShowBikeMap(false)}
-        />
-      </Suspense>
-    )
-  }
-
-  if (showHistory) {
-    return (
-      <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
-        <History
-          lang={lang}
-          onClose={() => setShowHistory(false)}
-        />
-      </Suspense>
-    )
-  }
-
   if (journeyView && journeyLeg != null) {
     return (
       <div className="app">
@@ -277,15 +249,67 @@ export default function App() {
   const minDuration = views ? Math.min(...views.map(v => v.it.duration)) : Infinity
   const minTransfers = views ? Math.min(...views.map(v => v.it.legs.length)) : Infinity
 
+  // Реиспользуемая нижняя панель вкладок
+  const tabBar = (
+    <nav className="tabbar">
+      <button className={`tab${tab === 'route' ? ' on' : ''}`} onClick={() => setTab('route')}>
+        <SendIcon size={21} />
+        {t('tabRoute', lang)}
+      </button>
+      <button className={`tab${tab === 'bikes' ? ' on' : ''}`} onClick={() => setTab('bikes')}>
+        <BikeIcon size={21} />
+        {t('tabBikes', lang)}
+      </button>
+      <button className={`tab${tab === 'trips' ? ' on' : ''}`} onClick={() => setTab('trips')}>
+        <BookmarkIcon size={21} />
+        {t('tabTrips', lang)}
+      </button>
+    </nav>
+  )
+
+  if (tab === 'bikes') {
+    return (
+      <div className="app">
+        <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
+          <BikeMap
+            embedded
+            userPos={userPos}
+            theme={themeMode}
+            lang={lang}
+            onSelectPlace={p => {
+              setFrom(p)
+              setTab('route')
+            }}
+            onClose={() => setTab('route')}
+          />
+        </Suspense>
+        {tabBar}
+      </div>
+    )
+  }
+
+  if (tab === 'trips') {
+    return (
+      <div className="app">
+        <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
+          <History embedded lang={lang} onClose={() => setTab('route')} />
+        </Suspense>
+        {tabBar}
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <div className="poster">
         <div className="poster-brand">
-          <LogoMark size={20} />
-          <span className="poster-name">RADL NAVI</span>
-          <span className="poster-sub">{t('appSub', lang)}</span>
+          <LogoMark size={19} />
+          <span className="poster-name">Radl Navi</span>
         </div>
         <div className="header-menu-container">
+          <button className="header-menu-btn" onClick={toggleLang} title={t('langToggle', lang)}>
+            {lang === 'de' ? 'EN' : 'DE'}
+          </button>
           <button
             className="header-menu-btn"
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
@@ -299,20 +323,11 @@ export default function App() {
               <button className="header-menu-item" onClick={toggleTheme}>
                 {themeMode === 'dark' ? t('lightMode', lang) : t('darkMode', lang)}
               </button>
-              <button className="header-menu-item" onClick={toggleLang}>
-                {t('langToggle', lang)}
-              </button>
               <button className="header-menu-item" onClick={toggleSound}>
                 {soundEnabled ? t('soundOn', lang) : t('soundOff', lang)}
               </button>
-              <button
-                className="header-menu-item"
-                onClick={() => {
-                  setShowHistory(true)
-                  setShowHeaderMenu(false)
-                }}
-              >
-                {t('myTrips', lang)}
+              <button className="header-menu-item" onClick={() => setShowFilterModal(true)}>
+                {t('filterTitle', lang)}
               </button>
             </div>
           )}
@@ -320,28 +335,30 @@ export default function App() {
       </div>
 
       <div className="inputs">
-        <div className="in-row von">
-          <span className="in-label">{t('von', lang)}</span>
-          <PlaceInput
-            placeholder={t('startPlaceholder', lang)}
-            value={from}
-            lang={lang}
-            onSelect={setFrom}
-            onPickOnMap={() => setPickOnMap('from')}
-          />
-        </div>
-        <div className="in-row nach">
-          <button className="btn-swap" onClick={swap} title="Start / Ziel tauschen">
-            <SwapIcon size={14} />
-          </button>
-          <span className="in-label">{t('nach', lang)}</span>
-          <PlaceInput
-            placeholder={t('toPlaceholder', lang)}
-            value={to}
-            lang={lang}
-            onSelect={setTo}
-            onPickOnMap={() => setPickOnMap('to')}
-          />
+        <div className="in-card">
+          <div className="in-row von">
+            <span className="in-label">{t('von', lang)}</span>
+            <PlaceInput
+              placeholder={t('startPlaceholder', lang)}
+              value={from}
+              lang={lang}
+              onSelect={setFrom}
+              onPickOnMap={() => setPickOnMap('from')}
+            />
+          </div>
+          <div className="in-row nach">
+            <span className="in-label">{t('nach', lang)}</span>
+            <PlaceInput
+              placeholder={t('toPlaceholder', lang)}
+              value={to}
+              lang={lang}
+              onSelect={setTo}
+              onPickOnMap={() => setPickOnMap('to')}
+            />
+            <button className="btn-swap" onClick={swap} title="Start / Ziel tauschen">
+              <SwapIcon size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="quick-presets-row">
@@ -388,12 +405,25 @@ export default function App() {
               ✕
             </button>
           )}
+
+          {/* Rad-Typ und Zeitlimit — ein Chip statt zweier Schalterreihen */}
+          <button
+            className="filter-chip"
+            onClick={() => setShowFilterModal(true)}
+            title={t('filterTitle', lang)}
+          >
+            {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
+            <span>
+              {bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} ·{' '}
+              {maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`}
+            </span>
+            <ChevronDown size={12} />
+          </button>
         </div>
         {presetHint && <div className="preset-hint">{presetHint}</div>}
 
         <div className="controls">
           <div className="ctl-group">
-            <span className="ctl-label">{t('time', lang)}</span>
             <div className="seg seg-auto">
               {(['now', 'depart', 'arrive'] as const).map(m => (
                 <button
@@ -415,23 +445,8 @@ export default function App() {
             )}
           </div>
 
-          <div className="ctl-group">
-            <span className="ctl-label">{t('bike', lang)}</span>
-            <button
-              className="filter-chip"
-              onClick={() => setShowFilterModal(true)}
-              title="Fahrrad-Typ & Zeitlimit"
-            >
-              {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
-              <span>
-                {bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} · {maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`}
-              </span>
-              <ChevronDown size={12} />
-            </button>
-          </div>
-
           <div className="ctl-row-actions">
-            {from && to ? (
+            {from && to && (
               <button
                 className="fav-chip save"
                 onClick={() => {
@@ -440,22 +455,12 @@ export default function App() {
                 }}
                 title={t('saveRoute', lang)}
               >
-                <BookmarkIcon size={12} /> {t('saveRoute', lang)}
+                <BookmarkIcon size={13} /> {t('saveRoute', lang)}
               </button>
-            ) : (
-              <div className="fav-placeholder" />
             )}
 
-            <button
-              className="btn-bikemap"
-              onClick={() => setShowBikeMap(true)}
-              title={t('bikesNearby', lang)}
-            >
-              <BikeIcon size={13} /> {t('bikesNearby', lang)}
-            </button>
-
             <button className="btn-route-chip" disabled={!from || !to || loading} onClick={() => search()}>
-              <SendIcon size={13} />
+              <SendIcon size={15} />
               {loading ? '…' : t('routeBtn', lang)}
             </button>
           </div>
@@ -482,6 +487,24 @@ export default function App() {
         )}
       </div>
 
+      {/* Übersichtskarte mit Wetterhinweis — wie im Entwurf über der Liste */}
+      {hasResults && (
+        <div className="results-map" ref={mapBoxRef}>
+          <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+          {weather && (
+            <button
+              className={`weather${weather.rain ? ' rain' : ''}`}
+              onClick={() => setShowWeatherModal(true)}
+              title={t('filterTitle', lang)}
+            >
+              {weather.rain
+                ? `🌧️ ${weather.temp}° · ${weather.precip.toFixed(1)} mm`
+                : `☀️ ${weather.temp}° · ${t('dry', lang)}`}
+            </button>
+          )}
+        </div>
+      )}
+
       <section className="results">
         {error && (
           <div className="msg error">
@@ -498,40 +521,6 @@ export default function App() {
         {views && views.length === 0 && (
           <div className="msg">
             {t('noRoutesFound', lang)}
-          </div>
-        )}
-        {hasResults && weather && (
-          <div
-            className={`weather${weather.rain ? ' rain' : ''}`}
-            onClick={() => setShowWeatherModal(true)}
-            style={{ cursor: 'pointer' }}
-            title="Klick für почасовой прогноз осадков"
-          >
-            {weather.rain
-              ? dict[lang].weatherRain(weather.timeLabel, weather.precip.toFixed(1), weather.temp)
-              : dict[lang].weatherDry(weather.timeLabel, weather.temp)}
-          </div>
-        )}
-        {hasResults && (
-          <div className="results-map" ref={mapBoxRef}>
-            <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
-
-            <div className="map-route-pills">
-              {views.map((v, i) => {
-                const durMin = Math.round(v.it.duration / 60)
-                const isSel = i === sel
-                return (
-                  <button
-                    key={i}
-                    className={`map-route-pill${isSel ? ' active' : ''}`}
-                    onClick={() => setSel(i)}
-                  >
-                    <span className="mrp-num">#{i + 1}</span>
-                    <span className="mrp-dur">{durMin} Min</span>
-                  </button>
-                )
-              })}
-            </div>
           </div>
         )}
         {hasResults && (
@@ -559,11 +548,25 @@ export default function App() {
             })}
           </div>
         )}
+
+        <footer className="app-footer">
+          Made with ❤️ by <b>NELD</b> · {t('appSub', lang)}
+          <br />
+          <a href="https://transitous.org" target="_blank" rel="noreferrer">
+            Transitous
+          </a>{' '}
+          · MyRadl/nextbike (CC0) ·{' '}
+          <a href="https://open-meteo.com" target="_blank" rel="noreferrer">
+            Open-Meteo
+          </a>{' '}
+          (CC BY 4.0) · OpenFreeMap ©{' '}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+            OpenStreetMap
+          </a>
+        </footer>
       </section>
 
-      <footer className="app-footer">
-        <span>Made with ❤️ by <b>NELD</b> · Radl Navi Munich</span>
-      </footer>
+      {tabBar}
 
       {showFilterModal && (
         <FilterModal

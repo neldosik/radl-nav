@@ -40,7 +40,7 @@ export function pickupText(picks: { station: { name: string }; dist: number; tak
 
 interface Props {
   view: ItineraryView
-  index: number
+  index?: number
   selected: boolean
   bikesNeeded: number
   now: number
@@ -69,7 +69,7 @@ function KindIcon({ leg }: { leg: Leg }) {
 
 export default function ItineraryCard({
   view,
-  index,
+  index: _index,
   selected,
   bikesNeeded,
   now,
@@ -135,48 +135,57 @@ export default function ItineraryCard({
           )
         })}
       </div>
-      <div className="route-main" onClick={onSelect}>
-        <span className="route-idx">{String(index + 1).padStart(2, '0')}</span>
-        <div className="route-body">
-          {(isFastest || isFree || isFewestTransfers) && (
-            <div className="route-badges-row">
-              {isFastest && <span className="badge-highlight fastest">{lang === 'en' ? '⚡ Fastest' : '⚡ Schnellste'}</span>}
-              {isFree && <span className="badge-highlight free">{lang === 'en' ? '🚲 100% Free' : '🚲 100% Gratis'}</span>}
-              {isFewestTransfers && (
-                <span className="badge-highlight transfers">{lang === 'en' ? '🚶 Fewest Transfers' : '🚶 Wenigste Umstiege'}</span>
-              )}
-            </div>
-          )}
-
-          <div className="route-durrow">
-            <span className="route-dur">{mins(it.duration)}</span>
-            <span className="route-times">
-              Min · {hm(it.startTime)}–{hm(it.endTime)}
+      {(isFastest || isFree || isFewestTransfers) && (
+        <div className="route-badges-row">
+          {isFastest && (
+            <span className="badge-highlight fastest">
+              {lang === 'en' ? '⚡ Fastest' : '⚡ Schnellste'}
             </span>
-          </div>
-
-          {!selected && (
-            <div className="strip">
-              {stripLegs.map((leg, i) => {
-                const k = legKind(leg)
-                return (
-                  <span key={i} className={`badge ${k}`}>
-                    {k === 'line' ? (
-                      lineShort(leg)
-                    ) : (
-                      <>
-                        <KindIcon leg={leg} />
-                        {k === 'bike' ? `${mins(leg.duration)}′` : ''}
-                      </>
-                    )}
-                  </span>
-                )
-              })}
-            </div>
           )}
+          {isFree && (
+            <span className="badge-highlight free">
+              {lang === 'en' ? '🚲 100% free' : '🚲 100% gratis'}
+            </span>
+          )}
+          {isFewestTransfers && (
+            <span className="badge-highlight transfers">
+              {lang === 'en' ? '🚶 Fewest changes' : '🚶 Wenigste Umstiege'}
+            </span>
+          )}
+        </div>
+      )}
 
+      {/* Kopf: große Dauer links, Zeitfenster und Preis rechts */}
+      <div className="route-main" onClick={onSelect}>
+        <div className="route-durrow">
+          <span className="route-dur">{mins(it.duration)}</span>
+          <span className="route-times">{lang === 'en' ? 'min' : 'Min'}</span>
+        </div>
+        <div className="route-body">
+          <div className="route-times">
+            {hm(it.startTime)} → {hm(it.endTime)}
+          </div>
           <div className={`route-tag ${tagKind}`}>{tagText}</div>
         </div>
+      </div>
+
+      <div className="strip" onClick={onSelect}>
+        {stripLegs.map((leg, i) => {
+          const k = legKind(leg)
+          const isE = k === 'bike' && view.bikeLegs.get(it.legs.indexOf(leg))?.electric
+          return (
+            <span key={i} className={`badge ${k}${isE ? ' ebike' : ''}`}>
+              {k === 'line' ? (
+                `${lineShort(leg)} ${mins(leg.duration)}′`
+              ) : (
+                <>
+                  <KindIcon leg={leg} />
+                  {k === 'bike' ? `${mins(leg.duration)}′` : `${mins(leg.duration)}′`}
+                </>
+              )}
+            </span>
+          )
+        })}
       </div>
 
       {selected && (

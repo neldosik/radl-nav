@@ -13,6 +13,8 @@ interface Props {
   userPos: LatLon | null
   theme?: ThemeMode
   lang?: Language
+  /** als Reiter eingebettet (ohne Vollbild-Overlay und Schließen-Knopf) */
+  embedded?: boolean
   /** Station als Startpunkt übernehmen */
   onSelectPlace: (p: Place) => void
   onClose: () => void
@@ -78,7 +80,14 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
   return ctx.getImageData(0, 0, w * dpr, h * dpr)
 }
 
-export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelectPlace, onClose }: Props) {
+export default function BikeMap({
+  userPos,
+  theme = 'light',
+  lang = 'de',
+  embedded = false,
+  onSelectPlace,
+  onClose,
+}: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const userMarker = useRef<maplibregl.Marker | null>(null)
@@ -225,12 +234,14 @@ export default function BikeMap({ userPos, theme = 'light', lang = 'de', onSelec
   const walkDistM = selected && userPos ? Math.round(haversine(userPos, { lat: selected.lat, lon: selected.lon })) : null
 
   return (
-    <div className="picker">
+    <div className={`picker${embedded ? ' embedded' : ''}`}>
       <div className="picker-top">
         <span>{t('bmTitle', lang)}</span>
-        <button className="picker-x" onClick={onClose}>
-          <CloseIcon size={14} /> {t('bmBack', lang)}
-        </button>
+        {!embedded && (
+          <button className="picker-x" onClick={onClose}>
+            <CloseIcon size={14} />
+          </button>
+        )}
       </div>
 
       <div className="picker-map">

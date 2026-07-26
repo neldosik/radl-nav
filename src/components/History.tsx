@@ -6,11 +6,13 @@ import type { Language } from '../i18n'
 
 interface Props {
   lang?: Language
+  /** als Reiter eingebettet (ohne Vollbild-Overlay und Schließen-Knopf) */
+  embedded?: boolean
   onClose: () => void
 }
 
 /** Fahrtenbuch & Rider Analytics Dashboard */
-export default function History({ lang = 'de', onClose }: Props) {
+export default function History({ lang = 'de', embedded = false, onClose }: Props) {
   const [trips, setTrips] = useState(() => loadTrips())
   const s = tripStats(trips)
   const chartData = weeklyChartData(trips)
@@ -27,13 +29,17 @@ export default function History({ lang = 'de', onClose }: Props) {
   ]
 
   return (
-    <div className="picker">
-      <div className="picker-top">
-        <span>{t('histTitle', lang)}</span>
-        <button className="picker-x" onClick={onClose}>
-          <CloseIcon size={14} /> {t('bmBack', lang)}
-        </button>
-      </div>
+    <div className={`picker${embedded ? ' embedded' : ''}`}>
+      {embedded ? (
+        <div className="screen-title">{t('histTitle', lang)}</div>
+      ) : (
+        <div className="picker-top">
+          <span>{t('histTitle', lang)}</span>
+          <button className="picker-x" onClick={onClose}>
+            <CloseIcon size={14} />
+          </button>
+        </div>
+      )}
 
       <div className="hist-body">
         <div className="hist-stats">
