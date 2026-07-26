@@ -2090,6 +2090,103 @@ body {
   color: var(--color-neutral-500);
 }
 
+/* ── Analytics & Badges CSS ── */
+.top-route-box {
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.chart-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.chart-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--color-neutral-600);
+  margin-bottom: 10px;
+}
+
+.chart-bars {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 60px;
+  gap: 6px;
+}
+
+.chart-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.chart-bar-track {
+  flex: 1;
+  width: 100%;
+  max-width: 14px;
+  background: var(--color-neutral-300);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.chart-bar-fill {
+  width: 100%;
+  background: var(--color-accent);
+  border-radius: 4px;
+  transition: height 0.3s ease;
+}
+
+.chart-bar-day {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-neutral-600);
+  margin-top: 4px;
+}
+
+.badges-box {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.achieve-badge {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.achieve-badge.locked {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.achieve-badge.unlocked {
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--color-surface));
+  border-color: var(--color-accent);
+}
+
 /* ── Nextbike-style BikeMap Markers & Filters ── */
 .bm-pill-marker {
   display: inline-flex;

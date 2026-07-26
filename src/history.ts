@@ -60,6 +60,48 @@ export function tripStats(trips: TripRecord[]): TripStats {
   return stats
 }
 
+export interface DayMinutes {
+  day: string
+  mins: number
+}
+
+export function weeklyChartData(trips: TripRecord[]): DayMinutes[] {
+  const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+  const map = new Map<string, number>(days.map(d => [d, 0]))
+
+  const now = new Date()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000)
+
+  for (const t of trips) {
+    const d = new Date(t.at)
+    if (d >= sevenDaysAgo) {
+      const idx = (d.getDay() + 6) % 7 // Mo = 0, So = 6
+      const dayName = days[idx]
+      map.set(dayName, (map.get(dayName) ?? 0) + Math.round(t.bikeMinutes))
+    }
+  }
+
+  return days.map(day => ({ day, mins: map.get(day) ?? 0 }))
+}
+
+export function topRoute(trips: TripRecord[]): string | null {
+  if (!trips.length) return null
+  const counts = new Map<string, number>()
+  for (const t of trips) {
+    const key = `${t.from} → ${t.to}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  let bestKey: string | null = null
+  let maxN = 0
+  for (const [key, n] of counts.entries()) {
+    if (n > maxN) {
+      maxN = n
+      bestKey = key
+    }
+  }
+  return bestKey && maxN >= 2 ? `${bestKey} (${maxN}×)` : null
+}
+
 /** „vor 5 Min", „gestern", „12.07." — kurze Zeitangabe für die Liste. */
 export function whenLabel(iso: string, now = Date.now()): string {
   const d = new Date(iso)
