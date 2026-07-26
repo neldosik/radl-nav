@@ -15,38 +15,39 @@ import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { SavedPlace } from './places'
-import { BikeIcon, BoltIcon, BookmarkIcon, LogoMark, SendIcon, SwapIcon } from './icons'
+import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, LogoMark, SendIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
 
 export default function App() {
   const [from, setFrom] = useState<Place | null>(null)
   const [to, setTo] = useState<Place | null>(null)
-  const [bikes, setBikes] = useState(1)
+  const [bikes] = useState(1)
   const [maxBike, setMaxBike] = useState(() => {
     const saved = Number(localStorage.getItem('radl.maxbike'))
-    return [10, 15, 20, 30].includes(saved) ? saved : 20
+    return [10, 15, 20, 30, 9999].includes(saved) ? saved : 20
   })
   const [bikeType, setBikeType] = useState<'classic' | 'any'>(() =>
     localStorage.getItem('radl.biketype') === 'any' ? 'any' : 'classic',
   )
   const [timeMode, setTimeMode] = useState<'now' | 'depart' | 'arrive'>('now')
-  const [timeVal, setTimeVal] = useState('') // значение <input type="datetime-local">
+  const [timeVal, setTimeVal] = useState('')
 
   const [views, setViews] = useState<ItineraryView[] | null>(null)
   const [sel, setSel] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherAtTime | null>(null)
-  const [favVer, setFavVer] = useState(0) // форс-обновление списка любимых
-  const [nowTick, setNowTick] = useState(Date.now()) // для живого отсчёта до отправления
+  const [favVer, setFavVer] = useState(0)
+  const [nowTick, setNowTick] = useState(Date.now())
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   const [showBikeMap, setShowBikeMap] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const searchCtrl = useRef<AbortController | null>(null) // laufende Suche abbrechbar
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false)
+  const [showFilterModal, setShowFilterModal] = useState(false)
+  const searchCtrl = useRef<AbortController | null>(null)
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
-  const [presetHint, setPresetHint] = useState<string | null>(null) // kurze Rückmeldung zu Orten
+  const [presetHint, setPresetHint] = useState<string | null>(null)
 
-  // Hinweis nach kurzer Zeit wieder ausblenden
   useEffect(() => {
     if (!presetHint) return
     const id = window.setTimeout(() => setPresetHint(null), 3000)
@@ -59,7 +60,6 @@ export default function App() {
   const journey = useJourney(selectedView)
   const { legIndex: journeyLeg, startedAt, arrived, userPos, distToEnd } = journey
 
-  // Beim Start einmalig den Standort holen (für Karte und „Räder in der Nähe").
   useEffect(() => {
     getGeolocation()
       .then(pos => journey.setUserPos(pos))
@@ -68,20 +68,17 @@ export default function App() {
   }, [])
   const journeyView = journeyLeg != null ? selectedView : null
 
-  // Neue Suche oder andere Route gewählt — Los-Modus verlassen.
   useEffect(() => {
     journey.exit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, views])
 
-  // Тик раз в 30с для отсчёта «Abfahrt in X» (только когда есть результаты).
   useEffect(() => {
     if (!views) return
     const id = window.setInterval(() => setNowTick(Date.now()), 30000)
     return () => window.clearInterval(id)
   }, [views])
 
-  // В поездке тикаем раз в секунду — для таймера mm:ss.
   useEffect(() => {
     if (journeyLeg == null || arrived) return
     const id = window.setInterval(() => setNowTick(Date.now()), 1000)
@@ -90,7 +87,6 @@ export default function App() {
 
   async function search(f: Place | null = from, t: Place | null = to) {
     if (!f || !t) return
-    // Vorherige Suche abbrechen — sonst kann eine alte Antwort die neue überschreiben.
     searchCtrl.current?.abort()
     const ctrl = new AbortController()
     searchCtrl.current = ctrl
@@ -103,7 +99,6 @@ export default function App() {
     try {
       const [stations, freeBikes] = await Promise.all([loadStations(), loadFreeBikes()])
       if (ctrl.signal.aborted) return
-      // für die Verfügbarkeit zählen auch freistehende Räder mit
       const supply = [...stations, ...clusterFreeBikes(freeBikes)]
       const list = await searchRoutes(f, t, {
         stations,
@@ -116,30 +111,28 @@ export default function App() {
       if (ctrl.signal.aborted) return
       setViews(list)
       setSel(0)
-      // Погода на время старта лучшего варианта в точке отправления.
       if (list.length) {
-        const rideStart = new Date(list[0].it.startTime)
-        fetchWeatherAt(f.lat, f.lon, rideStart)
-          .then(w => {
-            if (!ctrl.signal.aborted) setWeather(w)
-          })
-          .catch(() => {})
+        const firstLeg = list[0].it.legs[0]
+        const startTimeStr = firstLeg?.startTime ?? list[0].it.startTime
+        const bestTime = new Date(startTimeStr)
+        fetchWeatherAt(f.lat, f.lon, bestTime).then(w => {
+          if (!ctrl.signal.aborted) setWeather(w)
+        })
       }
-    } catch (e) {
-      // Abbruch durch eine neuere Suche ist kein Fehler
-      if ((e as Error)?.name === 'AbortError' || ctrl.signal.aborted) return
-      console.error(e)
-      setError('Router nicht erreichbar (Transitous). Versuch es gleich nochmal.')
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        setError(e?.message ?? 'Suche fehlgeschlagen')
+      }
     } finally {
-      // Ladeanzeige nur beenden, wenn keine neuere Suche übernommen hat
-      if (searchCtrl.current === ctrl) setLoading(false)
+      if (!ctrl.signal.aborted) setLoading(false)
     }
   }
 
   function swap() {
+    const tmp = from
     setFrom(to)
-    setTo(from)
-    setViews(null)
+    setTo(tmp)
+    if (tmp && from) search(to, tmp)
   }
 
   function runFav(f: Place, t: Place) {
@@ -148,7 +141,44 @@ export default function App() {
     search(f, t)
   }
 
-  // ── Journey / Los-Modus ──
+  if (pickOnMap) {
+    return (
+      <MapPicker
+        title={pickOnMap === 'from' ? 'Startpunkt auf Karte wählen' : 'Zielpunkt auf Karte wählen'}
+        initial={pickOnMap === 'from' ? from : to}
+        theme={themeMode}
+        onPick={p => {
+          if (pickOnMap === 'from') setFrom(p)
+          else setTo(p)
+          setPickOnMap(null)
+        }}
+        onClose={() => setPickOnMap(null)}
+      />
+    )
+  }
+
+  if (showBikeMap) {
+    return (
+      <BikeMap
+        userPos={userPos}
+        theme={themeMode}
+        onSelectPlace={p => {
+          setFrom(p)
+          setShowBikeMap(false)
+        }}
+        onClose={() => setShowBikeMap(false)}
+      />
+    )
+  }
+
+  if (showHistory) {
+    return (
+      <History
+        onClose={() => setShowHistory(false)}
+      />
+    )
+  }
+
   if (journeyView && journeyLeg != null) {
     return (
       <div className="app">
@@ -161,24 +191,21 @@ export default function App() {
           now={nowTick}
           startedAt={startedAt}
           arrived={arrived}
-          routeLabel={from && to ? `${shortPlace(from)} → ${shortPlace(to)}` : ''}
-          onPrev={() => journey.goTo(Math.max(0, journeyLeg - 1))}
-          onNext={() => journey.goTo(Math.min(journeyView.it.legs.length - 1, journeyLeg + 1))}
+          routeLabel={(from ? shortPlace(from) : '') + ' → ' + (to ? shortPlace(to) : '')}
+          onPrev={() => journey.goTo(journeyLeg - 1)}
+          onNext={() => journey.goTo(journeyLeg + 1)}
           onArrive={() => {
-            // Fahrt in der Historie festhalten (nur lokal)
-            const legs = journeyView.it.legs
-            const bikeMin = [...journeyView.bikeLegs.keys()].reduce(
-              (n, i) => n + Math.round(legs[i].duration / 60),
-              0,
-            )
-            addTrip({
-              from: from ? shortPlace(from) : 'Start',
-              to: to ? shortPlace(to) : 'Ziel',
-              seconds: startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0,
-              legs: legs.length,
-              bikeMinutes: bikeMin,
-              electric: journeyView.hasElectric,
-            })
+            if (from && to) {
+              const bikeLegMins = Array.from(journeyView.bikeLegs.values()).reduce((acc, b) => acc + (b.tooLong ? 30 : 15), 0)
+              addTrip({
+                from: shortPlace(from),
+                to: shortPlace(to),
+                seconds: journeyView.it.duration,
+                legs: journeyView.it.legs.length,
+                bikeMinutes: bikeLegMins,
+                electric: journeyView.hasElectric,
+              })
+            }
             journey.markArrived()
           }}
           onExit={journey.exit}
@@ -195,7 +222,6 @@ export default function App() {
     )
   }
 
-  // now → строка для <input type="datetime-local"> (с учётом локального пояса)
   function nowLocal() {
     const d = new Date()
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
@@ -206,7 +232,6 @@ export default function App() {
     if (m !== 'now' && !timeVal) setTimeVal(nowLocal())
   }
 
-  // ── Suche ──
   const hasResults = !!views && views.length > 0
 
   return (
@@ -217,17 +242,31 @@ export default function App() {
           <span className="poster-name">RADL NAVI</span>
           <span className="poster-sub">MYRADL + MVV</span>
         </div>
-        <div className="poster-actions">
+        <div className="header-menu-container">
           <button
-            className="theme-toggle-btn"
-            onClick={() => setShowHistory(true)}
-            title="Meine Fahrten"
+            className="header-menu-btn"
+            onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+            title="Hauptmenü"
           >
-            📖 Fahrten
+            ⋯
           </button>
-          <button className="theme-toggle-btn" onClick={toggleTheme} title="Design umschalten">
-            {themeMode === 'dark' ? '🌙' : '☀️'}
-          </button>
+
+          {showHeaderMenu && (
+            <div className="header-dropdown" onClick={() => setShowHeaderMenu(false)}>
+              <button className="header-menu-item" onClick={toggleTheme}>
+                {themeMode === 'dark' ? '☀️ Heller Modus' : '🌙 Dunkler Modus'}
+              </button>
+              <button
+                className="header-menu-item"
+                onClick={() => {
+                  setShowHistory(true)
+                  setShowHeaderMenu(false)
+                }}
+              >
+                📖 Meine Fahrten
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -241,7 +280,10 @@ export default function App() {
             onPickOnMap={() => setPickOnMap('from')}
           />
         </div>
-        <div className="in-row">
+        <div className="in-row nach">
+          <button className="btn-swap" onClick={swap} title="Start und Ziel tauschen">
+            <SwapIcon size={14} />
+          </button>
           <span className="in-label">NACH</span>
           <PlaceInput
             placeholder="Ziel"
@@ -249,15 +291,12 @@ export default function App() {
             onSelect={setTo}
             onPickOnMap={() => setPickOnMap('to')}
           />
-          <button className="in-btn" onClick={swap} title="Tauschen">
-            <SwapIcon size={18} />
-          </button>
         </div>
 
         <div className="quick-presets-row">
           {PRESET_SLOTS.map(s => {
             const saved = savedPlaces.find(p => p.id === s.id)
-            const target = to ?? from // was gerade gespeichert werden könnte
+            const target = to ?? from
             return (
               <button
                 key={s.id}
@@ -270,7 +309,6 @@ export default function App() {
                     setSavedPlaces(upsertSaved(s, target))
                     setPresetHint(`»${shortPlace(target)}« als ${s.label} gespeichert`)
                   } else {
-                    // leerer Platz und nichts zum Speichern — kurz erklären statt still bleiben
                     setPresetHint(`Erst Ziel wählen, dann als ${s.label} speichern`)
                   }
                 }}
@@ -299,84 +337,40 @@ export default function App() {
 
         <div className="controls">
           <div className="ctl-group">
-          <span className="ctl-label">Zeit</span>
-          <div className="seg seg-auto">
-            {(['now', 'depart', 'arrive'] as const).map(m => (
-              <button
-                key={m}
-                className={`seg-btn${timeMode === m ? ' on' : ''}`}
-                onClick={() => pickTimeMode(m)}
-              >
-                {m === 'now' ? 'Jetzt' : m === 'depart' ? 'Abfahrt' : 'Ankunft'}
-              </button>
-            ))}
-          </div>
-          </div>
-          {timeMode !== 'now' && (
-            <input
-              className="time-input"
-              type="datetime-local"
-              value={timeVal}
-              onChange={e => setTimeVal(e.target.value)}
-            />
-          )}
-        </div>
-
-        <div className="controls">
-          {/* Label und Schalter bleiben zusammen, auch wenn die Zeile umbricht */}
-          <div className="ctl-group">
-            <span className="ctl-label">Räder</span>
-            <div className="seg">
-              {[1, 2, 3, 4].map(n => (
+            <span className="ctl-label">Zeit</span>
+            <div className="seg seg-auto">
+              {(['now', 'depart', 'arrive'] as const).map(m => (
                 <button
-                  key={n}
-                  className={`seg-btn${bikes === n ? ' on' : ''}`}
-                  onClick={() => setBikes(n)}
+                  key={m}
+                  className={`seg-btn${timeMode === m ? ' on' : ''}`}
+                  onClick={() => pickTimeMode(m)}
                 >
-                  {n}
+                  {m === 'now' ? 'Jetzt' : m === 'depart' ? 'Abfahrt' : 'Ankunft'}
                 </button>
               ))}
             </div>
+            {timeMode !== 'now' && (
+              <input
+                type="datetime-local"
+                className="time-input"
+                value={timeVal}
+                onChange={e => setTimeVal(e.target.value)}
+              />
+            )}
           </div>
 
           <div className="ctl-group">
-            <span className="ctl-label">Rad ≤</span>
-            <div className="seg">
-              {[10, 15, 20, 30].map(n => (
-                <button
-                  key={n}
-                  className={`seg-btn${maxBike === n ? ' on' : ''}`}
-                  onClick={() => {
-                    setMaxBike(n)
-                    localStorage.setItem('radl.maxbike', String(n))
-                  }}
-                >
-                  {n}′
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="seg seg-auto">
+            <span className="ctl-label">Rad</span>
             <button
-              className={`seg-btn${bikeType === 'classic' ? ' on' : ''}`}
-              onClick={() => {
-                setBikeType('classic')
-                localStorage.setItem('radl.biketype', 'classic')
-              }}
+              className="filter-chip"
+              onClick={() => setShowFilterModal(true)}
+              title="Fahrrad-Typ & Zeitlimit anpassen"
             >
-              <BikeIcon size={15} />
-              Standard
-            </button>
-            <button
-              className={`seg-btn${bikeType === 'any' ? ' on' : ''}`}
-              onClick={() => {
-                setBikeType('any')
-                localStorage.setItem('radl.biketype', 'any')
-              }}
-            >
-              <BoltIcon size={14} />
-              E-Bike
+              {bikeType === 'classic' ? <BikeIcon size={14} /> : <BoltIcon size={14} />}
+              <span>
+                {bikeType === 'classic' ? 'Standard' : 'E-Bike'} · {maxBike === 9999 ? '∞ Limit' : `≤ ${maxBike}′`}
+              </span>
+              <ChevronDown size={12} />
             </button>
           </div>
 
@@ -444,7 +438,7 @@ export default function App() {
         {loading && <div className="msg">Berechne Rad + MVV …</div>}
         {views && views.length === 0 && (
           <div className="msg">
-            Unter «Rad ≤ {maxBike} Min» nichts gefunden — erhöhe das Limit oder wähle andere Punkte.
+            Unter «Rad {maxBike === 9999 ? '∞' : `≤ ${maxBike} Min`}» nichts gefunden — erhöhe das Limit oder wähle andere Punkte.
           </div>
         )}
         {hasResults && weather && (
@@ -460,69 +454,80 @@ export default function App() {
           </div>
         )}
         {hasResults && (
-          <div className="res-head">
-            {views!.length} Routen · nach Ankunft
+          <div className="results-list">
+            {views.map((v, i) => (
+              <ItineraryCard
+                key={i}
+                view={v}
+                index={i}
+                selected={i === sel}
+                bikesNeeded={bikes}
+                now={nowTick}
+                onSelect={() => setSel(i)}
+                onGo={() => journey.start()}
+              />
+            ))}
           </div>
         )}
-        {views?.map((v, i) => (
-          <ItineraryCard
-            key={i}
-            view={v}
-            index={i}
-            selected={i === sel}
-            bikesNeeded={bikes}
-            now={nowTick}
-            onSelect={() => setSel(i)}
-            onGo={journey.start}
-          />
-        ))}
-        <div className="sig">
-          made by <b>neld</b>
-          <div className="sig-credits">
-            Fahrplan{' '}
-            <a href="https://transitous.org" target="_blank" rel="noreferrer">
-              Transitous
-            </a>{' '}
-            · Räder MyRadl/nextbike (CC0) · Wetter{' '}
-            <a href="https://open-meteo.com" target="_blank" rel="noreferrer">
-              Open-Meteo
-            </a>{' '}
-            (CC BY 4.0) · Karte OpenFreeMap © OpenMapTiles, Daten{' '}
-            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-              OpenStreetMap
-            </a>
-            <br />
-            Nicht-kommerzielles Hobby-Projekt · ohne Gewähr
-          </div>
-        </div>
       </section>
 
-      {showHistory && <History onClose={() => setShowHistory(false)} />}
+      {showFilterModal && (
+        <div className="filter-modal-backdrop" onClick={() => setShowFilterModal(false)}>
+          <div className="filter-modal" onClick={e => e.stopPropagation()}>
+            <div className="filter-modal-head">
+              <span>Fahrrad-Typ & Zeitlimit</span>
+              <button className="filter-modal-close" onClick={() => setShowFilterModal(false)}>
+                ✕
+              </button>
+            </div>
 
-      {showBikeMap && (
-        <BikeMap
-          userPos={userPos}
-          theme={themeMode}
-          onPick={p => {
-            setFrom(p)
-            setShowBikeMap(false)
-          }}
-          onClose={() => setShowBikeMap(false)}
-        />
-      )}
+            <div className="filter-modal-section">
+              <label className="filter-label">Fahrrad-Typ</label>
+              <div className="seg seg-auto font-large">
+                <button
+                  className={`seg-btn${bikeType === 'classic' ? ' on' : ''}`}
+                  onClick={() => {
+                    setBikeType('classic')
+                    localStorage.setItem('radl.biketype', 'classic')
+                  }}
+                >
+                  <BikeIcon size={15} /> Standard (30 Min frei)
+                </button>
+                <button
+                  className={`seg-btn${bikeType === 'any' ? ' on' : ''}`}
+                  onClick={() => {
+                    setBikeType('any')
+                    localStorage.setItem('radl.biketype', 'any')
+                  }}
+                >
+                  <BoltIcon size={14} /> Alle (inkl. E-Bike)
+                </button>
+              </div>
+            </div>
 
-      {pickOnMap && (
-        <MapPicker
-          title={pickOnMap === 'from' ? 'Start auf der Karte' : 'Ziel auf der Karte'}
-          initial={pickOnMap === 'from' ? to : from}
-          theme={themeMode}
-          onPick={p => {
-            if (pickOnMap === 'from') setFrom(p)
-            else setTo(p)
-            setPickOnMap(null)
-          }}
-          onClose={() => setPickOnMap(null)}
-        />
+            <div className="filter-modal-section">
+              <label className="filter-label">Maximalzeit auf dem Rad (pro Etappe)</label>
+              <div className="filter-time-options">
+                {[10, 15, 20, 30, 9999].map(n => (
+                  <button
+                    key={n}
+                    className={`filter-time-btn${maxBike === n ? ' on' : ''}`}
+                    onClick={() => {
+                      setMaxBike(n)
+                      localStorage.setItem('radl.maxbike', String(n))
+                    }}
+                  >
+                    {n === 9999 ? '∞ Ohne Limit' : `${n} Min`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button className="btn-block filter-modal-apply" onClick={() => setShowFilterModal(false)}>
+              Übernehmen
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

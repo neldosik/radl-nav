@@ -11,27 +11,50 @@ interface Props {
   userPos: LatLon | null
   theme?: ThemeMode
   /** Station als Startpunkt übernehmen */
-  onPick: (p: Place) => void
+  onSelectPlace: (p: Place) => void
   onClose: () => void
 }
 
 const MUNICH: LatLon = { lat: 48.137, lon: 11.575 }
-/** Umkreis, in dem Räder gesucht werden. */
 const RADIUS_M = 1500
 
-/**
- * Vollbildkarte „Räder in der Nähe" — zeigt ohne Routenplanung, wo gerade
- * Räder stehen (Stationen und freistehende Räder), inklusive E-Bike-Anzahl.
- */
-export default function BikeMap({ userPos, theme = 'light', onPick, onClose }: Props) {
+export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const markers = useRef<maplibregl.Marker[]>([])
+  const touchStartX = useRef<number | null>(null)
   const [supply, setSupply] = useState<Station[] | null>(null)
   const [selected, setSelected] = useState<Station | null>(null)
   const center = userPos ?? MUNICH
 
-  // Stationen und freistehende Räder laden
+  // Geste / Zurück-Taste zum Schließen
+  useEffect(() => {
+    window.history.pushState({ bikemapOpen: true }, '')
+    const handlePopState = () => {
+      onClose()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [onClose])
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 1) {
+      touchStartX.current = e.touches[0].clientX
+    }
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current !== null && e.changedTouches.length === 1) {
+      const deltaX = e.changedTouches[0].clientX - touchStartX.current
+      if (deltaX > 80 && touchStartX.current < 80) {
+        onClose()
+      }
+    }
+    touchStartX.current = null
+  }
+
   useEffect(() => {
     let alive = true
     Promise.all([loadStations(), loadFreeBikes()])
@@ -44,7 +67,6 @@ export default function BikeMap({ userPos, theme = 'light', onPick, onClose }: P
     }
   }, [])
 
-  // Karte einmalig aufbauen
   useEffect(() => {
     if (!canvas.current || map.current) return
     const m = new maplibregl.Map({
@@ -62,7 +84,6 @@ export default function BikeMap({ userPos, theme = 'light', onPick, onClose }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Marker zeichnen, sobald die Daten da sind
   useEffect(() => {
     const m = map.current
     if (!m || !supply) return
@@ -92,7 +113,7 @@ export default function BikeMap({ userPos, theme = 'light', onPick, onClose }: P
   const totalE = list.reduce((n, x) => n + x.station.ebikes, 0)
 
   return (
-    <div className="picker">
+    <div className="picker" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <div className="picker-top">
         <span>Räder in der Nähe</span>
         <button className="picker-x" onClick={onClose}>
@@ -125,7 +146,7 @@ export default function BikeMap({ userPos, theme = 'light', onPick, onClose }: P
             </div>
             <button
               className="btn-block"
-              onClick={() => onPick({ name: selected.name, lat: selected.lat, lon: selected.lon })}
+              onClick={() => onSelectPlace({ name: selected.name, lat: selected.lat, lon: selected.lon })}
             >
               Als Start übernehmen
             </button>
