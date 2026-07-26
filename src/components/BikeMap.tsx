@@ -28,6 +28,61 @@ function distMeters(a: LatLon, b: LatLon): number {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(sa), Math.sqrt(1 - sa)))
 }
 
+function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolean, filterType: string): ImageData {
+  const showE = ebikes > 0 && filterType !== 'classic'
+  const showC = bikes > 0 && filterType !== 'ebike'
+
+  const eStr = showE ? `⚡ ${ebikes}` : ''
+  const cStr = showC ? `🚲 ${bikes}` : ''
+  const text = showE && showC ? `${eStr}  |  ${cStr}` : showE ? eStr : cStr
+
+  const dpr = 2
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+
+  ctx.font = 'bold 13px system-ui, -apple-system, sans-serif'
+  const textW = ctx.measureText(text).width
+  const w = Math.max(54, Math.ceil(textW) + 22)
+  const h = 32
+
+  canvas.width = w * dpr
+  canvas.height = h * dpr
+  ctx.scale(dpr, dpr)
+
+  // Shadow
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.22)'
+  ctx.shadowBlur = 6
+  ctx.shadowOffsetY = 2
+
+  // Rounded Pill
+  ctx.beginPath()
+  const r = 13
+  const x = 3, y = 2, width = w - 6, height = h - 6
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + width, y, x + width, y + height, r)
+  ctx.arcTo(x + width, y + height, x, y + height, r)
+  ctx.arcTo(x, y + height, x, y, r)
+  ctx.arcTo(x, y, x + width, y, r)
+  ctx.closePath()
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+
+  ctx.shadowColor = 'transparent'
+  ctx.lineWidth = selected ? 3 : 2
+  ctx.strokeStyle = selected ? '#ec3013' : '#312e81'
+  ctx.stroke()
+
+  // Text
+  ctx.font = 'bold 12px system-ui, -apple-system, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#1e1b4b'
+  ctx.fillText(text, w / 2, h / 2 - 1)
+
+  return ctx.getImageData(0, 0, w * dpr, h * dpr)
+}
+
 export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -95,7 +150,7 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // WebGL 60fps locked GeoJSON layer rendering to eliminate marker lag completely!
+  // WebGL 60fps locked GeoJSON layer rendering with dynamic high-DPI canvas textures
   useEffect(() => {
     const m = map.current
     if (!m || !supply) return
@@ -109,18 +164,15 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
     const geojson = {
       type: 'FeatureCollection' as const,
       features: filtered.map(({ station }) => {
-        let label = ''
-        if (station.ebikes > 0 && (filterType === 'all' || filterType === 'ebike')) {
-          label += `⚡${station.ebikes}`
-        }
-        if (station.ebikes > 0 && station.bikes > 0 && filterType === 'all') {
-          label += ' '
-        }
-        if (station.bikes > 0 && (filterType === 'all' || filterType === 'classic')) {
-          label += `🚲${station.bikes}`
-        }
         const uniqueId = station.id ?? `${station.lat}_${station.lon}`
         const isSel = selected ? (selected.id ? selected.id === uniqueId : selected.lat === station.lat && selected.lon === station.lon) : false
+        const iconId = `pill-${station.bikes}-${station.ebikes}-${filterType}-${isSel ? 'sel' : 'norm'}`
+
+        if (!m.hasImage(iconId)) {
+          const imgData = generatePillBadgeCanvas(station.bikes, station.ebikes, isSel, filterType)
+          m.addImage(iconId, imgData, { pixelRatio: 2 })
+        }
+
         return {
           type: 'Feature',
           geometry: {
@@ -132,8 +184,7 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
             name: station.name,
             bikes: station.bikes,
             ebikes: station.ebikes,
-            label: label || `🚲${station.bikes + station.ebikes}`,
-            selected: isSel,
+            iconId: iconId,
           },
         }
       }),
@@ -147,33 +198,18 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
         m.addSource('bikes-supply', { type: 'geojson', data: geojson })
 
         m.addLayer({
-          id: 'bikes-pill-bg',
-          type: 'circle',
-          source: 'bikes-supply',
-          paint: {
-            'circle-radius': ['case', ['get', 'selected'], 18, 15],
-            'circle-color': '#ffffff',
-            'circle-stroke-width': ['case', ['get', 'selected'], 3.5, 2.5],
-            'circle-stroke-color': ['case', ['get', 'selected'], '#ec3013', '#312e81'],
-          },
-        })
-
-        m.addLayer({
-          id: 'bikes-pill-label',
+          id: 'bikes-pill-symbols',
           type: 'symbol',
           source: 'bikes-supply',
           layout: {
-            'text-field': ['get', 'label'],
-            'text-size': 12,
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-          },
-          paint: {
-            'text-color': '#1e1b4b',
+            'icon-image': ['get', 'iconId'],
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-anchor': 'center',
           },
         })
 
-        m.on('click', 'bikes-pill-bg', e => {
+        m.on('click', 'bikes-pill-symbols', e => {
           const f = e.features?.[0]
           if (f) {
             const stId = f.properties?.id
@@ -181,10 +217,10 @@ export default function BikeMap({ userPos, theme = 'light', onSelectPlace, onClo
             if (st) setSelected(st)
           }
         })
-        m.on('mouseenter', 'bikes-pill-bg', () => {
+        m.on('mouseenter', 'bikes-pill-symbols', () => {
           m.getCanvas().style.cursor = 'pointer'
         })
-        m.on('mouseleave', 'bikes-pill-bg', () => {
+        m.on('mouseleave', 'bikes-pill-symbols', () => {
           m.getCanvas().style.cursor = ''
         })
       }
