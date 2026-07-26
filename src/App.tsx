@@ -6,7 +6,6 @@ import MapView from './components/MapView'
 import MapPicker from './components/MapPicker'
 import BikeMap from './components/BikeMap'
 import History from './components/History'
-import QRScannerModal from './components/QRScannerModal'
 import { addTrip } from './history'
 import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations } from './api'
 import type { WeatherAtTime } from './api'
@@ -50,7 +49,6 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
-  const [showQRScanner, setShowQRScanner] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null)
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
   const [presetHint, setPresetHint] = useState<string | null>(null)
@@ -160,9 +158,6 @@ export default function App() {
     search(f, tPl)
   }
 
-  if (showQRScanner) {
-    return <QRScannerModal onClose={() => setShowQRScanner(false)} />
-  }
 
   if (pickOnMap) {
     return (
@@ -281,15 +276,6 @@ export default function App() {
 
           {showHeaderMenu && (
             <div className="header-dropdown" onClick={() => setShowHeaderMenu(false)}>
-              <button
-                className="header-menu-item"
-                onClick={() => {
-                  setShowQRScanner(true)
-                  setShowHeaderMenu(false)
-                }}
-              >
-                📷 Rad QR Scanner
-              </button>
               <button className="header-menu-item" onClick={toggleTheme}>
                 {themeMode === 'dark' ? t('lightMode', lang) : t('darkMode', lang)}
               </button>
