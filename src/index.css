@@ -154,6 +154,10 @@ button {
   font-size: 21px;
   letter-spacing: -0.01em;
   color: var(--ink);
+  /* „Radl Navi" hat keine Unterlängen, deshalb sitzt die Schrift in Newsreader
+     rund 3px über der Mitte der Zeile — neben den runden Knöpfen sah der Name
+     dadurch angehoben aus. Die Kästen selbst lagen exakt aufeinander. */
+  transform: translateY(3px);
 }
 
 .poster-sub {
@@ -167,10 +171,16 @@ button {
   gap: 8px;
 }
 
+/* Beide Kopfknöpfe sind gleich große Kreise — vorher war „EN" 40px breit
+   und das Zahnrad 36px, was das Symbol verschoben wirken ließ. */
 .header-menu-btn {
+  width: 36px;
   height: 36px;
-  padding: 0 14px;
+  padding: 0;
   border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line-strong);
   background: transparent;
   font-family: var(--font-mono);

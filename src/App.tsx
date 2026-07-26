@@ -17,7 +17,7 @@ import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
-import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, DotsIcon, LogoMark, RainIcon, SendIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
+import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, RainIcon, SendIcon, SettingsIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
 import { loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
@@ -326,9 +326,10 @@ export default function App() {
           <button
             className="header-menu-btn"
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+            aria-label={t('menuTitle', lang)}
             title={t('menuTitle', lang)}
           >
-            <DotsIcon size={18} />
+            <SettingsIcon size={18} />
           </button>
 
           {showHeaderMenu && (

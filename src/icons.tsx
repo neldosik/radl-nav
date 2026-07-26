@@ -160,12 +160,13 @@ export const FilterIcon = ({ size = 16 }: P) => (
   </svg>
 )
 
-/** Drei Punkte für das Kopfmenü — der Glyph „⋯" wirkte im 36px-Kreis leer. */
-export const DotsIcon = ({ size = 18 }: P) => (
-  <svg {...base(size)} fill="currentColor" stroke="none">
-    <circle cx="5" cy="12" r="1.9" />
-    <circle cx="12" cy="12" r="1.9" />
-    <circle cx="19" cy="12" r="1.9" />
+/** Zahnrad fürs Kopfmenü: drei Punkte sagten nicht, was dahinter steckt.
+ *  Ring plus Nabe unterscheiden es deutlich von der Sonne. */
+export const SettingsIcon = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="6.5" />
+    <circle cx="12" cy="12" r="2.4" />
+    <path d="M12 5.5v-3M12 18.5v3M5.5 12h-3M18.5 12h3M7.4 7.4 5.3 5.3M16.6 16.6l2.1 2.1M16.6 7.4l2.1-2.1M7.4 16.6l-2.1 2.1" />
   </svg>
 )
 
