@@ -31,6 +31,9 @@
   --r-pill: 20px;
   --r-sheet: 22px;
 
+  /* Höhe der fest stehenden Reiterleiste: 6 + 56 + 10 + 1px Linie */
+  --tabbar-h: calc(73px + env(safe-area-inset-bottom, 0px));
+
   --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Newsreader', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -69,6 +72,11 @@ html,
 body,
 #root {
   height: 100%;
+  /* Die Seite selbst darf nie scrollen: auf dem Handy weichen `100dvh` der App
+     und `height: 100%` von body voneinander ab, sobald die Adressleiste ein-
+     oder ausfährt — dann rutschte die Reiterleiste mit aus dem Bild. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -97,6 +105,24 @@ button {
   height: 100dvh;
   overflow: hidden;
   background: var(--paper);
+}
+
+/* Platz für die fest stehende Reiterleiste. Nur dort, wo es sie auch gibt —
+   der Los-Modus läuft ohne sie über den ganzen Schirm. */
+.app.with-tabs {
+  padding-bottom: var(--tabbar-h);
+}
+
+/* Die Reiterleiste deckt den unteren Sicherheitsabstand des Geräts bereits ab;
+   innen darf er nicht ein zweites Mal dazukommen. */
+.app.with-tabs .picker-bottom {
+  padding-bottom: 22px;
+}
+
+.app.with-tabs .hist-body,
+.app.with-tabs .trips-body,
+.app.with-tabs .app-footer {
+  padding-bottom: 20px;
 }
 
 /* ── Kopfzeile ── */
@@ -194,6 +220,55 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Nach dem Suchen zugeklappt — die 315 px des Suchblocks fehlten sonst der
+   Ergebnisliste, die davon nur ~200 px übrig behielt. */
+.inputs.collapsed {
+  display: none;
+}
+
+.search-summary {
+  flex: none;
+  margin: 0 20px 10px;
+  padding: 0 14px 0 16px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ss-route {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ss-arrow {
+  color: var(--faint);
+  margin: 0 2px;
+}
+
+.ss-edit {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .in-card {
@@ -1006,8 +1081,14 @@ button {
 }
 
 /* ── Untere Reiter ── */
+/* Fest am unteren Rand — nicht als letztes Flex-Kind, sonst schiebt sie jeder
+   Inhalt weg, der sich nicht zusammenstauchen lässt. */
 .tabbar {
-  flex: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
   display: flex;
   background: var(--card);
   border-top: 1px solid var(--line);

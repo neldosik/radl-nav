@@ -52,6 +52,7 @@ export const dict = {
     saveRoute: 'Strecke merken',
     bikesNearby: 'Räder in der Nähe',
     routeBtn: 'Route',
+    change: 'Ändern',
 
     // Badges & Filters
     fastest: '⚡ Schnellste',
@@ -186,6 +187,7 @@ export const dict = {
     saveRoute: 'Save Route',
     bikesNearby: 'Bikes Nearby',
     routeBtn: 'Route',
+    change: 'Change',
 
     // Badges & Filters
     fastest: '⚡ Fastest',

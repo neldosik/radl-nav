@@ -40,6 +40,8 @@ export default function App() {
   const [timeVal, setTimeVal] = useState('')
 
   const [views, setViews] = useState<ItineraryView[] | null>(null)
+  /** Suchfeld ausgeklappt; nach einem Treffer klappt es zu, damit die Liste Platz hat */
+  const [searchOpen, setSearchOpen] = useState(true)
   const [sel, setSel] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -138,6 +140,8 @@ export default function App() {
       if (ctrl.signal.aborted) return
       setViews(list)
       setSel(0)
+      // Suchfeld einklappen: sonst bleiben für die Ergebnisliste nur ~200 px
+      if (list.length) setSearchOpen(false)
       if (list.length) {
         const firstLeg = list[0].it.legs[0]
         const startTimeStr = firstLeg?.startTime ?? list[0].it.startTime
@@ -279,7 +283,7 @@ export default function App() {
 
   if (tab === 'bikes') {
     return (
-      <div className="app">
+      <div className="app with-tabs">
         <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
           <BikeMap
             embedded
@@ -300,7 +304,7 @@ export default function App() {
 
   if (tab === 'trips') {
     return (
-      <div className="app">
+      <div className="app with-tabs">
         <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
           <History embedded lang={lang} onClose={() => setTab('route')} />
         </Suspense>
@@ -310,7 +314,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app with-tabs">
       <div className="poster">
         <div className="poster-brand">
           <LogoMark size={19} />
@@ -341,7 +345,18 @@ export default function App() {
         </div>
       </div>
 
-      <div className="inputs">
+      {!searchOpen && from && to && (
+        <button className="search-summary" onClick={() => setSearchOpen(true)}>
+          <span className="ss-route">
+            {shortPlace(from)} <span className="ss-arrow">→</span> {shortPlace(to)}
+          </span>
+          <span className="ss-edit">
+            {t('change', lang)} <ChevronDown size={12} />
+          </span>
+        </button>
+      )}
+
+      <div className={`inputs${searchOpen ? '' : ' collapsed'}`}>
         <div className="in-card">
           <div className="in-row von">
             <span className="in-label">{t('von', lang)}</span>
