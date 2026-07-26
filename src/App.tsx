@@ -490,10 +490,7 @@ export default function App() {
                   <button
                     key={i}
                     className={`map-route-pill${isSel ? ' active' : ''}`}
-                    onClick={() => {
-                      setSel(i)
-                      mapBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                    }}
+                    onClick={() => setSel(i)}
                   >
                     <span className="mrp-num">#{i + 1}</span>
                     <span className="mrp-dur">{durMin} Min</span>
@@ -521,10 +518,7 @@ export default function App() {
                   isFree={isFree}
                   isFewestTransfers={isFewestTransfers}
                   lang={lang}
-                  onSelect={() => {
-                    setSel(i)
-                    mapBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                  }}
+                  onSelect={() => setSel(i)}
                   onGo={() => journey.start()}
                 />
               )
