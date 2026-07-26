@@ -117,15 +117,7 @@ export default function MapView({
       // Übersicht der gesamten Route (außerhalb der Navigation)
       const bounds = new maplibregl.LngLatBounds()
       for (const f of features) for (const c of f.geometry.coordinates) bounds.extend(c)
-      if (!bounds.isEmpty()) {
-        m.fitBounds(bounds, {
-          padding: 60,
-          maxZoom: 15.5,
-          duration: 1000,
-          easing: t => t * (2 - t),
-          essential: true,
-        })
-      }
+      if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: 60, maxZoom: 15.5, duration: 500 })
     }
   }
 

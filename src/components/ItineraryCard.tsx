@@ -1,6 +1,6 @@
 import type { ItineraryView, Leg } from '../types'
 import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins } from '../format'
-import { BikeIcon, BoltIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
+import { BikeIcon, ExternalIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 
 /** «2 an »A« + 1 an »B« (180 m)» */
@@ -178,16 +178,6 @@ export default function ItineraryCard({
                           ⚠️ Fahrt dauert länger als 30 Min — kleine Aufzahlung.
                         </div>
                       )}
-                      <div className="leg-links">
-                        <a
-                          href={leg.rental?.rentalUriWeb ?? 'https://www.nextbike.de/de/muenchen/'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="leg-link nextbike-reserve"
-                        >
-                          <BoltIcon size={12} /> {lang === 'en' ? '⚡ Reserve bike 15 min free (Nextbike)' : '⚡ Rad 15 Min. gratis reservieren (Nextbike)'}
-                        </a>
-                      </div>
                     </div>
                   )}
 
