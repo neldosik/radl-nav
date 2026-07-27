@@ -2339,7 +2339,9 @@ button {
 .j-follow {
   position: absolute;
   right: 14px;
-  bottom: 42%;
+  /* Knapp über dem unteren Blatt statt mittig im Bild — dort verdeckte er
+     die Karte genau dort, wo man hinschaut. */
+  bottom: calc(var(--j-panel-h, 210px) + 14px);
   z-index: 12;
   width: 48px;
   height: 48px;
@@ -2356,6 +2358,33 @@ button {
 
 .j-follow.on {
   color: var(--accent);
+}
+
+/* Freiminuten als knappe Uhr rechts unter dem Kreuz — kein Fließtext */
+.j-biketimer-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.j-biketimer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 15px;
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.j-biketimer.urgent {
+  background: var(--alert);
+  color: #fff;
 }
 
 .j-actions-row {

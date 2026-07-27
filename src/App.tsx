@@ -213,7 +213,9 @@ export default function App() {
     searchCtrl.current = ctrl
     setLoading(true)
     setErrorKey(null)
-    setViews(null)
+    // Beim Neuberechnen bleibt die bisherige Route stehen, bis die neue da ist —
+    // sonst verschwindet der Los-Modus kurz und die Suchmaske blitzt auf.
+    if (!rerouting.current) setViews(null)
     setWeather(null)
     const when = timeMode !== 'now' && timeVal ? new Date(timeVal) : undefined
     const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}

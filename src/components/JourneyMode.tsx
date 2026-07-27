@@ -36,6 +36,9 @@ const OFF_ROUTE_FIXES = 3
 /** Wie oft der Stand der laufenden ÖPNV-Fahrt nachgefragt wird. Häufiger
  *  lohnt nicht: die Rückmeldungen der Betreiber kommen selten schneller. */
 const LIVE_POLL_MS = 60_000
+/** Wie oft es erneut versucht wird, solange man abseits der Route bleibt.
+ *  Ob wirklich gerechnet wird, entscheidet die Sperrfrist in App. */
+const REROUTE_RETRY_MS = 10_000
 
 interface Props {
   view: ItineraryView
@@ -135,6 +138,8 @@ export default function JourneyMode({
   const vibratedTransit = useRef(false)
   /** Wie oft hintereinander lag der Standort abseits der Linie? */
   const abseitsZaehler = useRef(0)
+  const journeyRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   /** Frisch nachgefragter Stand der laufenden ÖPNV-Fahrt. */
   const [liveStatus, setLiveStatus] = useState<TripStatus | null>(null)
 
@@ -259,10 +264,28 @@ export default function JourneyMode({
 
   // Automatisch neu rechnen. Der Mindestabstand zwischen zwei Läufen sitzt in
   // App, damit ein zappelndes GPS den freien Dienst nicht im Sekundentakt fragt.
+  //
+  // Solange man abseits bleibt, wird es erneut versucht: fiel der erste Anlauf
+  // in die Sperrfrist, kam sonst nie wieder einer — der Zustand „abgekommen"
+  // ändert sich ja nicht mehr, und der Effekt lief nur bei Wechsel.
   useEffect(() => {
-    if (abgekommen && onReroute && !rerouting) onReroute()
+    if (!abgekommen || !onReroute || rerouting) return
+    onReroute()
+    const id = window.setInterval(() => onReroute(), REROUTE_RETRY_MS)
+    return () => window.clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abgekommen, rerouting])
+
+  useEffect(() => {
+    const panel = panelRef.current
+    const wrap = journeyRef.current
+    if (!panel || !wrap) return
+    const messen = () => wrap.style.setProperty('--j-panel-h', `${Math.round(panel.offsetHeight)}px`)
+    messen()
+    const ro = new ResizeObserver(messen)
+    ro.observe(panel)
+    return () => ro.disconnect()
+  })
 
   // Verspätungen aus der Suche sind eine Momentaufnahme. Wer schon unterwegs
   // ist, erfährt sonst nie, dass die Bahn inzwischen später kommt — deshalb
@@ -390,7 +413,7 @@ export default function JourneyMode({
   const isNearDropoff = isBikeLeg && distToEnd != null && distToEnd <= 250
 
   return (
-    <div className="journey">
+    <div className="journey" ref={journeyRef}>
       <div className="j-map">{children}</div>
 
       {/* Folgen-Knopf wie in Kartendiensten: aus, sobald man selbst schiebt */}
@@ -440,6 +463,20 @@ export default function JourneyMode({
           </button>
         </div>
 
+        {/* Freiminuten: eigene kleine Uhr rechts unter dem Kreuz. In der
+            Bandkette verschwand sie, sobald eine andere Meldung dran war. */}
+        {isBikeLeg && !b?.electric && (
+          <div className="j-biketimer-row">
+            <span
+              className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}`}
+              title={`${t('jmTimerFree', lang)} ${remainingMins} ${t('jmTimerFreeMin', lang)}`}
+            >
+              <ClockIcon size={13} />
+              {elapsedText(remainingSec * 1000)}
+            </span>
+          </div>
+        )}
+
         {rerouting ? (
           <div className="timer-banner off-route">
             <span>
@@ -461,11 +498,6 @@ export default function JourneyMode({
           <div className="timer-banner urgent">
             <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
           </div>
-        ) : isBikeLeg && !b?.electric ? (
-          <div className={`timer-banner${remainingMins <= 5 ? ' urgent' : ''}`}>
-            <ClockIcon size={14} /> {t('jmTimerFree', lang)}{' '}
-            <b>{remainingMins} {t('jmTimerFreeMin', lang)}</b>
-          </div>
         ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
           <div className="timer-banner urgent">
             <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
@@ -474,7 +506,7 @@ export default function JourneyMode({
       </div>
 
       {/* Unteres Blatt: Fortschritt, aktuelle Etappe, Navigation */}
-      <div className="j-panel">
+      <div className="j-panel" ref={panelRef}>
         <div className="j-progress">
           {legs.map((_, i) => (
             <span key={i} className={`j-step${i <= legIndex ? ' done' : ''}`} />
