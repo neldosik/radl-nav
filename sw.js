@@ -167,11 +167,30 @@ self.addEventListener('fetch', event => {
     return
   }
 
-  // ── Gebündelte Dateien und Schriften ─────────────────────────────────────
-  // Der Dateiname enthält den Inhalts-Hash, deshalb ist der Puffer gefahrlos:
-  // ein neuer Build hat neue Namen und holt sich seine Dateien ohnehin frisch.
-  if (isHashedAsset(url) || isShellAsset(url)) {
+  // ── Gebündelte Dateien: Name enthält den Inhalts-Hash ────────────────────
+  // Deshalb ist der Puffer gefahrlos: ein neuer Build hat neue Namen.
+  if (isHashedAsset(url)) {
     event.respondWith(cacheFirst(req, SHELL_CACHE, MAX_SHELL))
+    return
+  }
+
+  // ── Symbol, Manifest, Schriften ──────────────────────────────────────────
+  // Diese Namen ändern sich *nicht* mit dem Inhalt. Puffer-zuerst hieße: ein
+  // geändertes Symbol erreicht installierte Nutzer nie. Also ausliefern und
+  // im Hintergrund auffrischen.
+  if (isShellAsset(url)) {
+    event.respondWith(
+      caches.open(SHELL_CACHE).then(async cache => {
+        const hit = await cache.match(req)
+        const frisch = fetch(req)
+          .then(res => {
+            if (res && res.status === 200) cache.put(req, res.clone()).then(() => trim(cache, MAX_SHELL))
+            return res
+          })
+          .catch(() => null)
+        return hit ?? (await frisch) ?? Response.error()
+      }),
+    )
     return
   }
 
