@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import 'maplibre-gl/dist/maplibre-gl.css'
+// maplibre-gl.css wandert mit der Karte in den nachgeladenen Teil (MapView,
+// BikeMap, MapPicker) — der Startbildschirm braucht sie nicht.
 import './index.css'
 import App from './App.tsx'
 

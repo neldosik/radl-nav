@@ -2,9 +2,11 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
-import MapView from './components/MapView'
 import FilterModal from './components/FilterModal'
 
+// maplibre-gl ist mit Abstand der größte Brocken im Bündel und wird erst
+// gebraucht, wenn es Ergebnisse gibt — der Startbildschirm kommt ohne aus.
+const MapView = lazy(() => import('./components/MapView'))
 const MapPicker = lazy(() => import('./components/MapPicker'))
 const BikeMap = lazy(() => import('./components/BikeMap'))
 const History = lazy(() => import('./components/History'))
@@ -238,15 +240,17 @@ export default function App() {
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
         >
-          <MapView
-            view={journeyView}
-            activeLeg={journeyLeg}
-            userPos={userPos}
-            bikesNeeded={bikes}
-            theme={themeMode}
-            follow={followMe}
-            onUserPan={() => setFollowMe(false)}
-          />
+          <Suspense fallback={<div className="map" />}>
+            <MapView
+              view={journeyView}
+              activeLeg={journeyLeg}
+              userPos={userPos}
+              bikesNeeded={bikes}
+              theme={themeMode}
+              follow={followMe}
+              onUserPan={() => setFollowMe(false)}
+            />
+          </Suspense>
         </JourneyMode>
       </div>
     )
@@ -518,7 +522,9 @@ export default function App() {
       {/* Übersichtskarte mit Wetterhinweis — wie im Entwurf über der Liste */}
       {hasResults && (
         <div className="results-map" ref={mapBoxRef}>
-          <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+          <Suspense fallback={<div className="map" />}>
+            <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+          </Suspense>
           {weather && (
             <button
               className={`weather${weather.rain ? ' rain' : ''}`}

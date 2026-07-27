@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
 import { haversine, planPickup } from '../geo'

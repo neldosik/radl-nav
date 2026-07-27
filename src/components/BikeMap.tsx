@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { pickRentalUri } from '../format'
