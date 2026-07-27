@@ -444,6 +444,12 @@ export default function JourneyMode({
     <div className="journey" ref={journeyRef}>
       <div className="j-map">{children}</div>
 
+      {tempo != null && (
+        <div className="j-speed">
+          <b>{tempo}</b> km/h
+        </div>
+      )}
+
       {/* Folgen-Knopf wie in Kartendiensten: aus, sobald man selbst schiebt */}
       {onToggleFollow && (
         <button
@@ -476,7 +482,6 @@ export default function JourneyMode({
               <div className="j-kicker">
                 {t('jmHeadTowards', lang)}
                 {startedAt != null && <span className="j-timer"> · {elapsedText(elapsedMs)}</span>}
-                {tempo != null && <span className="j-speed"> · {tempo} km/h</span>}
               </div>
               <div className="j-head-target">{toName}</div>
             </div>

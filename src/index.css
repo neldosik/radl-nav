@@ -2270,11 +2270,30 @@ button {
   font-weight: 600;
 }
 
-/* Tempo neben der Fahrzeit — gleiche Schriftfamilie, damit die Zahlen ruhig stehen */
+/* Tempo unten links, spiegelbildlich zum Folgen-Knopf rechts */
 .j-speed {
+  position: absolute;
+  left: 14px;
+  bottom: calc(var(--j-panel-h, 210px) + 14px);
+  z-index: 12;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 17px;
+  background: var(--card);
+  box-shadow: var(--shadow-float);
+  color: var(--muted);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  font-size: 12px;
+}
+
+.j-speed b {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .j-timer {
