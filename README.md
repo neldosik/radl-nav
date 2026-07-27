@@ -1,5 +1,8 @@
 # 🚲 Radl Navi — MyRadl + MVV
 
+[![Tests](https://github.com/neldosik/radl-nav/actions/workflows/tests.yml/badge.svg)](https://github.com/neldosik/radl-nav/actions/workflows/tests.yml)
+[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-1f7a6f.svg)](LICENSE)
+
 Multimodaler Routenplaner für München: verbindet **Fußweg → MyRadl-Rad → ÖPNV**
 zu einer durchgehenden Route, mit Live-Verfügbarkeit der Räder und einem Blick
 auf die 30 Freiminuten. Diese Kombination bieten weder Google Maps noch MVGO.
@@ -8,6 +11,21 @@ Privates, nicht-kommerzielles Projekt. **Kein Backend**: statische PWA, alle
 verwendeten Schnittstellen sind offen und liefern CORS `*`.
 
 **Live: https://neldosik.github.io/radl-nav/** (GitHub Pages, Zweig `gh-pages`)
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/02-routen.png" alt="Routenliste mit Übersichtskarte"></td>
+    <td width="25%"><img src="docs/screenshots/03-etappen.png" alt="Etappen einer Route mit Rad: Ausleihe- und Rückgabestation"></td>
+    <td width="25%"><img src="docs/screenshots/04-los-modus.png" alt="Los-Modus: Karte folgt dem Standort"></td>
+    <td width="25%"><img src="docs/screenshots/05-raeder.png" alt="Räder in der Nähe"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Verbindungen mit Preis und Freiminuten</sub></td>
+    <td align="center"><sub>Ausleihe und <b>Rückgabe an einer Station</b></sub></td>
+    <td align="center"><sub>Los-Modus mit Etappenwechsel</sub></td>
+    <td align="center"><sub>Bestand rund um den Ausschnitt</sub></td>
+  </tr>
+</table>
 
 **Gestaltung** „Papier & Petrol": warme Papierflächen (`#f4f1ea`), Petrol als
 Akzent für alles Kostenlose (`#1f7a6f`), Terracotta für alles Kostenpflichtige
@@ -109,6 +127,12 @@ leer und taugt nur als Ersatzsignal.
   die Stationsliste kommt dann aus dem `localStorage`-Puffer;
 - Startbündel 82 kB gzip; maplibre-gl (273 kB gzip) wird erst mit der ersten
   Karte nachgeladen.
+
+## Lizenz
+
+MIT — siehe [LICENSE](LICENSE). Kartendaten © OpenStreetMap-Mitwirkende,
+Kartenstil OpenFreeMap, Raddaten MyRadl/nextbike (CC0), Wetter Open-Meteo
+(CC BY 4.0), Routing Transitous/MOTIS.
 
 ## MyRadl-Konditionen (geprüft 21.07.2026, myradl.de)
 
