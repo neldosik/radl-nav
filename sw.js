@@ -8,6 +8,13 @@ const TILE_CACHE = 'radl-map-tiles-v3'
 const SHELL_CACHE = 'radl-shell-v4'
 // Ohne Obergrenze wächst der Kachelpuffer unbegrenzt, bei jeder Fahrt kommen welche dazu.
 const MAX_TILES = 600
+/** Auch die Hülle bekommt eine Grenze: über viele Deployments hinweg sammeln
+ *  sich sonst die gehashten Dateien aller alten Stände an. */
+const MAX_SHELL = 60
+/** Wie lange auf das Netz gewartet wird, bevor die gepufferte Hülle gewinnt.
+ *  Ohne Frist hing ein schwaches Netz bis zum Browser-Standard (~1 Minute) —
+ *  in der Zeit sah der Nutzer eine weiße Seite, obwohl die Hülle im Puffer lag. */
+const NAV_TIMEOUT_MS = 3000
 
 /**
  * Beim Einrichten die Hülle einmal aktiv holen.
@@ -121,12 +128,15 @@ function isShellAsset(url) {
 }
 
 /** Zuerst Puffer, dann Netz — für Dateien, deren Name den Inhalt festlegt. */
-async function cacheFirst(request, cacheName) {
+async function cacheFirst(request, cacheName, max) {
   const cache = await caches.open(cacheName)
   const hit = await cache.match(request)
   if (hit) return hit
   const res = await fetch(request)
-  if (res && res.status === 200) await cache.put(request, res.clone())
+  if (res && res.status === 200) {
+    await cache.put(request, res.clone())
+    if (max) await trim(cache, max)
+  }
   return res
 }
 
@@ -143,15 +153,13 @@ self.addEventListener('fetch', event => {
   if (req.mode === 'navigate') {
     event.respondWith(
       (async () => {
+        const cache = await caches.open(SHELL_CACHE)
         try {
-          const res = await fetch(req)
-          if (res && res.status === 200) {
-            const cache = await caches.open(SHELL_CACHE)
-            await cache.put('index.html', res.clone())
-          }
+          const res = await fetch(req, { signal: AbortSignal.timeout(NAV_TIMEOUT_MS) })
+          if (res && res.status === 200) await cache.put('index.html', res.clone())
           return res
         } catch {
-          const cache = await caches.open(SHELL_CACHE)
+          // Netz zu langsam oder weg — die zuletzt bekannte Hülle ausliefern.
           return (await cache.match('index.html')) ?? Response.error()
         }
       })(),
@@ -163,7 +171,7 @@ self.addEventListener('fetch', event => {
   // Der Dateiname enthält den Inhalts-Hash, deshalb ist der Puffer gefahrlos:
   // ein neuer Build hat neue Namen und holt sich seine Dateien ohnehin frisch.
   if (isHashedAsset(url) || isShellAsset(url)) {
-    event.respondWith(cacheFirst(req, SHELL_CACHE))
+    event.respondWith(cacheFirst(req, SHELL_CACHE, MAX_SHELL))
     return
   }
 
