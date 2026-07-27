@@ -87,8 +87,9 @@ export interface Station extends LatLon {
   bikes: number // klassische Räder (30 Freiminuten mit Abo)
   ebikes: number // E-Bike — kostenpflichtig
   docks: number | null
+  /** Bester Akkustand der E-Bikes an dieser Station in Prozent. Hieß früher
+   *  zusätzlich `batteryPercent` — zwei Felder mit demselben Wert. */
   maxChargePercent?: number
-  batteryPercent?: number
   rangeKm?: number
 }
 

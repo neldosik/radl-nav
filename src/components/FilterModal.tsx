@@ -2,21 +2,28 @@ import { BikeIcon, BoltIcon, CloseIcon } from '../icons'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 
+/** MyRadl gibt höchstens vier Räder pro Konto aus (AGB nextbike). */
+export const MAX_BIKES_PER_ACCOUNT = 4
+
 interface Props {
   bikeType: 'classic' | 'any'
   maxBike: number
+  bikes: number
   lang: Language
   onSelectBikeType: (type: 'classic' | 'any') => void
   onSelectMaxBike: (max: number) => void
+  onSelectBikes: (n: number) => void
   onClose: () => void
 }
 
 export default function FilterModal({
   bikeType,
   maxBike,
+  bikes,
   lang,
   onSelectBikeType,
   onSelectMaxBike,
+  onSelectBikes,
   onClose,
 }: Props) {
   return (
@@ -81,6 +88,27 @@ export default function FilterModal({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Gruppenfahrt: die Abholplanung über mehrere Stationen gab es längst,
+            nur ließ sich die Anzahl nirgends einstellen — sie stand fest auf 1. */}
+        <div className="filter-card">
+          <label className="filter-label">{t('bikeCount', lang)}</label>
+          <div className="filter-time-pills">
+            {Array.from({ length: MAX_BIKES_PER_ACCOUNT }, (_, i) => i + 1).map(n => (
+              <button
+                key={n}
+                className={`filter-time-pill${bikes === n ? ' active' : ''}`}
+                onClick={() => {
+                  onSelectBikes(n)
+                  localStorage.setItem('radl.bikes', String(n))
+                }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <div className="filter-hint">{t('bikeCountHint', lang)}</div>
         </div>
 
         <button className="filter-modal-apply" onClick={onClose}>

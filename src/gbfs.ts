@@ -120,7 +120,6 @@ export function parseStations(
       ebikes,
       docks: st?.num_docks_available ?? null,
       maxChargePercent: maxBat,
-      batteryPercent: maxBat,
       rangeKm: maxRange,
     }
   })

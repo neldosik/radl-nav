@@ -399,8 +399,8 @@ export default function BikeMap({
               {selected.ebikes > 0 && (
                 <span className="bm-count-pill ebike">
                   <BoltIcon size={13} /> {selected.ebikes} E-Bike
-                  {(selected.maxChargePercent ?? selected.batteryPercent) != null
-                    ? ` · Max ${selected.maxChargePercent ?? selected.batteryPercent} % · ~${selected.rangeKm ?? 25} km`
+                  {selected.maxChargePercent != null
+                    ? ` · Max ${selected.maxChargePercent} % · ~${selected.rangeKm ?? 25} km`
                     : ''}
                 </span>
               )}

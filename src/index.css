@@ -2378,6 +2378,26 @@ button {
   margin-bottom: 10px;
 }
 
+/* Erklärender Nachsatz unter einer Auswahl (z. B. Obergrenze von MyRadl) */
+.filter-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--faint);
+}
+
+/* Zahl im Filterknopf, sobald mehr als ein Rad gesucht wird — sonst merkt
+   man nach Tagen nicht mehr, dass die Gruppenfahrt noch eingestellt ist. */
+.filter-chip .chip-count {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+}
+
 /* Abschnitt im Blatt (Typ, Zeitlimit) */
 .filter-card {
   margin-bottom: 18px;

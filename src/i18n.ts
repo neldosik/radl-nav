@@ -56,6 +56,8 @@ export const dict = {
     standardSub: '30 Min. frei mit Abo',
     ebikeSub: 'Alle Radtypen erlaubt',
     maxBikeTime: 'Max. Fahrzeit pro Etappe',
+    bikeCount: 'Anzahl Räder',
+    bikeCountHint: 'Für Gruppen — MyRadl gibt höchstens 4 Räder pro Konto aus.',
     applyFilter: 'Filter anwenden',
 
     // Messages
@@ -175,6 +177,8 @@ export const dict = {
     standardSub: '30 min free with subscription',
     ebikeSub: 'All bike types allowed',
     maxBikeTime: 'Max riding time per leg',
+    bikeCount: 'Number of bikes',
+    bikeCountHint: 'For groups — MyRadl allows at most 4 bikes per account.',
     applyFilter: 'Apply filter',
 
     // Messages

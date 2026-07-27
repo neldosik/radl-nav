@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
-import FilterModal from './components/FilterModal'
+import FilterModal, { MAX_BIKES_PER_ACCOUNT } from './components/FilterModal'
 
 // maplibre-gl ist mit Abstand der größte Brocken im Bündel und wird erst
 // gebraucht, wenn es Ergebnisse gibt — der Startbildschirm kommt ohne aus.
@@ -32,7 +32,11 @@ export default function App() {
 
   const [from, setFrom] = useState<Place | null>(null)
   const [to, setTo] = useState<Place | null>(null)
-  const [bikes] = useState(1)
+  /** Gruppenfahrt: wie viele Räder auf einmal geholt werden sollen. */
+  const [bikes, setBikes] = useState(() => {
+    const saved = Number(localStorage.getItem('radl.bikes'))
+    return saved >= 1 && saved <= MAX_BIKES_PER_ACCOUNT ? saved : 1
+  })
   const [maxBike, setMaxBike] = useState(() => {
     const saved = Number(localStorage.getItem('radl.maxbike'))
     return [10, 15, 20, 30, 9999].includes(saved) ? saved : 20
@@ -463,9 +467,10 @@ export default function App() {
               aria-label={t('filterTitle', lang)}
               title={`${bikeType === 'classic' ? t('standard', lang) : t('ebike', lang)} · ${
                 maxBike === 9999 ? t('noLimit', lang) : `≤ ${maxBike}′`
-              }`}
+              }${bikes > 1 ? ` · ${bikes} ${t('bikeCount', lang)}` : ''}`}
             >
               {bikeType === 'classic' ? <BikeIcon size={16} /> : <BoltIcon size={16} />}
+              {bikes > 1 && <span className="chip-count">{bikes}</span>}
             </button>
 
             {from && to && (
@@ -618,9 +623,11 @@ export default function App() {
         <FilterModal
           bikeType={bikeType}
           maxBike={maxBike}
+          bikes={bikes}
           lang={lang}
           onSelectBikeType={setBikeType}
           onSelectMaxBike={setMaxBike}
+          onSelectBikes={setBikes}
           onClose={() => setShowFilterModal(false)}
         />
       )}
