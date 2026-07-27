@@ -16,10 +16,21 @@ function legColor(leg: Leg, theme: ThemeMode): string {
   return c.transit
 }
 
+/**
+ * Kamera-Nachführung im Los-Modus. GPS auf dem Rad rauscht: im Stand springt
+ * die Position um 5–15 m. Vorher löste jeder Fix ein `easeTo` aus, das die
+ * laufende Animation abbrach und neu startete — das war das gemeldete Zucken.
+ * Jetzt: Totband, höchstens eine Kamerafahrt zur Zeit, harter Sprung bei
+ * großen Abständen (Tunnelausfahrt, erster Fix).
+ */
+const CAM_MIN_MOVE_M = 12
+const CAM_MIN_INTERVAL_MS = 900
+const CAM_JUMP_M = 300
+
 interface Props {
   view: ItineraryView | null
   activeLeg?: number | null
-  userPos?: { lat: number; lon: number } | null
+  userPos?: { lat: number; lon: number; accuracy?: number } | null
   bikesNeeded?: number
   theme?: ThemeMode
   /** Kamera folgt dem Standort (Los-Modus) */
@@ -43,6 +54,8 @@ export default function MapView({
   const userMarker = useRef<maplibregl.Marker | null>(null)
   const userPosRef = useRef<{ lat: number; lon: number } | null>(null)
   const prevCamPosRef = useRef<{ lat: number; lon: number } | null>(null)
+  /** Zeitpunkt der letzten Kamerafahrt — bremst die Nachführung. */
+  const camAtRef = useRef(0)
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
   const activeLegRef = useRef<number | null>(null)
@@ -77,6 +90,13 @@ export default function MapView({
             [leg.from.lon, leg.from.lat],
             [leg.to.lon, leg.to.lat],
           ]
+      // Rückgabe nur an echten Stationen: das von MOTIS gewählte Ende liegt
+      // sonst irgendwo im Feld. Das letzte Stück bis zur Station gehört mit
+      // auf die Linie, sonst bricht die Route sichtbar ab.
+      const info = v.bikeLegs.get(idx)
+      if (info?.returnSnapped && info.endStation) {
+        coords.push([info.endStation.lon, info.endStation.lat])
+      }
       return {
         type: 'Feature' as const,
         properties: {
@@ -112,7 +132,11 @@ export default function MapView({
       } else if (info.startStation) {
         add(leg.from.lon, leg.from.lat, `${info.startStation.bikes}`, 'mk-bike')
       }
-      if (info.endStation) add(leg.to.lon, leg.to.lat, 'P', 'mk-bike')
+      // „P" gehört an die Station, nicht an den MOTIS-Abstellpunkt — der lag
+      // bei freistehenden Rädern bis zu 300 m daneben.
+      if (info.endStation) {
+        add(info.endStation.lon, info.endStation.lat, 'P', 'mk-bike')
+      }
     }
 
     if (active != null) {
@@ -121,8 +145,12 @@ export default function MapView({
       const center: [number, number] = userPosRef.current
         ? [userPosRef.current.lon, userPosRef.current.lat]
         : [leg.from.lon, leg.from.lat]
-      m.easeTo({ center, zoom: 16.5, duration: 500, essential: true })
+      // Beim Etappenwechsel den selbst gewählten Zoom behalten; nur aus der
+      // Übersicht heraus auf Straßenniveau gehen.
+      const zoom = m.getZoom() < 15 ? 16.5 : m.getZoom()
+      m.easeTo({ center, zoom, duration: 500, essential: true })
       prevCamPosRef.current = userPosRef.current ?? { lat: leg.from.lat, lon: leg.from.lon }
+      camAtRef.current = Date.now()
     } else {
       // Übersicht der Route. Die Vorschaukarte ist nur ~150 px hoch — mit großem
       // Rand bliebe fast nichts übrig und die Karte zoomte auf ganz München heraus.
@@ -179,6 +207,42 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, activeLeg])
 
+  /**
+   * Kamera auf den Standort ziehen. `force` überspringt Totband und Taktbremse
+   * — gebraucht, wenn der Nutzer „Zentrieren" drückt und sofort etwas sehen will.
+   */
+  function followUser(pos: { lat: number; lon: number }, force = false) {
+    const m = map.current
+    if (!m) return
+    const prev = prevCamPosRef.current
+    const dist = prev ? haversine(prev, pos) : Infinity
+    const since = Date.now() - camAtRef.current
+
+    if (!force) {
+      // Im Stand rauscht GPS um einige Meter — darauf die Kamera zu bewegen
+      // sah aus wie ein Wackeln der ganzen Karte.
+      if (dist < CAM_MIN_MOVE_M) return
+      // Eine laufende Kamerafahrt nicht mit der nächsten abwürgen. Nur ein
+      // echter Sprung (Tunnel, verlorener Fix) darf sofort durch.
+      if (since < CAM_MIN_INTERVAL_MS && dist < CAM_JUMP_M) return
+    }
+
+    prevCamPosRef.current = pos
+    camAtRef.current = Date.now()
+    if (dist > CAM_JUMP_M) {
+      m.jumpTo({ center: [pos.lon, pos.lat] })
+      return
+    }
+    m.easeTo({
+      center: [pos.lon, pos.lat],
+      // Länger als der GPS-Takt (~1 s) wäre Dauerabbruch; etwas kürzer läuft
+      // die Fahrt sauber aus, bevor der nächste Fix kommt.
+      duration: 800,
+      easing: t => t * (2 - t),
+      essential: true,
+    })
+  }
+
   useEffect(() => {
     const m = map.current
     userPosRef.current = userPos
@@ -198,23 +262,20 @@ export default function MapView({
     } else {
       userMarker.current.setLngLat([userPos.lon, userPos.lat])
     }
-    // In Los-Modus: Kamera folgt sanft dem Benutzer — außer er schaut sich
-    // gerade selbst auf der Karte um (dann übernimmt der Folgen-Knopf).
-    if (activeLegRef.current != null && followRef.current) {
-      const prev = prevCamPosRef.current
-      const dist = prev ? haversine(prev, userPos) : Infinity
-      // Winzige GPS-Schwankungen (< 2m) ignorieren für flüssige Bewegung
-      if (dist > 2) {
-        m.easeTo({
-          center: [userPos.lon, userPos.lat],
-          duration: dist > 100 ? 800 : 450,
-          easing: t => t * (2 - t),
-          essential: true,
-        })
-        prevCamPosRef.current = userPos
-      }
-    }
+    // Los-Modus: Kamera folgt dem Benutzer — außer er schaut sich gerade
+    // selbst auf der Karte um (dann übernimmt der Folgen-Knopf).
+    if (activeLegRef.current != null && followRef.current) followUser(userPos)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPos])
+
+  // „Zentrieren" gedrückt: sofort hinspringen. Vorher passierte bis zum
+  // nächsten GPS-Fix nichts — der Knopf wirkte kaputt.
+  useEffect(() => {
+    if (!follow || activeLegRef.current == null) return
+    const pos = userPosRef.current
+    if (pos) followUser(pos, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [follow])
 
   return <div ref={div} className="map" />
 }

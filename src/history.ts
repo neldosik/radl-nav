@@ -1,3 +1,5 @@
+import { CAR_CO2_PER_KM, BIKE_CO2_PER_KM, legCostCent, legKcal } from './stats'
+
 /** Abgeschlossene Fahrten — bleiben nur lokal im Browser. */
 export interface TripRecord {
   id: string
@@ -10,6 +12,10 @@ export interface TripRecord {
   legs: number
   /** Minuten auf dem Rad laut Route */
   bikeMinutes: number
+  /** Davon auf einem E-Bike — fehlt bei Fahrten vor dieser Version. */
+  electricMinutes?: number
+  /** Radkilometer laut Route — fehlt bei Fahrten vor dieser Version. */
+  bikeKm?: number
   /** Fahrt enthielt ein kostenpflichtiges E-Bike */
   electric: boolean
 }
@@ -56,18 +62,37 @@ export interface TripStats {
   co2Grams: number
 }
 
+/** Ohne aufgezeichnete Länge mit 15 km/h aus den Minuten schätzen. */
+const kmOf = (t: TripRecord) => t.bikeKm ?? (t.bikeMinutes * 15) / 60
+
+/**
+ * Summen über alle Fahrten. Kalorien und CO₂ liefen früher über einen
+ * Pauschalfaktor je Radminute — gleich für Pedelec und Standardrad und ohne
+ * jeden Bezug zur gefahrenen Strecke. Jetzt dieselben Formeln wie auf dem
+ * Ankunftsschirm (`stats.ts`).
+ */
 export function tripStats(trips: TripRecord[]): TripStats {
   const stats = { count: trips.length, minutes: 0, bikeMinutes: 0, savedEuro: 0, calories: 0, co2Grams: 0 }
   for (const t of trips) {
+    // Ältere Einträge kennen nur „electric: true/false" für die ganze Fahrt.
+    const eMin = t.electricMinutes ?? (t.electric ? t.bikeMinutes : 0)
+    const cMin = Math.max(0, t.bikeMinutes - eMin)
+
     stats.minutes += Math.round(t.seconds / 60)
     stats.bikeMinutes += t.bikeMinutes
-    // Ohne Abo kostet jede angefangene halbe Stunde 1 € (E-Bike zählt nicht als gespart)
-    if (!t.electric && t.bikeMinutes > 0) stats.savedEuro += Math.ceil(t.bikeMinutes / 30)
-    // ~5 kcal per bike minute and ~38g CO2 saved per bike minute vs car
-    stats.calories += Math.round(t.bikeMinutes * 5.2)
-    stats.co2Grams += Math.round(t.bikeMinutes * 38)
+    // Gespart = Preis ohne ÖPNV-Abo minus tatsächlich gezahlter Preis.
+    // Beim E-Bike ist die Differenz null, es kostet mit und ohne Abo.
+    stats.savedEuro += (noSubCent(cMin) - legCostCent(cMin, false)) / 100
+    stats.calories += legKcal(cMin, false) + legKcal(eMin, true)
+    stats.co2Grams += Math.round(kmOf(t) * (CAR_CO2_PER_KM - BIKE_CO2_PER_KM))
   }
+  stats.savedEuro = Math.round(stats.savedEuro)
   return stats
+}
+
+/** Ohne Abo kostet das Standardrad ab der ersten Minute 1 € je halbe Stunde. */
+function noSubCent(minutes: number): number {
+  return minutes > 0 ? Math.ceil(minutes / 30) * 100 : 0
 }
 
 export interface DayMinutes {

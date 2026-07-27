@@ -99,6 +99,10 @@ export const dict = {
     jmDropoff: 'Rückgabestation in',
     jmDropoffAction: '— Rad abstellen & sperren',
     jmExitNext: 'Nächste Station aussteigen:',
+    jmReturnOnly: 'Rückgabe nur an Station:',
+    jmNoReturnStation: 'Keine Rückgabestation in der Nähe — frei abstellen kostet 20 €',
+    cardReturn: 'Rückgabe',
+    cardReturnWarn: 'Keine Rückgabestation in der Nähe (20 € Strafe)',
 
     // History
     histTitle: 'Meine Fahrten & Stat',
@@ -214,6 +218,10 @@ export const dict = {
     jmDropoff: 'Drop-off station in',
     jmDropoffAction: '— lock & return bike',
     jmExitNext: 'Get off at next stop:',
+    jmReturnOnly: 'Return only at station:',
+    jmNoReturnStation: 'No return station nearby — parking elsewhere costs 20 €',
+    cardReturn: 'Return',
+    cardReturnWarn: 'No return station nearby (20 € penalty)',
 
     // History
     histTitle: 'My Trips & Stats',

@@ -32,9 +32,12 @@ describe('tripStats', () => {
     expect(s.bikeMinutes).toBe(20)
   })
 
-  it('rechnet gesparte Euro pro angefangener halber Stunde', () => {
+  it('rechnet gespart = Preis ohne Abo minus Preis mit Abo', () => {
+    // 12 Min: ohne Abo 1 €, mit Abo frei → 1 € gespart
     expect(tripStats([trip({ bikeMinutes: 12 })]).savedEuro).toBe(1)
-    expect(tripStats([trip({ bikeMinutes: 35 })]).savedEuro).toBe(2)
+    // 35 Min: ohne Abo 2 €, mit Abo 1 € (5 Min über der Freizeit) → 1 € gespart.
+    // Vorher stand hier 2 € — die Zuzahlung nach den Freiminuten fehlte.
+    expect(tripStats([trip({ bikeMinutes: 35 })]).savedEuro).toBe(1)
   })
 
   it('zählt E-Bike-Fahrten nicht als gespart — die kosten immer', () => {

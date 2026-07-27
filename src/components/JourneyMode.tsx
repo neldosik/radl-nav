@@ -16,6 +16,7 @@ import {
 } from '../icons'
 import { planPickup } from '../geo'
 import { FREE_LIMIT_SEC } from '../routing'
+import { co2Label, euro, viewStats } from '../stats'
 import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
 import { t } from '../i18n'
@@ -110,18 +111,8 @@ export default function JourneyMode({
 
   const bikeSec = bikeStartedAt.current ? Math.floor((now - bikeStartedAt.current) / 1000) : 0
 
-  // Screen Wake Lock API — keep display awake while riding
-  useEffect(() => {
-    let wakeLock: any = null
-    if ('wakeLock' in navigator) {
-      navigator.wakeLock.request('screen').then(lock => {
-        wakeLock = lock
-      }).catch(() => {})
-    }
-    return () => {
-      wakeLock?.release().catch(() => {})
-    }
-  }, [])
+  // Bildschirm wachhalten macht `useJourney` über `useWakeLock` — hier stand
+  // ein zweiter Halter, der den ersten überschrieb und nie neu angefordert wurde.
 
   // Get-off alert vibration when transit leg reaches final ~200m or 1 min
   useEffect(() => {
@@ -149,10 +140,9 @@ export default function JourneyMode({
 
   // ── Ankunftsscreen ──
   if (arrived) {
-    const totalBikeMins = Array.from(view.bikeLegs.values()).reduce(acc => acc + 15, 0)
-    const cal = Math.round(totalBikeMins * 5.2)
-    const co2 = Math.round(totalBikeMins * 38)
-    const co2Label = co2 >= 1000 ? `${(co2 / 1000).toFixed(1)} kg` : `${co2} g`
+    // Echte Etappendauern und -längen statt pauschal 15 Min je Radetappe;
+    // Pedelec zählt weniger Kalorien und kostet auch mit Abo Geld.
+    const stats = viewStats(view)
 
     return (
       <div className="journey">
@@ -169,15 +159,15 @@ export default function JourneyMode({
 
           <div className="arrive-stats">
             <div className="arrive-stat">
-              <b>{cal}</b>
-              <span>kcal</span>
+              <b>{stats.kcal}</b>
+              <span>kcal{view.hasElectric ? ' (E)' : ''}</span>
             </div>
             <div className="arrive-stat">
-              <b>{co2Label}</b>
+              <b>{co2Label(stats.co2Grams)}</b>
               <span>CO₂</span>
             </div>
             <div className="arrive-stat">
-              <b>{view.hasElectric ? '1,50 €' : '0 €'}</b>
+              <b>{euro(stats.costCent)}</b>
               <span>{lang === 'en' ? 'cost' : 'Kosten'}</span>
             </div>
           </div>
@@ -191,7 +181,13 @@ export default function JourneyMode({
   }
 
   const fromName = leg.from.name === 'START' ? 'Start' : leg.from.name || b?.startStation?.name || ''
-  const toName = leg.to.name === 'END' ? 'Ziel' : leg.to.name || b?.endStation?.name || ''
+  // Bei Radetappen ist das Ziel die Rückgabestation — nicht der Punkt, den
+  // MOTIS gewählt hat. Der lag bei freistehenden Rädern regelmäßig bei einem
+  // anderen freien Rad, und die Navigation führte genau dorthin.
+  const toName =
+    leg.to.name === 'END'
+      ? 'Ziel'
+      : (b?.returnSnapped ? b.endStation?.name : '') || leg.to.name || b?.endStation?.name || ''
   const name = `${legLabel(leg)}${leg.routeShortName ? ` ${leg.routeShortName}` : ''}`
   const delay = legDelayMin(leg)
 
@@ -216,7 +212,15 @@ export default function JourneyMode({
     } else if (b.startStation) {
       infoLine = `${b.startStation.bikes} an »${b.startStation.name}«${b.endStation ? ` → zurück: »${b.endStation.name}«` : ''}`
     } else if (b.freeFloating) {
-      infoLine = 'Freistehendes Rad — Ort in MyRadl prüfen'
+      infoLine = `Freistehendes Rad${b.endStation ? ` → zurück: »${b.endStation.name}«` : ''}`
+    }
+    // Rückgabe außerhalb einer Station kostet 20 € — das gehört vor den Rest.
+    if (b.noReturnStation) {
+      infoLine = t('jmNoReturnStation', lang)
+      infoWarn = true
+    } else if (b.returnSnapped && b.endStation) {
+      infoLine = `${t('jmReturnOnly', lang)} »${b.endStation.name}« (+${b.returnDetourM} m)`
+      infoWarn = true
     }
     if (b.swapStation) {
       infoLine = `Rad wechseln bei »${b.swapStation.name}« — bleibt gratis`

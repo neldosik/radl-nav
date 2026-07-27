@@ -1,8 +1,8 @@
 import { plan } from './api'
 import type { PlanOpts } from './api'
-import { nearbyStations, nearestStation } from './geo'
+import { haversine, nearbyStations, nearestStation } from './geo'
 import { decodePolyline } from './polyline'
-import type { BikeLegInfo, Itinerary, ItineraryView, LatLon, Station } from './types'
+import type { BikeLegInfo, Itinerary, ItineraryView, LatLon, Leg, Place, Station } from './types'
 
 /** 28 statt 30 Min — Puffer für Stationssuche und Abstellen. */
 export const FREE_LIMIT_SEC = 28 * 60
@@ -12,6 +12,52 @@ const MYRADL_SYSTEM_ID = 'nextbike_ml'
 const PICKUP_RADIUS_M = 600
 /** Umkreis für die Wechselstation beim „Rad-Marathon". */
 const SWAP_RADIUS_M = 600
+
+/** MOTIS-Werte, die eine Rückgabe an einer Station verlangen. */
+const STATION_RETURN = new Set(['ANY_STATION', 'ROUNDTRIP_STATION'])
+/** Toleranz, wenn die Etappe ohnehin schon an einer Station endet. */
+const RETURN_MATCH_RADIUS_M = 250
+/** Suchradius für die Rückgabestation, wenn MOTIS frei abstellen will. */
+export const RETURN_SNAP_RADIUS_M = 1500
+/** Grobes Radtempo (~15 km/h) für die Zusatzzeit bis zur Station. */
+const BIKE_SPEED_MS = 4.2
+
+/**
+ * Darf das Rad am Etappenende überhaupt abgestellt werden?
+ *
+ * MyRadl erlaubt die Rückgabe **nur** an offiziellen Stationen — außerhalb
+ * kostet es 20 € Strafe. MOTIS weiß das nicht: der GBFS-Feed meldet für
+ * freistehende Räder `returnConstraint: NONE`, worauf MOTIS die Radetappe
+ * irgendwo beendet — in der Praxis am nächsten anderen freistehenden Rad
+ * (geprüft 27.07.2026: Etappenende 0 m vom freien Rad, 317 m zur Station).
+ * Genau das führte den Nutzer zum falschen Ziel.
+ */
+export function returnsToStation(leg: Leg): boolean {
+  const rc = leg.rental?.returnConstraint
+  if (rc) return STATION_RETURN.has(rc)
+  // Ältere MOTIS-Stände ohne das Feld: Stationsname am Ende als Ersatzsignal
+  return !!leg.rental?.toStationName
+}
+
+/**
+ * Tatsächliches Ziel einer Etappe. Bei Radetappen ist das die
+ * Rückgabestation, nicht der von MOTIS gewählte Abstellpunkt — sonst navigiert
+ * die App zu einem fremden Rad am Straßenrand.
+ */
+export function legTarget(view: ItineraryView, i: number): Place | null {
+  const leg = view.it.legs[i]
+  if (!leg) return null
+  const b = view.bikeLegs.get(i)
+  if (b?.returnSnapped && b.endStation) {
+    return { name: b.endStation.name, lat: b.endStation.lat, lon: b.endStation.lon }
+  }
+  return { name: leg.to.name, lat: leg.to.lat, lon: leg.to.lon }
+}
+
+/** Fahrtdauer inklusive der Umwege zu den Rückgabestationen. */
+export function viewDuration(v: ItineraryView): number {
+  return v.it.duration + v.extraSec
+}
 
 export interface BuildOpts {
   /** Echte Stationen — Ausleihe, Rückgabe und Radwechsel nur hier. */
@@ -33,6 +79,8 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
   let hasBike = false
   let warnLong = false
   let hasElectric = false
+  let warnReturn = false
+  let extraSec = 0
 
   for (let i = 0; i < it.legs.length; i++) {
     const leg = it.legs[i]
@@ -44,31 +92,53 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
       (leg.rental?.systemName ?? '').toLowerCase().includes('myradl')
     if (!isMyRadl) return null
 
-    // Harte Nutzergrenze „nicht länger als N Minuten auf dem Rad".
-    if (leg.duration > maxBikeSec) return null
-
     // E-Bike kostet immer; im Standard-Modus rausfiltern (Absicherung zum Serverfilter).
     const electric = !!leg.rental?.propulsionType && leg.rental.propulsionType !== 'HUMAN'
     if (electric && classicOnly) return null
+
+    // Rückgabe zwingend an einer Station — MOTIS-Enden „im Feld" umbiegen.
+    const stationReturn = returnsToStation(leg)
+    const endStation = nearestStation(
+      leg.to,
+      stations,
+      stationReturn ? RETURN_MATCH_RADIUS_M : RETURN_SNAP_RADIUS_M,
+    )
+    const returnSnapped = !stationReturn && !!endStation
+    const returnDetourM = returnSnapped ? Math.round(haversine(leg.to, endStation!)) : 0
+    const returnDetourSec = Math.round(returnDetourM / BIKE_SPEED_MS)
+    // Keine Station in Reichweite: Route bleibt sichtbar, aber deutlich markiert —
+    // sie ganz zu verwerfen hieße bei GBFS-Ausfall „keine Routen gefunden".
+    const noReturnStation = !stationReturn && !endStation && stations.length > 0
+
+    // Harte Nutzergrenze „nicht länger als N Minuten auf dem Rad" — der Umweg
+    // zur Rückgabestation zählt mit, er wird ja auch gefahren.
+    const rideSec = leg.duration + returnDetourSec
+    if (rideSec > maxBikeSec) return null
 
     const freeFloating = !leg.rental?.fromStationName
     hasBike = true
     const info: BikeLegInfo = {
       startStation: freeFloating ? null : nearestStation(leg.from, stations),
-      endStation: nearestStation(leg.to, stations),
-      tooLong: !electric && leg.duration > FREE_LIMIT_SEC,
+      endStation,
+      tooLong: !electric && rideSec > FREE_LIMIT_SEC,
       electric,
       freeFloating,
+      returnSnapped,
+      returnDetourM,
+      returnDetourSec,
+      noReturnStation,
       swapStation: null,
       nearby: nearbyStations(leg.from, supply, PICKUP_RADIUS_M, 6),
     }
     if (info.tooLong) info.swapStation = findSwapStation(leg, info, stations)
     if (info.tooLong) warnLong = true
     if (electric) hasElectric = true
+    if (noReturnStation) warnReturn = true
+    extraSec += returnDetourSec
     bikeLegs.set(i, info)
   }
 
-  return { it, hasBike, warnLong, hasElectric, bikeLegs }
+  return { it, hasBike, warnLong, hasElectric, warnReturn, extraSec, bikeLegs }
 }
 
 /**
@@ -137,7 +207,12 @@ export async function searchRoutes(
     }
   }
 
+  // Routen ohne erreichbare Rückgabestation nach hinten — sie kosten 20 € Strafe.
   return list
-    .sort((a, b) => +new Date(a.it.endTime) - +new Date(b.it.endTime))
+    .sort(
+      (a, b) =>
+        Number(a.warnReturn) - Number(b.warnReturn) ||
+        +new Date(a.it.endTime) - +new Date(b.it.endTime),
+    )
     .slice(0, maxResults)
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildView, itinerarySignature } from './routing'
+import { buildView, itinerarySignature, legTarget, returnsToStation, viewDuration } from './routing'
 import type { Itinerary, Leg, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes = 5): Station => ({
@@ -100,6 +100,92 @@ describe('buildView — Freiminuten', () => {
     const v = buildView(route([free]), opts)
     expect(v!.bikeLegs.get(0)?.freeFloating).toBe(true)
     expect(v!.bikeLegs.get(0)?.startStation).toBeNull()
+  })
+})
+
+/**
+ * MyRadl erlaubt die Rückgabe nur an Stationen (sonst 20 €). MOTIS meldet für
+ * freistehende Räder `returnConstraint: NONE` und beendet die Etappe dann am
+ * nächsten anderen freien Rad — die App führte genau dorthin.
+ */
+describe('Rückgabe nur an Stationen', () => {
+  const rental = (over: Record<string, unknown> = {}) => ({
+    systemId: 'nextbike_ml',
+    propulsionType: 'HUMAN',
+    ...over,
+  })
+
+  it('erkennt die Rückgabebedingung von MOTIS', () => {
+    expect(returnsToStation(bikeLeg({ rental: rental({ returnConstraint: 'ANY_STATION' }) }))).toBe(true)
+    expect(returnsToStation(bikeLeg({ rental: rental({ returnConstraint: 'ROUNDTRIP_STATION' }) }))).toBe(true)
+    expect(returnsToStation(bikeLeg({ rental: rental({ returnConstraint: 'NONE' }) }))).toBe(false)
+    // ohne das Feld: Stationsname am Ende als Ersatzsignal
+    expect(returnsToStation(bikeLeg({ rental: rental({ toStationName: 'B' }) }))).toBe(true)
+    expect(returnsToStation(bikeLeg({ rental: rental() }))).toBe(false)
+  })
+
+  // Station rund 300 m hinter dem von MOTIS gewählten Abstellpunkt
+  const near = station('C', END.lat + 0.0027, END.lon)
+  const freeDrop = bikeLeg({ rental: rental({ fromStationName: 'A', returnConstraint: 'NONE' }) })
+
+  it('biegt ein freies Etappenende auf die nächste echte Station um', () => {
+    const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
+    const b = v.bikeLegs.get(0)!
+    expect(b.returnSnapped).toBe(true)
+    expect(b.endStation?.id).toBe('C')
+    expect(b.returnDetourM).toBeGreaterThan(250)
+    expect(b.returnDetourM).toBeLessThan(350)
+    expect(b.noReturnStation).toBe(false)
+  })
+
+  it('navigiert zur Station statt zum MOTIS-Punkt', () => {
+    const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
+    expect(legTarget(v, 0)).toEqual({ name: 'C', lat: near.lat, lon: near.lon })
+  })
+
+  it('rechnet den Umweg in die Fahrtdauer ein', () => {
+    const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
+    expect(v.extraSec).toBeGreaterThan(0)
+    expect(viewDuration(v)).toBe(v.it.duration + v.extraSec)
+  })
+
+  it('lässt Etappen in Ruhe, die ohnehin an einer Station enden', () => {
+    const atStation = bikeLeg({
+      rental: rental({ fromStationName: 'A', toStationName: 'B', returnConstraint: 'ANY_STATION' }),
+    })
+    const b = buildView(route([atStation]), opts)!.bikeLegs.get(0)!
+    expect(b.returnSnapped).toBe(false)
+    expect(b.returnDetourM).toBe(0)
+    expect(b.endStation?.id).toBe('B')
+  })
+
+  it('markiert Routen ohne Rückgabestation in Reichweite', () => {
+    const weit = [station('Fern', 48.3, 11.9)]
+    const v = buildView(route([freeDrop]), { ...opts, stations: weit, supply: [] })!
+    expect(v.bikeLegs.get(0)?.noReturnStation).toBe(true)
+    expect(v.warnReturn).toBe(true)
+    // ohne Station bleibt das MOTIS-Ende das Ziel — mehr wissen wir nicht
+    expect(legTarget(v, 0)).toEqual({ name: 'Ziel', ...END })
+  })
+
+  it('zählt den Umweg gegen das Radzeit-Limit des Nutzers', () => {
+    // 300 m Umweg ≈ 72 s: 19:30 Min Fahrt sprengt damit das 20-Minuten-Limit
+    const knapp = bikeLeg({
+      duration: 19.5 * 60,
+      rental: rental({ fromStationName: 'A', returnConstraint: 'NONE' }),
+    })
+    const o = { ...opts, stations: [stations[0], near], supply: [] }
+    expect(buildView(route([knapp]), o)).toBeNull()
+    expect(buildView(route([knapp]), { ...o, maxBikeSec: 25 * 60 })).not.toBeNull()
+  })
+
+  it('zählt den Umweg gegen die Freiminuten', () => {
+    const knapp = bikeLeg({
+      duration: 27.5 * 60,
+      rental: rental({ fromStationName: 'A', returnConstraint: 'NONE' }),
+    })
+    const o = { ...opts, stations: [stations[0], near], supply: [], maxBikeSec: 45 * 60 }
+    expect(buildView(route([knapp]), o)!.bikeLegs.get(0)!.tooLong).toBe(true)
   })
 })
 

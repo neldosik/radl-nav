@@ -4,8 +4,10 @@ import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbike
 import { BikeIcon, BoltIcon, ExternalIcon, PinIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { decodePolyline } from '../polyline'
+import { viewDuration } from '../routing'
 import { fetchElevationProfile } from '../api'
 import type { ElevationProfile } from '../api'
+import { t } from '../i18n'
 
 function BikeLegElevation({ leg }: { leg: Leg }) {
   const [profile, setProfile] = useState<ElevationProfile | null>(null)
@@ -93,7 +95,12 @@ export default function ItineraryCard({
 
   let tagKind = 'ok'
   let tagText = lang === 'en' ? '0 € with subscription' : '0 € mit Deutschlandticket'
-  if (short) {
+  if (view.warnReturn) {
+    // Ohne erreichbare Station endet die Fahrt mit 20 € Strafe — das schlägt
+    // jede andere Meldung.
+    tagKind = 'alert'
+    tagText = t('cardReturnWarn', lang)
+  } else if (short) {
     tagKind = 'alert'
     tagText = lang === 'en'
       ? `Only ${short.pk.got} of ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'bikes'} nearby`
@@ -158,7 +165,8 @@ export default function ItineraryCard({
       {/* Kopf: große Dauer links, Zeitfenster und Preis rechts */}
       <div className="route-main" onClick={onSelect}>
         <div className="route-durrow">
-          <span className="route-dur">{mins(it.duration)}</span>
+          {/* inklusive Umweg zur Rückgabestation — der wird ja mitgefahren */}
+          <span className="route-dur">{mins(viewDuration(view))}</span>
           <span className="route-times">{lang === 'en' ? 'min' : 'Min'}</span>
         </div>
         <div className="route-body">
@@ -224,6 +232,16 @@ export default function ItineraryCard({
                           <PinIcon size={12} /> Ausleihe: {pickupText(pk.picks)}
                         </div>
                       )}
+                      {/* Rückgabe zwingend an einer Station — MOTIS beendet die
+                          Etappe bei freistehenden Rädern sonst irgendwo. */}
+                      {bike.noReturnStation ? (
+                        <div className="bike-warn">{t('cardReturnWarn', lang)}</div>
+                      ) : bike.endStation ? (
+                        <div className="pickup-info">
+                          <PinIcon size={12} /> {t('cardReturn', lang)}: »{bike.endStation.name}«
+                          {bike.returnSnapped ? ` (+${bike.returnDetourM} m)` : ''}
+                        </div>
+                      ) : null}
                       {bike.electric && (
                         <div className="ebike-bat-info">
                           <BoltIcon size={12} /> E-Bike{' '}

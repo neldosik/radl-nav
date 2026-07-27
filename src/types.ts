@@ -94,10 +94,20 @@ export interface Station extends LatLon {
 
 export interface BikeLegInfo {
   startStation: Station | null
+  /** Station, an der das Rad zurückgegeben wird — Ziel der Navigation. */
   endStation: Station | null
-  tooLong: boolean // länger als Freiminuten-Fenster
+  tooLong: boolean // länger als Freiminuten-Fenster (inkl. Umweg zur Station)
   electric: boolean // E-Bike — immer kostenpflichtig
   freeFloating: boolean // Rad steht frei
+  /** MOTIS wollte das Rad frei abstellen (returnConstraint NONE) — wir haben
+   *  das Etappenende auf `endStation` umgebogen, sonst 20 € Strafe. */
+  returnSnapped: boolean
+  /** Umweg vom MOTIS-Abstellpunkt bis zur echten Station in Metern. */
+  returnDetourM: number
+  /** Derselbe Umweg in Sekunden Fahrzeit. */
+  returnDetourSec: number
+  /** Frei abstellen verlangt, aber keine Station in Reichweite. */
+  noReturnStation: boolean
   swapStation: Station | null // Wechselstation um im Freifenster zu bleiben
   nearby: { station: Station; dist: number }[] // Stationen nahe Etappenstart (für Gruppen)
 }
@@ -107,5 +117,9 @@ export interface ItineraryView {
   hasBike: boolean
   warnLong: boolean
   hasElectric: boolean
+  /** Mindestens eine Radetappe ohne erreichbare Rückgabestation. */
+  warnReturn: boolean
+  /** Zusatzsekunden aller Umwege zu den Rückgabestationen. */
+  extraSec: number
   bikeLegs: Map<number, BikeLegInfo> // Etappenindex -> Live-Daten
 }

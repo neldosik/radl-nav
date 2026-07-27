@@ -12,7 +12,8 @@ import { addTrip } from './history'
 import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeocode } from './api'
 import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
-import { searchRoutes } from './routing'
+import { searchRoutes, viewDuration } from './routing'
+import { viewStats } from './stats'
 import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
@@ -218,17 +219,16 @@ export default function App() {
           onNext={() => journey.goTo(journeyLeg + 1)}
           onArrive={() => {
             if (from && to) {
-              // echte Radminuten aus den Etappen, nicht geschätzt
-              const bikeLegMins = Array.from(journeyView.bikeLegs.keys()).reduce(
-                (acc, i) => acc + Math.round((journeyView.it.legs[i]?.duration ?? 0) / 60),
-                0,
-              )
+              // echte Radminuten und -kilometer aus den Etappen, nicht geschätzt
+              const stats = viewStats(journeyView)
               addTrip({
                 from: shortPlace(from),
                 to: shortPlace(to),
-                seconds: journeyView.it.duration,
+                seconds: viewDuration(journeyView),
                 legs: journeyView.it.legs.length,
-                bikeMinutes: bikeLegMins,
+                bikeMinutes: stats.bikeMinutes,
+                bikeKm: stats.bikeKm,
+                electricMinutes: stats.electricMinutes,
                 electric: journeyView.hasElectric,
               })
             }
@@ -263,7 +263,7 @@ export default function App() {
   }
 
   const hasResults = !!views && views.length > 0
-  const minDuration = views ? Math.min(...views.map(v => v.it.duration)) : Infinity
+  const minDuration = views ? Math.min(...views.map(viewDuration)) : Infinity
   const minTransfers = views ? Math.min(...views.map(v => v.it.legs.length)) : Infinity
 
   // Wiederverwendete Reiterleiste am unteren Rand
@@ -555,8 +555,8 @@ export default function App() {
         {hasResults && (
           <div className="results-list">
             {views.map((v, i) => {
-              const isFastest = v.it.duration === minDuration
-              const isFree = !v.hasElectric && !v.warnLong
+              const isFastest = viewDuration(v) === minDuration
+              const isFree = !v.hasElectric && !v.warnLong && !v.warnReturn
               const isFewestTransfers = v.it.legs.length === minTransfers
               return (
                 <ItineraryCard
@@ -571,7 +571,13 @@ export default function App() {
                   isFewestTransfers={isFewestTransfers}
                   lang={lang}
                   onSelect={() => setSel(i)}
-                  onGo={() => journey.start()}
+                  onGo={() => {
+                    // Nachführung wieder einschalten: sie blieb sonst für den
+                    // Rest der Sitzung aus, sobald man die Karte einmal
+                    // angefasst hatte — „folgt mir gar nicht mehr".
+                    setFollowMe(true)
+                    journey.start()
+                  }}
                 />
               )
             })}
