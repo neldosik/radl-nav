@@ -1,0 +1,140 @@
+/**
+ * Erinnerung „Rad zurückgeben" — die einzige Warnung, die auch dann ankommen
+ * muss, wenn die App nicht im Vordergrund steht.
+ *
+ * Bisher lebte sie ausschließlich in `JourneyMode`: ein `useEffect`, der auf
+ * die Sekundenanzeige schaut. Bildschirm aus oder App gewechselt, und die
+ * 30 Freiminuten liefen unbemerkt ab — genau der Fall, für den es die App gibt.
+ *
+ * Zwei Wege, je nachdem wo wir laufen:
+ *   - Capacitor-App: `LocalNotifications` plant den Alarm im Betriebssystem.
+ *     Der kommt an, auch wenn die App längst geschlossen ist.
+ *   - Browser: `setTimeout` plus `ServiceWorkerRegistration.showNotification`.
+ *     Solange die Seite im Hintergrund lebt, kommt die Meldung. Räumt das
+ *     Betriebssystem den Tab ab, kommt sie nicht — ohne eigenen Server und
+ *     Push-Dienst geht im Web nicht mehr. Das ist eine bewusste Grenze,
+ *     keine Nachlässigkeit.
+ */
+
+/** Kennungen, damit sich Alarme gezielt wieder abräumen lassen. */
+const ID_WARN = 4711
+const ID_DUE = 4712
+
+let timers: number[] = []
+let nativeScheduled = false
+
+function isNative(): boolean {
+  return !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
+}
+
+/** Darf die App Meldungen zeigen? Fragt im Browser nach, wenn nötig. */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  if (isNative()) {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications')
+      const status = await LocalNotifications.checkPermissions()
+      if (status.display === 'granted') return true
+      const asked = await LocalNotifications.requestPermissions()
+      return asked.display === 'granted'
+    } catch {
+      return false
+    }
+  }
+  if (typeof Notification === 'undefined') return false
+  if (Notification.permission === 'granted') return true
+  if (Notification.permission === 'denied') return false
+  try {
+    return (await Notification.requestPermission()) === 'granted'
+  } catch {
+    return false
+  }
+}
+
+async function showNow(title: string, body: string) {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration()
+    if (reg) {
+      // Über den Service Worker, damit die Meldung auch im Hintergrund erscheint
+      await reg.showNotification(title, { body, tag: 'radl-return', icon: './icon.svg' })
+      return
+    }
+  } catch {
+    // Fällt unten auf die einfache Benachrichtigung zurück
+  }
+  try {
+    new Notification(title, { body })
+  } catch {
+    // Kein Weg, die Meldung zu zeigen — die Anzeige in der App bleibt ohnehin
+  }
+}
+
+export interface ReturnReminderOpts {
+  /** Sekunden bis zum Ende des Freifensters, ab jetzt gerechnet. */
+  secondsLeft: number
+  /** Vorwarnung so viele Sekunden vor Schluss. */
+  warnBeforeSec?: number
+  /** Name der Rückgabestation, falls bekannt — kommt in den Meldungstext. */
+  stationName?: string | null
+}
+
+/**
+ * Plant Vorwarnung und Ablaufmeldung. Ein zweiter Aufruf ersetzt die alten
+ * Alarme — sonst sammeln sich bei jedem Etappenwechsel weitere an.
+ */
+export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise<void> {
+  const { secondsLeft, warnBeforeSec = 5 * 60, stationName } = opts
+  await cancelReturnReminders()
+  if (secondsLeft <= 0) return
+
+  const at = stationName ? ` Rückgabe: »${stationName}«.` : ''
+  const warnIn = secondsLeft - warnBeforeSec
+  const warnTitle = 'Noch 5 Minuten frei'
+  const warnBody = `Gleich läuft das kostenlose Fenster ab.${at}`
+  const dueTitle = 'Freiminuten sind um'
+  const dueBody = `Ab jetzt kostet die Ausleihe.${at}`
+
+  if (isNative()) {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications')
+      const notifications = []
+      if (warnIn > 0) {
+        notifications.push({
+          id: ID_WARN,
+          title: warnTitle,
+          body: warnBody,
+          schedule: { at: new Date(Date.now() + warnIn * 1000) },
+        })
+      }
+      notifications.push({
+        id: ID_DUE,
+        title: dueTitle,
+        body: dueBody,
+        schedule: { at: new Date(Date.now() + secondsLeft * 1000) },
+      })
+      await LocalNotifications.schedule({ notifications })
+      nativeScheduled = true
+      return
+    } catch {
+      // Plugin nicht verfügbar — weiter mit den Browser-Zeitgebern
+    }
+  }
+
+  if (warnIn > 0) {
+    timers.push(window.setTimeout(() => showNow(warnTitle, warnBody), warnIn * 1000))
+  }
+  timers.push(window.setTimeout(() => showNow(dueTitle, dueBody), secondsLeft * 1000))
+}
+
+/** Alle geplanten Erinnerungen abräumen — Etappe vorbei oder Fahrt beendet. */
+export async function cancelReturnReminders(): Promise<void> {
+  for (const id of timers) window.clearTimeout(id)
+  timers = []
+  if (!nativeScheduled) return
+  nativeScheduled = false
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications')
+    await LocalNotifications.cancel({ notifications: [{ id: ID_WARN }, { id: ID_DUE }] })
+  } catch {
+    // Nichts abzuräumen
+  }
+}

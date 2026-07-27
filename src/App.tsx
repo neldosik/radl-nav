@@ -16,6 +16,7 @@ import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
 import { searchRoutes, viewDuration } from './routing'
 import { viewStats } from './stats'
+import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
@@ -582,6 +583,10 @@ export default function App() {
                     // Rest der Sitzung aus, sobald man die Karte einmal
                     // angefasst hatte — „folgt mir gar nicht mehr".
                     setFollowMe(true)
+                    // Um die Erlaubnis für Meldungen hier fragen, nicht später:
+                    // Browser verlangen dafür eine echte Nutzeraktion, und der
+                    // Druck auf „LOS" ist die letzte vor der Radetappe.
+                    ensureNotificationPermission()
                     journey.start()
                   }}
                 />

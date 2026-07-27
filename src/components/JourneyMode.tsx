@@ -17,6 +17,7 @@ import {
 import { planPickup } from '../geo'
 import { FREE_LIMIT_SEC } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
+import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
 import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
 import { t } from '../i18n'
@@ -122,6 +123,24 @@ export default function JourneyMode({
       if (navigator.vibrate) navigator.vibrate([200, 100, 200])
     }
   }, [distToEnd, isTransitLeg])
+
+  // Systemmeldung planen, sobald eine kostenlose Radetappe beginnt. Die
+  // Warnungen unten greifen nur, solange die App im Vordergrund steht —
+  // Bildschirm aus, und die Freiminuten liefen bisher unbemerkt ab.
+  useEffect(() => {
+    if (!isBikeLeg || b?.electric || arrived) {
+      cancelReturnReminders()
+      return
+    }
+    scheduleReturnReminders({
+      secondsLeft: FREE_LIMIT_SEC,
+      stationName: b?.endStation?.name ?? null,
+    })
+    return () => {
+      cancelReturnReminders()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legIndex, isBikeLeg, b?.electric, arrived])
 
   // Rückgabe-Warnung: 5 Min und 2 Min vor Ende des kostenlosen Fensters
   useEffect(() => {
