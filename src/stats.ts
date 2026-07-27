@@ -35,7 +35,12 @@ export const DAY_CAP_CENT = 900
 export const FREE_MINUTES = 30
 
 export interface RideLeg {
+  /** Gerundete Minuten — für die Anzeige. */
   minutes: number
+  /** Volle Sekunden — für den Preis. Die Gebührenstufe springt exakt bei
+   *  30:00 Minuten; das kaufmännische Runden verschluckte bis zu 29 Sekunden
+   *  und damit eine ganze Stufe. */
+  seconds: number
   km: number
   electric: boolean
 }
@@ -71,6 +76,16 @@ export function legCostCent(minutes: number, electric: boolean): number {
   return Math.ceil(paid / 30) * CLASSIC_RATE_CENT
 }
 
+/** Wie `legCostCent`, aber aus Sekunden — ohne die Rundung, die eine
+ *  Gebührenstufe verschlucken kann. */
+export function legCostCentFromSec(seconds: number, electric: boolean): number {
+  if (seconds <= 0) return 0
+  const min = seconds / 60
+  if (electric) return Math.ceil(min / 30) * EBIKE_RATE_CENT
+  const paid = Math.max(0, min - FREE_MINUTES)
+  return Math.ceil(paid / 30) * CLASSIC_RATE_CENT
+}
+
 /** Summe über alle Radetappen; Kosten auf die Tageskappe begrenzt. */
 export function rideStats(legs: RideLeg[], weightKg = DEFAULT_WEIGHT_KG): RideStats {
   let bikeMinutes = 0
@@ -83,7 +98,7 @@ export function rideStats(legs: RideLeg[], weightKg = DEFAULT_WEIGHT_KG): RideSt
     if (l.electric) electricMinutes += l.minutes
     bikeKm += l.km
     kcal += legKcal(l.minutes, l.electric, weightKg)
-    costCent += legCostCent(l.minutes, l.electric)
+    costCent += legCostCentFromSec(l.seconds ?? l.minutes * 60, l.electric)
   }
   return {
     bikeMinutes,
@@ -108,6 +123,7 @@ export function rideLegsOf(view: ItineraryView): RideLeg[] {
     const meters = (leg.distance ?? (leg.duration * 15000) / 3600) + info.returnDetourM
     out.push({
       minutes: Math.round(sec / 60),
+      seconds: sec,
       km: meters / 1000,
       electric: info.electric,
     })

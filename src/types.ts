@@ -74,6 +74,8 @@ export interface PlanResponse {
 export interface FreeBike extends LatLon {
   id: string
   electric: boolean
+  /** Der Typ-Feed fehlte — „nicht elektrisch" ist hier geraten, nicht bekannt. */
+  typeUnknown?: boolean
   batteryPercent?: number
   rangeKm?: number
 }
@@ -86,6 +88,8 @@ export interface Station extends LatLon {
   rentalUris?: { android?: string; ios?: string; web?: string }
   bikes: number // klassische Räder (30 Freiminuten mit Abo)
   ebikes: number // E-Bike — kostenpflichtig
+  /** Der Typ-Feed fehlte — die Aufteilung bikes/ebikes ist geraten. */
+  typesUnknown?: boolean
   docks: number | null
   /** Bester Akkustand der E-Bikes an dieser Station in Prozent. Hieß früher
    *  zusätzlich `batteryPercent` — zwei Felder mit demselben Wert. */

@@ -213,10 +213,19 @@ export async function searchRoutes(
   const list = build([...(res.direct ?? []), ...res.itineraries])
 
   if (list.length < 2) {
-    const res2 = await plan(from, to, { walkOnly: true, ...time }, signal)
-    const seen = new Set(list.map(itinerarySignature))
-    for (const v of build([...(res2.direct ?? []), ...res2.itineraries])) {
-      if (!seen.has(itinerarySignature(v))) list.push(v)
+    // Zusatzsuche ist Kür: schlägt sie fehl (HTTP-Fehler, Zeitüberschreitung),
+    // behalten wir die bereits gefundene Route. Vorher riss die Ausnahme die
+    // ganze Suche mit — der Nutzer sah „keine Verbindung", obwohl eine
+    // gültige Route schon vorlag.
+    try {
+      const res2 = await plan(from, to, { walkOnly: true, ...time }, signal)
+      const seen = new Set(list.map(itinerarySignature))
+      for (const v of build([...(res2.direct ?? []), ...res2.itineraries])) {
+        if (!seen.has(itinerarySignature(v))) list.push(v)
+      }
+    } catch (e) {
+      // Abbruch durch den Nutzer bleibt ein Abbruch
+      if ((e as Error)?.name === 'AbortError') throw e
     }
   }
 

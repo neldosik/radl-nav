@@ -9,6 +9,14 @@ export function loadLanguage(): Language {
 
 export function saveLanguage(lang: Language) {
   localStorage.setItem(KEY, lang)
+  applyDocumentLang(lang)
+}
+
+/** `<html lang>` mitführen — Vorleseprogramme und die Silbentrennung des
+ *  Browsers richten sich danach. Vorher stand dort fest „de", auch wenn die
+ *  Oberfläche auf Englisch lief. */
+export function applyDocumentLang(lang: Language) {
+  if (typeof document !== 'undefined') document.documentElement.lang = lang
 }
 
 /**

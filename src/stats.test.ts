@@ -51,8 +51,8 @@ describe('legCostCent — Abo-Preise MyRadl', () => {
 describe('rideStats', () => {
   it('trennt E-Bike-Minuten von Standardminuten', () => {
     const s = rideStats([
-      { minutes: 20, km: 5, electric: false },
-      { minutes: 10, km: 3, electric: true },
+      { minutes: 20, seconds: 1200, km: 5, electric: false },
+      { minutes: 10, seconds: 600, km: 3, electric: true },
     ])
     expect(s.bikeMinutes).toBe(30)
     expect(s.electricMinutes).toBe(10)
@@ -62,14 +62,24 @@ describe('rideStats', () => {
   })
 
   it('rechnet CO₂ über die Strecke, nicht über die Minuten', () => {
-    const langsam = rideStats([{ minutes: 40, km: 5, electric: false }])
-    const schnell = rideStats([{ minutes: 15, km: 5, electric: false }])
+    const langsam = rideStats([{ minutes: 40, seconds: 2400, km: 5, electric: false }])
+    const schnell = rideStats([{ minutes: 15, seconds: 900, km: 5, electric: false }])
     expect(langsam.co2Grams).toBe(schnell.co2Grams)
     expect(schnell.co2Grams).toBe(Math.round(5 * (148 - 5)))
   })
 
   it('kappt die Kosten bei der Tagesgrenze von 9 €', () => {
-    expect(rideStats([{ minutes: 600, km: 40, electric: true }]).costCent).toBe(900)
+    expect(rideStats([{ minutes: 600, seconds: 36000, km: 40, electric: true }]).costCent).toBe(900)
+  })
+
+  it('verschluckt keine Gebührenstufe durch Rundung', () => {
+    // 30:20 Min: die Stufe springt bei 30:00, gerundet wären es 30 Min und
+    // damit fälschlich 0 €.
+    const knapp = rideStats([{ minutes: 30, seconds: 30 * 60 + 20, km: 7, electric: false }])
+    expect(knapp.costCent).toBe(100)
+    // 29:50 Min bleibt frei
+    const frei = rideStats([{ minutes: 30, seconds: 29 * 60 + 50, km: 7, electric: false }])
+    expect(frei.costCent).toBe(0)
   })
 
   it('bleibt bei leerer Liste bei null', () => {
@@ -117,7 +127,7 @@ describe('rideLegsOf', () => {
 
   it('nimmt die echte Dauer und Länge der Etappe', () => {
     const v = view([leg()], new Map([[0, bikeInfo()]]))
-    expect(rideLegsOf(v)).toEqual([{ minutes: 10, km: 2.5, electric: false }])
+    expect(rideLegsOf(v)).toEqual([{ minutes: 10, seconds: 600, km: 2.5, electric: false }])
   })
 
   it('schlägt den Umweg zur Rückgabestation auf', () => {

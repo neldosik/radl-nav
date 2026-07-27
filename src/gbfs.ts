@@ -41,6 +41,17 @@ export interface GbfsFreeBike {
   current_fuel_percent?: number
 }
 
+/**
+ * Sind überhaupt Typdaten da?
+ *
+ * Ohne sie ließe sich kein E-Bike erkennen — und die App würde jedes E-Bike
+ * als kostenloses Standardrad ausweisen. Ein Nutzer, der darauf vertraut,
+ * zahlt am Ende 1,50 €/30 Min. Lieber gar keine Aufteilung als eine falsche.
+ */
+export function hasTypeData(types: GbfsVehicleType[] | null | undefined): boolean {
+  return Array.isArray(types) && types.length > 0
+}
+
 /** IDs aller Fahrzeugtypen mit Motor (propulsion_type != "human"). */
 export function electricTypeIds(types: GbfsVehicleType[] | null | undefined): Set<string> {
   const out = new Set<string>()
@@ -118,6 +129,9 @@ export function parseStations(
       rentalUris: si.rental_uris,
       bikes: Math.max(0, total - ebikes),
       ebikes,
+      // Ohne Typ-Feed ist die Aufteilung geraten — die Oberfläche soll das
+      // wissen und nicht »alles gratis« versprechen.
+      typesUnknown: !hasTypeData(types),
       docks: st?.num_docks_available ?? null,
       maxChargePercent: maxBat,
       rangeKm: maxRange,
@@ -150,6 +164,7 @@ export function parseFreeBikes(
         lat: b.lat!,
         lon: b.lon!,
         electric: isElec,
+        typeUnknown: !hasTypeData(types),
         batteryPercent,
         rangeKm,
       }

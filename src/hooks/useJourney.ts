@@ -12,6 +12,8 @@ const MAX_ACCURACY_M = 100
 const MIN_MOVE_M = 3
 /** Ab hier gilt der letzte Fix als veraltet und die Entfernung als geraten. */
 const STALE_AFTER_MS = 30_000
+/** So lange nach einem Handgriff bleibt die automatische Weiterschaltung aus. */
+const MANUAL_HOLD_MS = 90_000
 
 export interface UserPos extends LatLon {
   /** Genauigkeit des Fixes in Metern (falls das Gerät sie liefert). */
@@ -53,6 +55,16 @@ export function useJourney(view: ItineraryView | null): Journey {
   const active = legIndex != null
   const viewRef = useRef(view)
   viewRef.current = view
+  /**
+   * Nach einem Griff zu „Vorherige"/„Nächste" pausiert die automatische
+   * Weiterschaltung.
+   *
+   * Ohne das war der Zurück-Knopf wirkungslos: wer zurückschaltete, stand
+   * meist noch innerhalb der 70 m um das Ziel der vorherigen Etappe, und der
+   * nächste GPS-Fix — also spätestens eine Sekunde später — schaltete sofort
+   * wieder vor.
+   */
+  const manuellBis = useRef(0)
 
   useWakeLock(active && !arrived)
 
@@ -94,6 +106,8 @@ export function useJourney(view: ItineraryView | null): Journey {
     const target = legTarget(v, legIndex)
     if (!target) return
     const d = haversine(userPos, target)
+    // Solange die Sperre läuft, entscheidet der Nutzer, nicht das GPS.
+    if (Date.now() < manuellBis.current) return
     if (d < ARRIVE_RADIUS_M && legIndex < v.it.legs.length - 1) {
       setLegIndex(legIndex + 1)
       navigator.vibrate?.(200)
@@ -123,7 +137,10 @@ export function useJourney(view: ItineraryView | null): Journey {
       setStartedAt(null)
       setArrived(false)
     },
-    goTo: (i: number) => setLegIndex(i),
+    goTo: (i: number) => {
+      manuellBis.current = Date.now() + MANUAL_HOLD_MS
+      setLegIndex(i)
+    },
     markArrived: () => setArrived(true),
     setUserPos,
   }

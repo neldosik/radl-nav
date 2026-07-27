@@ -24,7 +24,7 @@ import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, re
 import type { FavRoute, SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, RainIcon, SendIcon, SettingsIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
-import { dict, loadLanguage, saveLanguage, t } from './i18n'
+import { applyDocumentLang, dict, loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
 
 /** Kennzeichnet eine Suche eindeutig: Orte plus alle Filter, die das Ergebnis
@@ -101,6 +101,11 @@ export default function App() {
     setSoundEnabled(next)
     localStorage.setItem('radl.sound', String(next))
   }
+
+  // Beim Start die gespeicherte Sprache auch ins Dokument schreiben.
+  useEffect(() => {
+    applyDocumentLang(lang)
+  }, [lang])
 
   useEffect(() => {
     if (!presetHint) return
