@@ -20,7 +20,7 @@ import { co2Label, euro, viewStats } from '../stats'
 import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
 import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
-import { t } from '../i18n'
+import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 
 interface Props {
@@ -44,18 +44,18 @@ interface Props {
   children?: ReactNode // Karte
 }
 
-function BigIcon({ leg }: { leg: Leg }) {
+function BigIcon({ leg, lang }: { leg: Leg; lang: Language }) {
   const k = legKind(leg)
   if (k === 'walk') return <WalkIcon size={22} />
   if (k === 'bike') return <BikeIcon size={24} />
-  return <>{lineShort(leg)}</>
+  return <>{lineShort(leg, lang)}</>
 }
 
-function ChipIcon({ leg }: { leg: Leg }) {
+function ChipIcon({ leg, lang }: { leg: Leg; lang: Language }) {
   const k = legKind(leg)
   if (k === 'walk') return <WalkIcon size={13} />
   if (k === 'bike') return <BikeIcon size={13} />
-  return <>{lineShort(leg)}</>
+  return <>{lineShort(leg, lang)}</>
 }
 
 /** mm:ss, nach einer Stunde h:mm:ss */
@@ -169,7 +169,7 @@ export default function JourneyMode({
           <div className="arrive-kicker">{t('jmArrived', lang)}</div>
           <div className="arrive-time">
             {Math.max(1, Math.round(elapsedMs / 60000))}
-            <small> Min</small>
+            <small> {t('jmMin', lang)}</small>
           </div>
           <div className="arrive-route">{routeLabel || t('jmGoalReached', lang)}</div>
           <div className="arrive-sub">
@@ -187,7 +187,7 @@ export default function JourneyMode({
             </div>
             <div className="arrive-stat">
               <b>{euro(stats.costCent)}</b>
-              <span>{lang === 'en' ? 'cost' : 'Kosten'}</span>
+              <span>{t('jmCost', lang)}</span>
             </div>
           </div>
 
@@ -199,15 +199,15 @@ export default function JourneyMode({
     )
   }
 
-  const fromName = leg.from.name === 'START' ? 'Start' : leg.from.name || b?.startStation?.name || ''
+  const fromName = leg.from.name === 'START' ? t('jmStart', lang) : leg.from.name || b?.startStation?.name || ''
   // Bei Radetappen ist das Ziel die Rückgabestation — nicht der Punkt, den
   // MOTIS gewählt hat. Der lag bei freistehenden Rädern regelmäßig bei einem
   // anderen freien Rad, und die Navigation führte genau dorthin.
   const toName =
     leg.to.name === 'END'
-      ? 'Ziel'
+      ? t('jmGoal', lang)
       : (b?.returnSnapped ? b.endStation?.name : '') || leg.to.name || b?.endStation?.name || ''
-  const name = `${legLabel(leg)}${leg.routeShortName ? ` ${leg.routeShortName}` : ''}`
+  const name = `${legLabel(leg, lang)}${leg.routeShortName ? ` ${leg.routeShortName}` : ''}`
   const delay = legDelayMin(leg)
 
   const distText =
@@ -222,27 +222,30 @@ export default function JourneyMode({
   let infoWarn = false
   if (b) {
     const pk = planPickup(b.nearby, b.electric, bikesNeeded)
-    const pl = b.electric ? 'E-Bikes' : 'Räder'
+    const pl = t(b.electric ? 'ebikeMany' : 'bikeMany', lang)
     if (bikesNeeded > 1 && pk.got < bikesNeeded) {
-      infoLine = `Nur ${pk.got} von ${bikesNeeded} ${pl} · ${pk.totalElectric} E-Bikes, ${pk.totalClassic} Standard in der Nähe`
+      infoLine = dict[lang].jmOnlyXofY(pk.got, bikesNeeded, pl, pk.totalElectric, pk.totalClassic)
       infoWarn = true
     } else if (bikesNeeded > 1) {
-      infoLine = `${bikesNeeded} ${pl}: ${pickupText(pk.picks)}`
+      infoLine = dict[lang].jmPickupPlan(bikesNeeded, pl, pickupText(pk.picks, lang))
     } else if (b.startStation) {
-      infoLine = `${b.startStation.bikes} an »${b.startStation.name}«${b.endStation ? ` → zurück: »${b.endStation.name}«` : ''}`
+      infoLine =
+        dict[lang].jmBikesAt(b.startStation.bikes, b.startStation.name) +
+        (b.endStation ? dict[lang].jmReturnTo(b.endStation.name) : '')
     } else if (b.freeFloating) {
-      infoLine = `Freistehendes Rad${b.endStation ? ` → zurück: »${b.endStation.name}«` : ''}`
+      infoLine =
+        t('jmFreeFloating', lang) + (b.endStation ? dict[lang].jmReturnTo(b.endStation.name) : '')
     }
     // Rückgabe außerhalb einer Station kostet 20 € — das gehört vor den Rest.
     if (b.noReturnStation) {
       infoLine = t('jmNoReturnStation', lang)
       infoWarn = true
     } else if (b.returnSnapped && b.endStation) {
-      infoLine = `${t('jmReturnOnly', lang)} »${b.endStation.name}« (+${b.returnDetourM} m)`
+      infoLine = `${t('jmReturnOnly', lang)} ${dict[lang].jmReturnStation(b.endStation.name, b.returnDetourM)}`
       infoWarn = true
     }
     if (b.swapStation) {
-      infoLine = `Rad wechseln bei »${b.swapStation.name}« — bleibt gratis`
+      infoLine = dict[lang].jmSwapAt(b.swapStation.name)
       infoWarn = true
     }
   }
@@ -260,7 +263,7 @@ export default function JourneyMode({
         <button
           className={`j-follow${follow ? ' on' : ''}`}
           onClick={onToggleFollow}
-          title={follow ? (lang === 'en' ? 'Following you' : 'Folgt dir') : (lang === 'en' ? 'Recenter' : 'Zentrieren')}
+          title={t(follow ? 'jmFollowing' : 'jmRecenter', lang)}
         >
           <TargetIcon size={20} />
         </button>
@@ -271,11 +274,11 @@ export default function JourneyMode({
         <div className="j-head-row">
           <div className="j-head-card">
             <span className={`j-head-icon ${k}`}>
-              <BigIcon leg={leg} />
+              <BigIcon leg={leg} lang={lang} />
             </span>
             <div className="j-head-main">
               <div className="j-kicker">
-                {lang === 'en' ? 'Head towards' : 'Fahre Richtung'}
+                {t('jmHeadTowards', lang)}
                 {startedAt != null && <span className="j-timer"> · {elapsedText(elapsedMs)}</span>}
               </div>
               <div className="j-head-target">{toName}</div>
@@ -318,16 +321,16 @@ export default function JourneyMode({
 
         <div className="j-legcard">
           <span className={`j-bigico ${k}`}>
-            <BigIcon leg={leg} />
+            <BigIcon leg={leg} lang={lang} />
           </span>
           <div className="j-legmain">
             <div className="j-legtop">
               <span className="j-mins">{mins(leg.duration)}</span>
-              <span className="j-legname">Min · {name}</span>
+              <span className="j-legname">{t('jmMin', lang)} · {name}</span>
               {leg.cancelled ? (
-                <span className="delay cancel">Ausfall</span>
+                <span className="delay cancel">{t('cardCancelled', lang)}</span>
               ) : delay != null && delay !== 0 ? (
-                <span className="delay">{delay > 0 ? `+${delay}` : delay} Min</span>
+                <span className="delay">{dict[lang].cardDelay(delay)}</span>
               ) : null}
             </div>
             <div className="j-legsub">
@@ -350,8 +353,8 @@ export default function JourneyMode({
               href={nextbikeLink(leg)}
               target="_blank"
               rel="noreferrer"
-              aria-label={lang === 'en' ? 'Open in Nextbike' : 'In Nextbike öffnen'}
-              title={lang === 'en' ? 'Open in Nextbike' : 'In Nextbike öffnen'}
+              aria-label={t('jmOpenNextbike', lang)}
+              title={t('jmOpenNextbike', lang)}
             >
               <ExternalIcon size={20} />
             </a>
@@ -373,7 +376,7 @@ export default function JourneyMode({
             const sel = i === legIndex
             return (
               <button key={i} className={`j-chip ${lk}${sel ? ' sel' : ''}`}>
-                <ChipIcon leg={l} />
+                <ChipIcon leg={l} lang={lang} />
                 <span>{mins(l.duration)}′</span>
               </button>
             )

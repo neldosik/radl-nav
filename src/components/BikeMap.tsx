@@ -400,14 +400,14 @@ export default function BikeMap({
                 <span className="bm-count-pill ebike">
                   <BoltIcon size={13} /> {selected.ebikes} E-Bike
                   {selected.maxChargePercent != null
-                    ? ` · Max ${selected.maxChargePercent} % · ~${selected.rangeKm ?? 25} km`
+                    ? ` · ${dict[lang].bmBattery(selected.maxChargePercent, selected.rangeKm ?? 25)}`
                     : ''}
                 </span>
               )}
               {walkDistM != null && (
                 <span className="bm-walk-tag">
-                  <WalkIcon size={13} /> {walkDistM} m · ~{Math.max(1, Math.ceil(walkDistM / 80))} Min.{' '}
-                  {t('bmWalk', lang)}
+                  <WalkIcon size={13} />{' '}
+                  {dict[lang].bmWalkTime(walkDistM, Math.max(1, Math.ceil(walkDistM / 80)))}
                 </span>
               )}
             </div>

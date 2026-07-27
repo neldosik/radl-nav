@@ -10,7 +10,7 @@ import {
   whenLabel,
 } from '../history'
 import { BikeIcon, BookmarkIcon, CloseIcon, TrashIcon } from '../icons'
-import { t } from '../i18n'
+import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 
 interface Props {
@@ -38,9 +38,9 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
   // Abzeichen — jetzt an dem gemessen, was draufsteht. „50 km" prüfte vorher
   // `bikeMinutes >= 120`, also zwei Stunden statt Kilometern.
   const badges = [
-    { id: 'km50', label: '50 km Radler', unlocked: s.bikeKm >= 50 },
-    { id: 'save25', label: '25 € gespart', unlocked: s.savedEuro >= 25 },
-    { id: 'eco10', label: 'Eco-Held 10 kg', unlocked: s.co2Grams >= 10000 },
+    { id: 'km50', label: dict[lang].histBadgeKm(50), unlocked: s.bikeKm >= 50 },
+    { id: 'save25', label: dict[lang].histBadgeSaved(25), unlocked: s.savedEuro >= 25 },
+    { id: 'eco10', label: dict[lang].histBadgeEco(10), unlocked: s.co2Grams >= 10000 },
   ]
 
   return (
@@ -94,7 +94,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
               <div className="chart-head">
                 <div className="chart-title">{t('histWeekTitle', lang)}</div>
                 <div className="chart-avg">
-                  ⌀ {avgMins} {lang === 'en' ? 'min/day' : 'Min/Tag'}
+                  ⌀ {avgMins} {t('histMinPerDay', lang)}
                 </div>
               </div>
               <div className="chart-bars">
@@ -107,7 +107,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
                       className={`chart-bar-col${on ? ' picked' : ''}`}
                       onClick={() => setPickedDay(on ? null : d.day)}
                     >
-                      <span className="chart-bar-val">{d.mins} Min</span>
+                      <span className="chart-bar-val">{d.mins} {t('jmMin', lang)}</span>
                       <div className="chart-bar-track">
                         <div
                           className="chart-bar-fill"
@@ -148,11 +148,11 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
                     {tRec.from} → {tRec.to}
                   </div>
                   <div className="hist-meta">
-                    {Math.max(1, Math.round(tRec.seconds / 60))} Min · {tRec.legs} {t('jmLegs', lang)}
+                    {dict[lang].histTripMeta(Math.max(1, Math.round(tRec.seconds / 60)), tRec.legs)}
                     {tRec.bikeMinutes > 0 && (
                       <>
                         {' · '}
-                        <BikeIcon size={11} /> {tRec.bikeMinutes} Min
+                        <BikeIcon size={11} /> {tRec.bikeMinutes} {t('jmMin', lang)}
                       </>
                     )}
                     {tRec.electric && ' · E-Bike'}
@@ -160,7 +160,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
                 </div>
                 <button
                   className="hist-del"
-                  title={lang === 'en' ? 'Delete trip' : 'Fahrt löschen'}
+                  title={t('histDeleteTrip', lang)}
                   onClick={() => setTrips(removeTrip(tRec.id))}
                 >
                   <TrashIcon size={14} />

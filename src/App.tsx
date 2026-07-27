@@ -192,10 +192,7 @@ export default function App() {
       <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
         <MapGuard lang={lang}>
           <MapPicker
-            title={pickOnMap === 'from'
-              ? (lang === 'en' ? 'Select Start on Map' : 'Startpunkt auf Karte wählen')
-              : (lang === 'en' ? 'Select Destination on Map' : 'Zielpunkt auf Karte wählen')
-            }
+            title={t(pickOnMap === 'from' ? 'pickStartOnMap' : 'pickDestOnMap', lang)}
             initial={pickOnMap === 'from' ? from : to}
             theme={themeMode}
             lang={lang}
@@ -397,7 +394,7 @@ export default function App() {
               onSelect={setTo}
               onPickOnMap={() => setPickOnMap('to')}
             />
-            <button className="btn-swap" onClick={swap} title="Start / Ziel tauschen">
+            <button className="btn-swap" onClick={swap} title={t('swapPlaces', lang)}>
               <SwapIcon size={16} />
             </button>
           </div>
@@ -421,12 +418,12 @@ export default function App() {
                     setPresetHint(null)
                   } else if (target) {
                     setSavedPlaces(upsertSaved(s, target))
-                    setPresetHint(`»${shortPlace(target)}« ${s.label}`)
+                    setPresetHint(dict[lang].presetSaved(shortPlace(target), labelText))
                   } else {
-                    setPresetHint(`Ziel wählen, dann als ${labelText} speichern`)
+                    setPresetHint(dict[lang].presetNeedsTarget(labelText))
                   }
                 }}
-                title={saved ? `Ziel: ${saved.place.name}` : `Als ${labelText} speichern`}
+                title={saved ? dict[lang].presetGoto(saved.place.name) : dict[lang].presetSaveAs(labelText)}
               >
                 <span className="qp-icon">{saved ? <SlotIcon id={s.id} size={13} /> : '＋'}</span>{' '}
                 {labelText}
@@ -441,9 +438,9 @@ export default function App() {
               onClick={() => {
                 for (const s of PRESET_SLOTS) removeSaved(s.id)
                 setSavedPlaces(loadSaved())
-                setPresetHint(lang === 'en' ? 'Saved places cleared' : 'Gespeicherte Orte gelöscht')
+                setPresetHint(t('savedPlacesCleared', lang))
               }}
-              title="Gespeicherte Orte löschen"
+              title={t('clearSavedPlaces', lang)}
             >
               <CloseIcon size={12} />
             </button>
@@ -647,7 +644,7 @@ export default function App() {
             <div className="modal-grabber" />
             <div className="filter-modal-head">
               <div className="filter-modal-title">
-                <span>{lang === 'en' ? 'Weather Radar & Rain Forecast' : 'Wetter-Radar & Niederschlag'}</span>
+                <span>{t('weatherTitle', lang)}</span>
               </div>
               <button className="filter-modal-close" onClick={() => setShowWeatherModal(false)}>
                 <CloseIcon size={13} />
@@ -663,10 +660,12 @@ export default function App() {
             <div className="weather-hourly-list">
               {weather.hourly.map((h, i) => (
                 <div key={i} className={`weather-hour-row${h.rain ? ' rain' : ''}`}>
-                  <span className="wh-time">{h.timeLabel} Uhr</span>
+                  <span className="wh-time">{dict[lang].weatherHour(h.timeLabel)}</span>
                   <span className="wh-icon">{h.rain ? <RainIcon size={14} /> : <SunIcon size={14} />}</span>
                   <span className="wh-temp">{h.temp}°C</span>
-                  <span className="wh-precip">{h.precip > 0 ? `${h.precip.toFixed(1)} mm/h` : (lang === 'en' ? 'Dry' : 'Trocken')}</span>
+                  <span className="wh-precip">
+                    {h.precip > 0 ? dict[lang].weatherPrecip(h.precip.toFixed(1)) : t('dryCap', lang)}
+                  </span>
                 </div>
               ))}
             </div>

@@ -1,3 +1,5 @@
+import { t } from './i18n'
+import type { Language } from './i18n'
 import type { Itinerary, Leg } from './types'
 
 export const mins = (sec: number) => Math.max(1, Math.round(sec / 60))
@@ -5,8 +7,9 @@ export const mins = (sec: number) => Math.max(1, Math.round(sec / 60))
 export const hm = (iso: string) =>
   new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 
-/** 1 Rad, 2 Räder */
-export const bikeWord = (n: number) => (n === 1 ? 'Rad' : 'Räder')
+/** 1 Rad, 2 Räder — bzw. 1 bike, 2 bikes. */
+export const bikeWord = (n: number, lang: Language = 'de') =>
+  t(n === 1 ? 'bikeOne' : 'bikeMany', lang)
 
 /** Verzögerung der Etappe in Minuten (>0 Verspätung, <0 verfrüht), null falls keine Echtzeitdaten. */
 export function legDelayMin(leg: Leg): number | null {
@@ -23,40 +26,44 @@ export function legKind(leg: Leg): LegKind {
   return 'line'
 }
 
-/** Deutsche Bezeichnung des Etappenmodus. */
-export function legLabel(leg: Leg): string {
+/**
+ * Bezeichnung des Etappenmodus in der gewählten Sprache. Die Namen standen
+ * früher fest im Code und blieben beim Umschalten auf Englisch deutsch.
+ * Der Name des Verleihsystems kommt aus den Daten und wird nicht übersetzt.
+ */
+export function legLabel(leg: Leg, lang: Language = 'de'): string {
   switch (leg.mode) {
     case 'WALK':
-      return 'zu Fuß'
+      return t('modeWalk', lang)
     case 'RENTAL':
       return (leg.rental?.systemName ?? 'MyRadl').trim()
     case 'BIKE':
-      return 'Rad'
+      return t('modeBike', lang)
     case 'SUBWAY':
     case 'METRO':
-      return 'U-Bahn'
+      return t('modeSubway', lang)
     case 'TRAM':
-      return 'Tram'
+      return t('modeTram', lang)
     case 'BUS':
     case 'COACH':
-      return 'Bus'
+      return t('modeBus', lang)
     case 'SUBURBAN':
-      return 'S-Bahn'
+      return t('modeSuburban', lang)
     case 'RAIL':
     case 'REGIONAL_RAIL':
     case 'REGIONAL_FAST_RAIL':
     case 'LONG_DISTANCE':
-      return 'Zug'
+      return t('modeTrain', lang)
     default:
       return leg.mode
   }
 }
 
 /** Kurzer Linien-Code für quadratisches Badge (U6, 63, S1…). */
-export function lineShort(leg: Leg): string {
+export function lineShort(leg: Leg, lang: Language = 'de'): string {
   if (leg.routeShortName) return leg.routeShortName
-  const l = legLabel(leg)
-  return l.replace(/^(U-?Bahn|S-?Bahn|Tram|Bus|Zug)\s*/i, '').trim() || '·'
+  const l = legLabel(leg, lang)
+  return l.replace(/^(U-?Bahn|S-?Bahn|Tram|Bus|Zug|Subway|Train)\s*/i, '').trim() || '·'
 }
 
 /** Deep-Link: Etappe in Google Maps öffnen; navigate=true startet direkt die Navigation. */

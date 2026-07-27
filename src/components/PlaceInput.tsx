@@ -148,7 +148,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
           </button>
           <button
             className="in-btn"
-            title="Löschen"
+            title={t('placeDelete', lang)}
             onClick={() => {
               onSelect(null)
               setQuery('')
@@ -177,7 +177,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
               <span className="d-main">
                 <span className="d-name">
                   <SlotIcon id={s.id} size={13} /> {s.label}
-                  {usedIds.has(s.id) ? ' · ersetzen' : ''}
+                  {usedIds.has(s.id) ? ` ${t('placeReplace', lang)}` : ''}
                 </span>
               </span>
             </button>

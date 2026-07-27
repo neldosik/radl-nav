@@ -7,9 +7,10 @@ import { decodePolyline } from '../polyline'
 import { viewDuration } from '../routing'
 import { fetchElevationProfile } from '../api'
 import type { ElevationProfile } from '../api'
-import { t } from '../i18n'
+import { dict, t } from '../i18n'
+import type { Language } from '../i18n'
 
-function BikeLegElevation({ leg }: { leg: Leg }) {
+function BikeLegElevation({ leg, lang }: { leg: Leg; lang: Language }) {
   const [profile, setProfile] = useState<ElevationProfile | null>(null)
 
   useEffect(() => {
@@ -27,16 +28,19 @@ function BikeLegElevation({ leg }: { leg: Leg }) {
   if (!profile) return null
 
   return (
-    <div className="elev-pill" title="Echtes Höhenprofil (Open-Meteo)">
+    <div className="elev-pill" title={t('cardElevationTitle', lang)}>
       ↗ +{profile.gain}m · ↘ -{profile.loss}m
     </div>
   )
 }
 
-/** «2 an »A« + 1 an »B« (180 m)» */
-export function pickupText(picks: { station: { name: string }; dist: number; take: number }[]) {
+/** «2 an »A« + 1 an »B« (180 m)» — Entfernung erst ab 60 m, davor ist sie Rauschen. */
+export function pickupText(
+  picks: { station: { name: string }; dist: number; take: number }[],
+  lang: Language = 'de',
+) {
   return picks
-    .map(p => `${p.take} an »${p.station.name}«${p.dist > 60 ? ` (${Math.round(p.dist)} m)` : ''}`)
+    .map(p => dict[lang].cardPickupAt(p.take, p.station.name, p.dist > 60 ? Math.round(p.dist) : null))
     .join(' + ')
 }
 
@@ -49,24 +53,24 @@ interface Props {
   isFastest?: boolean
   isFree?: boolean
   isFewestTransfers?: boolean
-  lang?: 'de' | 'en'
+  lang?: Language
   onSelect: () => void
   onGo: () => void
 }
 
-/** «+3» Verspätung / «3 früher» / «Ausfall». */
-function DelayTag({ leg }: { leg: Leg }) {
-  if (leg.cancelled) return <span className="delay cancel">Ausfall</span>
+/** «+3» Verspätung / «-3» verfrüht / «Ausfall». */
+function DelayTag({ leg, lang }: { leg: Leg; lang: Language }) {
+  if (leg.cancelled) return <span className="delay cancel">{t('cardCancelled', lang)}</span>
   const d = legDelayMin(leg)
   if (d == null || d === 0) return null
-  return <span className="delay">{d > 0 ? `+${d}` : `${d}`} Min</span>
+  return <span className="delay">{dict[lang].cardDelay(d)}</span>
 }
 
-function KindIcon({ leg }: { leg: Leg }) {
+function KindIcon({ leg, lang }: { leg: Leg; lang: Language }) {
   const k = legKind(leg)
   if (k === 'walk') return <WalkIcon size={13} />
   if (k === 'bike') return <BikeIcon size={13} />
-  return <>{lineShort(leg)}</>
+  return <>{lineShort(leg, lang)}</>
 }
 
 export default function ItineraryCard({
@@ -94,7 +98,7 @@ export default function ItineraryCard({
   const minGot = pickups.length ? Math.min(...pickups.map(p => p.pk.got)) : null
 
   let tagKind = 'ok'
-  let tagText = lang === 'en' ? '0 € with subscription' : '0 € mit Deutschlandticket'
+  let tagText = t('cardFreeWithAbo', lang)
   if (view.warnReturn) {
     // Ohne erreichbare Station endet die Fahrt mit 20 € Strafe — das schlägt
     // jede andere Meldung.
@@ -102,24 +106,22 @@ export default function ItineraryCard({
     tagText = t('cardReturnWarn', lang)
   } else if (short) {
     tagKind = 'alert'
-    tagText = lang === 'en'
-      ? `Only ${short.pk.got} of ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'bikes'} nearby`
-      : `Nur ${short.pk.got} von ${bikesNeeded} ${short.b.electric ? 'E-Bikes' : 'Rädern'} in der Nähe`
+    tagText = dict[lang].cardOnlyXofY(
+      short.pk.got,
+      bikesNeeded,
+      short.b.electric ? t('ebikeMany', lang) : t('bikeMany', lang),
+    )
   } else if (view.hasElectric) {
     tagKind = 'warn'
-    tagText = 'E-Bike · 1,50 €/30 Min'
+    tagText = t('cardEbikePrice', lang)
   } else if (view.warnLong) {
     tagKind = 'warn'
-    tagText = lang === 'en' ? 'Bike ride > 30 free mins' : 'Rad länger als 30 Freiminuten'
+    tagText = t('cardTooLong', lang)
   } else if (minGot != null && minGot <= 2) {
     tagKind = 'alert'
-    tagText = lang === 'en'
-      ? `High demand: only ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} left`
-      : `Hohe Nachfrage: nur noch ${minGot} ${bikeWord(minGot)} frei`
+    tagText = dict[lang].cardHighDemand(minGot, bikeWord(minGot, lang))
   } else if (minGot != null) {
-    tagText = lang === 'en'
-      ? `0 € with sub · ${minGot} ${minGot === 1 ? 'bike' : 'bikes'} free`
-      : `0 € mit Deutschlandticket · ${minGot} ${bikeWord(minGot)} frei`
+    tagText = dict[lang].cardFreeWithBikes(minGot, bikeWord(minGot, lang))
   }
 
   const stripLegs = it.legs.filter(l => !(l.mode === 'WALK' && l.duration < 90))
@@ -137,7 +139,7 @@ export default function ItineraryCard({
               key={i}
               className={`timeline-seg ${colorClass}`}
               style={{ width: `${pct}%` }}
-              title={`${mins(l.duration)}′ ${legLabel(l)}`}
+              title={`${mins(l.duration)}′ ${legLabel(l, lang)}`}
             />
           )
         })}
@@ -145,19 +147,15 @@ export default function ItineraryCard({
       {(isFastest || isFree || isFewestTransfers) && (
         <div className="route-badges-row">
           {isFastest && (
-            <span className="badge-highlight fastest">
-              {lang === 'en' ? 'Fastest' : 'Schnellste'}
-            </span>
+            <span className="badge-highlight fastest">{t('cardFastest', lang)}</span>
           )}
           {isFree && (
             <span className="badge-highlight free">
-              <BikeIcon size={11} /> {lang === 'en' ? '100 % free' : '100 % gratis'}
+              <BikeIcon size={11} /> {t('cardFree100', lang)}
             </span>
           )}
           {isFewestTransfers && (
-            <span className="badge-highlight transfers">
-              {lang === 'en' ? 'Fewest changes' : 'Wenigste Umstiege'}
-            </span>
+            <span className="badge-highlight transfers">{t('cardFewestChanges', lang)}</span>
           )}
         </div>
       )}
@@ -167,7 +165,7 @@ export default function ItineraryCard({
         <div className="route-durrow">
           {/* inklusive Umweg zur Rückgabestation — der wird ja mitgefahren */}
           <span className="route-dur">{mins(viewDuration(view))}</span>
-          <span className="route-times">{lang === 'en' ? 'min' : 'Min'}</span>
+          <span className="route-times">{t('cardMin', lang)}</span>
         </div>
         <div className="route-body">
           <div className="route-times">
@@ -184,10 +182,10 @@ export default function ItineraryCard({
           return (
             <span key={i} className={`badge ${k}${isE ? ' ebike' : ''}`}>
               {k === 'line' ? (
-                `${lineShort(leg)} ${mins(leg.duration)}′`
+                `${lineShort(leg, lang)} ${mins(leg.duration)}′`
               ) : (
                 <>
-                  <KindIcon leg={leg} />
+                  <KindIcon leg={leg} lang={lang} />
                   {k === 'bike' ? `${mins(leg.duration)}′` : `${mins(leg.duration)}′`}
                 </>
               )}
@@ -200,7 +198,7 @@ export default function ItineraryCard({
         <div className="legs">
           {departIn >= -1 && departIn <= 120 && (
             <div className={`depart-in${departIn <= 3 ? ' urgent' : ''}`}>
-              ▶ {departIn <= 0 ? (lang === 'en' ? 'Depart now' : 'Abfahrt jetzt') : (lang === 'en' ? `Depart in ${departIn} min` : `Abfahrt in ${departIn} Min`)}
+              ▶ {departIn <= 0 ? t('cardDepartNow', lang) : dict[lang].cardDepartIn(departIn)}
             </div>
           )}
           {it.legs.map((leg, i) => {
@@ -214,22 +212,26 @@ export default function ItineraryCard({
                   {hm(leg.startTime)}–{hm(leg.endTime)}
                 </div>
                 <div className="leg-icon">
-                  <KindIcon leg={leg} />
+                  <KindIcon leg={leg} lang={lang} />
                 </div>
                 <div className="leg-body">
                   <div className="leg-head">
-                    <span className="leg-title">{legLabel(leg)}</span>
-                    <DelayTag leg={leg} />
+                    <span className="leg-title">{legLabel(leg, lang)}</span>
+                    <DelayTag leg={leg} lang={lang} />
                   </div>
-                  {leg.headsign && <div className="leg-sub">Richtung: {leg.headsign}</div>}
+                  {leg.headsign && (
+                    <div className="leg-sub">
+                      {t('cardDirection', lang)} {leg.headsign}
+                    </div>
+                  )}
 
-                  {k === 'bike' && <BikeLegElevation leg={leg} />}
+                  {k === 'bike' && <BikeLegElevation leg={leg} lang={lang} />}
 
                   {k === 'bike' && bike && (
                     <div className="bike-details">
                       {pk && (
                         <div className="pickup-info">
-                          <PinIcon size={12} /> Ausleihe: {pickupText(pk.picks)}
+                          <PinIcon size={12} /> {t('cardPickup', lang)} {pickupText(pk.picks, lang)}
                         </div>
                       )}
                       {/* Rückgabe zwingend an einer Station — MOTIS beendet die
@@ -246,14 +248,15 @@ export default function ItineraryCard({
                         <div className="ebike-bat-info">
                           <BoltIcon size={12} /> E-Bike{' '}
                           {bike.startStation?.maxChargePercent != null
-                            ? `· Max ${bike.startStation.maxChargePercent} % · ~${bike.startStation.rangeKm ?? 25} km`
-                            : '· 1,50 €/30 Min'}
+                            ? dict[lang].cardEbikeBattery(
+                                bike.startStation.maxChargePercent,
+                                bike.startStation.rangeKm ?? 25,
+                              )
+                            : t('cardEbikeNoBattery', lang)}
                         </div>
                       )}
                       {bike.tooLong && (
-                        <div className="bike-warn">
-                          Fahrt dauert länger als 30 Min — kleine Aufzahlung.
-                        </div>
+                        <div className="bike-warn">{t('cardTooLongWarn', lang)}</div>
                       )}
                     </div>
                   )}
@@ -266,7 +269,7 @@ export default function ItineraryCard({
                         rel="noreferrer"
                         className="leg-link"
                       >
-                        <ExternalIcon size={12} /> Auf Nextbike öffnen
+                        <ExternalIcon size={12} /> {t('cardOpenNextbike', lang)}
                       </a>
                     </div>
                   )}
@@ -276,7 +279,7 @@ export default function ItineraryCard({
           })}
 
           <button className="btn-block btn-go" onClick={onGo}>
-            <SendIcon size={15} /> {lang === 'en' ? 'Start Navigation' : 'LOS — Navigation starten'}
+            <SendIcon size={15} /> {t('cardStartNav', lang)}
           </button>
         </div>
       )}
