@@ -13,6 +13,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Ziel-Remote; für Tests überschreibbar: DEPLOY_REMOTE=sandbox npm run deploy
+REMOTE="${DEPLOY_REMOTE:-origin}"
 BRANCH="gh-pages"
 WORKTREE=".gh-pages"
 
@@ -21,8 +23,8 @@ if [ ! -e "$WORKTREE/.git" ]; then
   exit 1
 fi
 
-git -C "$WORKTREE" fetch origin "$BRANCH" --quiet
-git -C "$WORKTREE" reset --hard "origin/$BRANCH" --quiet
+git -C "$WORKTREE" fetch "$REMOTE" "$BRANCH" --quiet
+git -C "$WORKTREE" reset --hard "$REMOTE/$BRANCH" --quiet
 
 TARGET="${1:-HEAD~1}"
 
@@ -59,7 +61,7 @@ fi
 
 git -C "$WORKTREE" add -A
 git -C "$WORKTREE" commit --quiet -m "rollback: zurück auf $TARGET_SHA — $TARGET_SUBJECT"
-git -C "$WORKTREE" push origin "$BRANCH"
+git -C "$WORKTREE" push "$REMOTE" "$BRANCH"
 
 echo
 echo "✓ Zurückgesetzt: $(git -C "$WORKTREE" rev-parse --short HEAD)"

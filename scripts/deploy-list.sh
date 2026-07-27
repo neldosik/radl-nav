@@ -10,5 +10,5 @@ if [ ! -e ".gh-pages/.git" ]; then
   exit 1
 fi
 
-git -C .gh-pages fetch origin gh-pages --quiet
-git -C .gh-pages log --format='%C(auto)%h  %ad  %s' --date=format:'%d.%m. %H:%M' -20 origin/gh-pages
+git -C .gh-pages fetch "${DEPLOY_REMOTE:-origin}" gh-pages --quiet
+git -C .gh-pages log --format='%C(auto)%h  %ad  %s' --date=format:'%d.%m. %H:%M' -20 "${DEPLOY_REMOTE:-origin}"/gh-pages

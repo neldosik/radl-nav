@@ -15,6 +15,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Ziel-Remote; für Tests überschreibbar: DEPLOY_REMOTE=sandbox npm run deploy
+REMOTE="${DEPLOY_REMOTE:-origin}"
 BRANCH="gh-pages"
 WORKTREE=".gh-pages"
 
@@ -35,34 +37,40 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 echo "→ Baue …"
+# Altlast: der frühere Einzeiler legte ein Repo in dist/ an, und Vite lässt
+# .git beim Leeren des Ausgabeordners stehen. Weg damit, sonst wandert es ins
+# Deployment.
+rm -rf dist/.git
 npm run build
 
 # ── gh-pages als Arbeitsverzeichnis bereitstellen ──────────────────────────
-git fetch origin "$BRANCH" --quiet 2>/dev/null || true
+git fetch "$REMOTE" "$BRANCH" --quiet 2>/dev/null || true
 
 if [ ! -d "$WORKTREE/.git" ] && [ ! -f "$WORKTREE/.git" ]; then
   rm -rf "$WORKTREE"
   if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
     git worktree add "$WORKTREE" "$BRANCH" --quiet
-  elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
-    git worktree add "$WORKTREE" -b "$BRANCH" "origin/$BRANCH" --quiet
+  elif git show-ref --verify --quiet "refs/remotes/$REMOTE/$BRANCH"; then
+    git worktree add "$WORKTREE" -b "$BRANCH" "$REMOTE/$BRANCH" --quiet
   else
     # Allererstes Deployment: Zweig ohne gemeinsame Historie mit main
     git worktree add "$WORKTREE" --orphan -b "$BRANCH" --quiet
   fi
 fi
 
-git -C "$WORKTREE" fetch origin "$BRANCH" --quiet 2>/dev/null || true
+git -C "$WORKTREE" fetch "$REMOTE" "$BRANCH" --quiet 2>/dev/null || true
 # Fremde Deployments (anderer Rechner) nicht überfahren
-if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
-  git -C "$WORKTREE" reset --hard "origin/$BRANCH" --quiet
+if git show-ref --verify --quiet "refs/remotes/$REMOTE/$BRANCH"; then
+  git -C "$WORKTREE" reset --hard "$REMOTE/$BRANCH" --quiet
 fi
 
 # ── Inhalt austauschen ─────────────────────────────────────────────────────
 # Alles außer .git löschen: sonst bleiben Dateien alter Builds liegen, deren
 # Namen sich geändert haben (gehashte Assets).
 find "$WORKTREE" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-cp -R dist/. "$WORKTREE/"
+# .git im Worktree ist eine Datei, kein Ordner — sie darf nie überschrieben
+# werden, auch nicht von einem versehentlich in dist/ gelandeten Repo.
+find dist -mindepth 1 -maxdepth 1 ! -name '.git' -exec cp -R {} "$WORKTREE/" \;
 
 if [ -z "$(git -C "$WORKTREE" status --porcelain)" ]; then
   echo "✓ Nichts geändert — Prod ist bereits auf diesem Stand."
@@ -71,7 +79,7 @@ fi
 
 git -C "$WORKTREE" add -A
 git -C "$WORKTREE" commit --quiet -m "deploy: $SOURCE_SHA ($SOURCE_BRANCH) — $SOURCE_SUBJECT"
-git -C "$WORKTREE" push origin "$BRANCH"
+git -C "$WORKTREE" push "$REMOTE" "$BRANCH"
 
 echo
 echo "✓ Deployt: $(git -C "$WORKTREE" rev-parse --short HEAD) ← $SOURCE_SHA"
