@@ -194,6 +194,26 @@ export const SlotIcon = ({ id, size = 14 }: { id: string; size?: number }) => {
   return <PinIcon size={size} />
 }
 
+/** Abbiegepfeile. `flip` spiegelt für die linke Seite — so bleibt es eine
+ *  Zeichnung statt zweier fast gleicher. */
+const TurnArrow = ({ size, d, flip }: { size: number; d: string; flip: boolean }) => (
+  <svg {...base(size)} style={flip ? { transform: 'scaleX(-1)' } : undefined}>
+    <path d={d} />
+  </svg>
+)
+
+const TURN_D = {
+  normal: 'M7 21V11a4 4 0 0 1 4-4h6M13 3l4 4-4 4',
+  slight: 'M7 21v-6.5a5 5 0 0 1 1.8-3.8L15 5.6M11 5h5v5',
+  sharp: 'M7 21v-7a4 4 0 0 1 4-4h6M14 6l3 4-3 4',
+}
+
+export const TurnIcon = ({ kind, size = 22 }: { kind: string; size?: number }) => {
+  const links = kind.endsWith('left')
+  const d = kind.startsWith('slight') ? TURN_D.slight : kind.startsWith('sharp') ? TURN_D.sharp : TURN_D.normal
+  return <TurnArrow size={size} d={d} flip={links} />
+}
+
 export const LogoMark = ({ size = 26 }: P) => (
   <svg {...base(size)}>
     <circle cx="18.5" cy="17.5" r="3.5" />

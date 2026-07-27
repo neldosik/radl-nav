@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
 import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
@@ -12,9 +12,11 @@ import {
   PinIcon,
   SendIcon,
   TargetIcon,
+  TurnIcon,
   WalkIcon,
 } from '../icons'
 import { planPickup, projectOnPath } from '../geo'
+import { nextTurn, turnsFromPath } from '../turns'
 import { decodePolyline } from '../polyline'
 import { FREE_LIMIT_SEC } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
@@ -206,16 +208,23 @@ export default function JourneyMode({
   // Muss vor dem Ankunftsscreen stehen: darunter kehrt die Komponente früh
   // zurück, und ein Hook dahinter liefe nicht bei jedem Rendern.
   const posVeraltet = posStale || gpsError != null
-  const projektion =
-    userPos && !posVeraltet && leg?.legGeometry?.points
-      ? projectOnPath(
-          decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
+  // Linie der Etappe nur bei Wechsel neu dekodieren — sie ändert sich nicht,
+  // der Standort dagegen im Sekundentakt.
+  const linie = useMemo(
+    () =>
+      leg?.legGeometry?.points
+        ? decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
             lat,
             lon,
-          })),
-          userPos,
-        )
-      : null
+          }))
+        : [],
+    [leg?.legGeometry?.points, leg?.legGeometry?.precision],
+  )
+  // Abbiegehinweise aus der Geometrie; Transitous liefert praktisch nur
+  // „CONTINUE" (siehe turns.ts).
+  const abbiegungen = useMemo(() => turnsFromPath(linie), [linie])
+  const projektion = userPos && !posVeraltet && linie.length ? projectOnPath(linie, userPos) : null
+  const naechsteAbbiegung = projektion ? nextTurn(abbiegungen, projektion.along) : null
   // Restzeit der laufenden Etappe. Ohne brauchbaren Standort bleibt es bei der
   // Gesamtdauer — eine geratene Restzeit wäre schlechter als gar keine.
   const restMin =
@@ -227,6 +236,19 @@ export default function JourneyMode({
   const abseits = projektion != null && projektion.dist > OFF_ROUTE_M
   if (projektion != null) abseitsZaehler.current = abseits ? abseitsZaehler.current + 1 : 0
   const abgekommen = !arrived && abseitsZaehler.current >= OFF_ROUTE_FIXES
+
+  const richtungsWort = (kind: string): string =>
+    kind === 'left'
+      ? t('jmTurnLeft', lang)
+      : kind === 'right'
+        ? t('jmTurnRight', lang)
+        : kind === 'slight-left'
+          ? t('jmTurnSlightLeft', lang)
+          : kind === 'slight-right'
+            ? t('jmTurnSlightRight', lang)
+            : kind === 'sharp-left'
+              ? t('jmTurnSharpLeft', lang)
+              : t('jmTurnSharpRight', lang)
 
   // Automatisch neu rechnen. Der Mindestabstand zwischen zwei Läufen sitzt in
   // App, damit ein zappelndes GPS den freien Dienst nicht im Sekundentakt fragt.
@@ -352,6 +374,16 @@ export default function JourneyMode({
 
       {/* Schwebende Kopfkarte: wohin es gerade geht + Entfernung */}
       <div className="j-poster">
+        {naechsteAbbiegung && !abgekommen && (
+          <div className={`j-turn${naechsteAbbiegung.inM <= 25 ? ' now' : ''}`}>
+            <TurnIcon kind={naechsteAbbiegung.kind} size={26} />
+            <span>
+              {naechsteAbbiegung.inM <= 25
+                ? dict[lang].jmTurnNow(richtungsWort(naechsteAbbiegung.kind))
+                : dict[lang].jmTurnIn(naechsteAbbiegung.inM, richtungsWort(naechsteAbbiegung.kind))}
+            </span>
+          </div>
+        )}
         <div className="j-head-row">
           <div className="j-head-card">
             <span className={`j-head-icon ${k}`}>

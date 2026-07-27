@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clusterFreeBikes, haversine, nearbyStations, nearestStation, planPickup, distanceToPath, remainingShare } from './geo'
+import { clusterFreeBikes, haversine, nearbyStations, nearestStation, planPickup, distanceToPath, projectOnPath, remainingShare } from './geo'
 import type { FreeBike, LatLon, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes: number, ebikes = 0): Station => ({
@@ -193,5 +193,33 @@ describe('distanceToPath', () => {
 
   it('liefert null für eine unbrauchbare Linie', () => {
     expect(distanceToPath([], { lat: 48.1, lon: 11.5 })).toBeNull()
+  })
+})
+
+describe('projectOnPath · Kartenabgleich', () => {
+  const path: LatLon[] = [
+    { lat: 48.10, lon: 11.5 },
+    { lat: 48.13, lon: 11.5 },
+  ]
+
+  it('zieht einen danebenliegenden Standort auf die Linie', () => {
+    const pr = projectOnPath(path, { lat: 48.115, lon: 11.501 })!
+    // gleiche Breite, aber wieder auf dem Meridian der Linie
+    expect(pr.point.lon).toBeCloseTo(11.5, 4)
+    expect(pr.point.lat).toBeCloseTo(48.115, 3)
+  })
+
+  it('nennt den zurückgelegten Weg und die Gesamtlänge', () => {
+    const pr = projectOnPath(path, { lat: 48.115, lon: 11.5 })!
+    expect(pr.total).toBeGreaterThan(3000)
+    expect(pr.along).toBeCloseTo(pr.total / 2, -2)
+    expect(pr.along + pr.share * pr.total).toBeCloseTo(pr.total, 3)
+  })
+
+  it('hält den gezogenen Punkt am Anfang bzw. Ende fest', () => {
+    const vorne = projectOnPath(path, { lat: 48.05, lon: 11.5 })!
+    expect(vorne.point.lat).toBeCloseTo(48.10, 4)
+    const hinten = projectOnPath(path, { lat: 48.20, lon: 11.5 })!
+    expect(hinten.point.lat).toBeCloseTo(48.13, 4)
   })
 })

@@ -2,10 +2,15 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
-import { haversine, planPickup } from '../geo'
+import { haversine, planPickup, projectOnPath } from '../geo'
 import { addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
+
+/** Bis zu diesem Abstand gilt der Standort als „auf der Route" und wird auf
+ *  die Linie gezogen. Darüber bleibt der rohe Fix stehen — wer wirklich falsch
+ *  abgebogen ist, soll das sehen und nicht auf die Route gebeamt werden. */
+const SNAP_MAX_M = 40
 
 // Linienfarbe der Etappe — je nach Theme, damit sie auf dunkler Karte sichtbar bleibt
 function legColor(leg: Leg, theme: ThemeMode): string {
@@ -267,7 +272,24 @@ export default function MapView({
 
   useEffect(() => {
     const m = map.current
-    userPosRef.current = userPos
+    // Kartenabgleich: den rohen Fix auf die Linie der laufenden Etappe ziehen.
+    // Ohne das wandert der Punkt sichtbar neben den Weg — genau der Eindruck
+    // von „ungenauem GPS". Nur solange man plausibel auf der Route ist; wer
+    // wirklich abgebogen ist, soll das auch sehen.
+    const gezogen = (() => {
+      if (!userPos || activeLegRef.current == null) return userPos
+      const v = viewRef.current
+      const leg = v?.it.legs[activeLegRef.current]
+      if (!leg?.legGeometry?.points) return userPos
+      const pfad = decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(
+        ([lon, lat]) => ({ lat, lon }),
+      )
+      const pr = projectOnPath(pfad, userPos)
+      if (!pr || pr.dist > SNAP_MAX_M) return userPos
+      return { ...userPos, lat: pr.point.lat, lon: pr.point.lon }
+    })()
+
+    userPosRef.current = gezogen
     if (!m) return
     if (!userPos) {
       userMarker.current?.remove()
@@ -279,14 +301,14 @@ export default function MapView({
       const el = document.createElement('div')
       el.className = 'mk-user'
       userMarker.current = new maplibregl.Marker({ element: el })
-        .setLngLat([userPos.lon, userPos.lat])
+        .setLngLat([gezogen!.lon, gezogen!.lat])
         .addTo(m)
     } else {
-      userMarker.current.setLngLat([userPos.lon, userPos.lat])
+      userMarker.current.setLngLat([gezogen!.lon, gezogen!.lat])
     }
     // Los-Modus: Kamera folgt dem Benutzer — außer er schaut sich gerade
     // selbst auf der Karte um (dann übernimmt der Folgen-Knopf).
-    if (activeLegRef.current != null && followRef.current) followUser(userPos)
+    if (activeLegRef.current != null && followRef.current) followUser(gezogen!)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPos])
 
