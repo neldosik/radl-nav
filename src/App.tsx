@@ -11,6 +11,7 @@ const MapView = lazy(() => import('./components/MapView'))
 const MapPicker = lazy(() => import('./components/MapPicker'))
 const BikeMap = lazy(() => import('./components/BikeMap'))
 const History = lazy(() => import('./components/History'))
+const Diag = lazy(() => import('./components/Diag'))
 import { addTrip } from './history'
 import { ApiError, fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeocode } from './api'
 import type { WeatherAtTime } from './api'
@@ -81,6 +82,8 @@ export default function App() {
   /** Los-Modus: Karte folgt dem Standort, bis man selbst schiebt */
   const [followMe, setFollowMe] = useState(true)
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
+  /** Gerätewerte einblenden — hilft bei Layoutfehlern, die nur auf einem Gerät auftreten. */
+  const [showDiag, setShowDiag] = useState(false)
   /** Radwege-Ebene über der Karte — CyclOSM, nur Anzeige. Die Routenführung
    *  bleibt unberührt, die kommt weiter von MOTIS. */
   const [cycleLayer, setCycleLayer] = useState<boolean>(
@@ -145,6 +148,7 @@ export default function App() {
   useBackGuard(showFilterModal, () => setShowFilterModal(false))
   useBackGuard(showWeatherModal, () => setShowWeatherModal(false))
   useBackGuard(showHeaderMenu, () => setShowHeaderMenu(false))
+  useBackGuard(showDiag, () => setShowDiag(false))
 
   const selectedView = views?.[sel] ?? null
   const journey = useJourney(selectedView)
@@ -516,6 +520,9 @@ export default function App() {
               <button className="header-menu-item" onClick={toggleCycleLayer}>
                 {cycleLayer ? t('cycleLayerOff', lang) : t('cycleLayerOn', lang)}
               </button>
+              <button className="header-menu-item" onClick={() => setShowDiag(true)}>
+                Diagnose
+              </button>
             </div>
           )}
         </div>
@@ -806,6 +813,12 @@ export default function App() {
       </section>
 
       {tabBar}
+
+      {showDiag && (
+        <Suspense fallback={null}>
+          <Diag onClose={() => setShowDiag(false)} />
+        </Suspense>
+      )}
 
       {showFilterModal && (
         <FilterModal
