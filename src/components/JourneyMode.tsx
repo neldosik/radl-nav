@@ -155,16 +155,25 @@ export default function JourneyMode({
    */
   const bikeStarts = useRef<Map<number, number>>(new Map())
 
+  /** Nur damit ein Druck auf „Rad genommen" ein Neuzeichnen auslöst. */
+  const [radTick, setRadTick] = useState(0)
+
   useEffect(() => {
-    if (isBikeLeg && !bikeStarts.current.has(legIndex)) {
-      bikeStarts.current.set(legIndex, Date.now())
-    }
     warned5Min.current = false
     warned2Min.current = false
     vibratedTransit.current = false
   }, [legIndex, isBikeLeg])
 
+  // Erst auf Druck. Vorher zeigt die Uhr nichts an, und es wird auch nicht
+  // gewarnt — eine Frist, die vor dem Losfahren anfängt, warnt zu früh.
   const bikeStartedAt = isBikeLeg ? (bikeStarts.current.get(legIndex) ?? null) : null
+  void radTick
+  const radGenommen = () => {
+    if (!bikeStarts.current.has(legIndex)) {
+      bikeStarts.current.set(legIndex, Date.now())
+      setRadTick(x => x + 1)
+    }
+  }
   const bikeSec = bikeStartedAt ? Math.floor((now - bikeStartedAt) / 1000) : 0
 
   // Bildschirm wachhalten macht `useJourney` über `useWakeLock` — hier stand
@@ -421,6 +430,32 @@ export default function JourneyMode({
 
       {/* Schwebende Kopfkarte: wohin es gerade geht + Entfernung */}
       <div className="j-poster">
+        {rerouting ? (
+          <div className="timer-banner off-route">
+            <span>
+              <TargetIcon size={14} /> {t('jmRerouting', lang)}
+            </span>
+          </div>
+        ) : abgekommen ? (
+          <div className="timer-banner urgent off-route">
+            <span>
+              <TargetIcon size={14} /> {t('jmOffRoute', lang)}
+            </span>
+          </div>
+        ) : gpsError || posStale ? (
+          <div className="timer-banner urgent">
+            <TargetIcon size={14} />{' '}
+            {t(gpsError === 'denied' ? 'jmGpsDenied' : 'jmGpsLost', lang)}
+          </div>
+        ) : isNearDropoff ? (
+          <div className="timer-banner urgent">
+            <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
+          </div>
+        ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
+          <div className="timer-banner urgent">
+            <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
+          </div>
+        ) : null}
         {naechsteAbbiegung && !abgekommen && (
           <div className={`j-turn${naechsteAbbiegung.inM <= 25 ? ' now' : ''}`}>
             <TurnIcon kind={naechsteAbbiegung.kind} size={26} />
@@ -459,42 +494,22 @@ export default function JourneyMode({
             Bandkette verschwand sie, sobald eine andere Meldung dran war. */}
         {isBikeLeg && !b?.electric && (
           <div className="j-biketimer-row">
-            <span
-              className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}`}
-              title={`${t('jmTimerFree', lang)} ${remainingMins} ${t('jmTimerFreeMin', lang)}`}
-            >
-              <ClockIcon size={13} />
-              {elapsedText(remainingSec * 1000)}
-            </span>
+            {bikeStartedAt ? (
+              <span
+                className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}`}
+                title={`${t('jmTimerFree', lang)} ${remainingMins} ${t('jmTimerFreeMin', lang)}`}
+              >
+                <ClockIcon size={13} />
+                {elapsedText(remainingSec * 1000)}
+              </span>
+            ) : (
+              <button className="j-biketimer start" onClick={radGenommen}>
+                <BikeIcon size={13} /> {t('jmBikeTaken', lang)}
+              </button>
+            )}
           </div>
         )}
 
-        {rerouting ? (
-          <div className="timer-banner off-route">
-            <span>
-              <TargetIcon size={14} /> {t('jmRerouting', lang)}
-            </span>
-          </div>
-        ) : abgekommen ? (
-          <div className="timer-banner urgent off-route">
-            <span>
-              <TargetIcon size={14} /> {t('jmOffRoute', lang)}
-            </span>
-          </div>
-        ) : gpsError || posStale ? (
-          <div className="timer-banner urgent">
-            <TargetIcon size={14} />{' '}
-            {t(gpsError === 'denied' ? 'jmGpsDenied' : 'jmGpsLost', lang)}
-          </div>
-        ) : isNearDropoff ? (
-          <div className="timer-banner urgent">
-            <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
-          </div>
-        ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
-          <div className="timer-banner urgent">
-            <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
-          </div>
-        ) : null}
       </div>
 
       {/* Unteres Blatt: Fortschritt, aktuelle Etappe, Navigation */}
