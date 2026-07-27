@@ -19,6 +19,8 @@ const MANUAL_HOLD_MS = 90_000
 export interface UserPos extends LatLon {
   /** Genauigkeit des Fixes in Metern (falls das Gerät sie liefert). */
   accuracy?: number
+  /** Geschwindigkeit in m/s — vom Gerät oder aus zwei Messungen gerechnet. */
+  speed?: number
   /** Wann der Fix eintraf — damit die Oberfläche eine eingefrorene Anzeige
    *  als solche kennzeichnen kann. */
   at: number
@@ -90,12 +92,25 @@ export function useJourney(view: ItineraryView | null): Journey {
         // Ausreißer verwerfen: ein 500-m-Fix schaltet sonst Etappen weiter
         // und lässt die Karte springen.
         if (acc != null && acc > MAX_ACCURACY_M) return
-        const next = { lat: f.lat, lon: f.lon, accuracy: acc, at: f.at }
+        const gemessen = f.speed != null && f.speed >= 0 ? f.speed : null
+        const next: UserPos = { lat: f.lat, lon: f.lon, accuracy: acc, at: f.at }
         // Nur die Koordinaten entscheiden über „hat sich bewegt"; der
         // Zeitstempel wird immer mitgeführt, sonst altert die Anzeige im Stand.
-        setUserPos(prev =>
-          prev && haversine(prev, next) < MIN_MOVE_M ? { ...prev, at: next.at } : next,
-        )
+        setUserPos(prev => {
+          const dt = prev ? (next.at - prev.at) / 1000 : 0
+          const ds = prev ? haversine(prev, next) : 0
+          // Ohne Gerätewert selbst rechnen; unplausible Sprünge verwerfen.
+          const gerechnet = prev && dt >= 0.5 && dt <= 30 && ds < 300 ? ds / dt : null
+          const roh = gemessen ?? gerechnet
+          const geglaettet =
+            roh == null
+              ? prev?.speed
+              : prev?.speed != null
+                ? prev.speed * 0.6 + roh * 0.4
+                : roh
+          if (prev && ds < MIN_MOVE_M) return { ...prev, at: next.at, speed: geglaettet }
+          return { ...next, speed: geglaettet }
+        })
       },
       // Vorher eine leere Funktion: fiel GPS aus, blieb die zuletzt bekannte
       // Entfernung stehen und wurde weiter als aktuell angezeigt.

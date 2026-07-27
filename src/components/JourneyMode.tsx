@@ -17,7 +17,7 @@ import {
 } from '../icons'
 import { fetchTripStatus } from '../api'
 import type { TripStatus } from '../api'
-import { planPickup, projectOnPath } from '../geo'
+import { haversine, planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
 import { FREE_LIMIT_SEC, legPath } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
@@ -38,13 +38,19 @@ const LIVE_POLL_MS = 60_000
 /** Wie oft es erneut versucht wird, solange man abseits der Route bleibt.
  *  Ob wirklich gerechnet wird, entscheidet die Sperrfrist in App. */
 const REROUTE_RETRY_MS = 10_000
+/** Ab so viel zurückgelegtem Weg auf der Radetappe gilt: das Rad ist geholt.
+ *  Wer schon fährt, hat den Knopf offenbar übersehen. */
+const AUTO_START_M = 150
+/** Rückdatierung beim automatischen Start — die ersten Meter waren schon
+ *  Fahrzeit, die Frist lief bereits. */
+const AUTO_START_BACKDATE_MS = 60_000
 
 interface Props {
   view: ItineraryView
   legIndex: number
   distToEnd: number | null
   /** Aktueller Standort — für die Restzeit der laufenden Etappe. */
-  userPos?: { lat: number; lon: number } | null
+  userPos?: { lat: number; lon: number; speed?: number } | null
   /** Kein Standort: Freigabe fehlt oder Signal weg. */
   gpsError?: 'denied' | 'lost' | null
   /** Letzter Fix ist alt — die Entfernung stimmt nicht mehr. */
@@ -154,6 +160,8 @@ export default function JourneyMode({
    * wann man sie zuletzt angesehen hat.
    */
   const bikeStarts = useRef<Map<number, number>>(new Map())
+  /** Erster Standort auf der laufenden Radetappe — Bezug für „fährt schon". */
+  const radAnfangsPos = useRef<{ leg: number; lat: number; lon: number } | null>(null)
 
   /** Nur damit ein Druck auf „Rad genommen" ein Neuzeichnen auslöst. */
   const [radTick, setRadTick] = useState(0)
@@ -168,9 +176,9 @@ export default function JourneyMode({
   // gewarnt — eine Frist, die vor dem Losfahren anfängt, warnt zu früh.
   const bikeStartedAt = isBikeLeg ? (bikeStarts.current.get(legIndex) ?? null) : null
   void radTick
-  const radGenommen = () => {
+  const radGenommen = (rueckdatierenMs = 0) => {
     if (!bikeStarts.current.has(legIndex)) {
-      bikeStarts.current.set(legIndex, Date.now())
+      bikeStarts.current.set(legIndex, Date.now() - rueckdatierenMs)
       setRadTick(x => x + 1)
     }
   }
@@ -287,6 +295,20 @@ export default function JourneyMode({
     ro.observe(panel)
     return () => ro.disconnect()
   })
+
+  // Wer den Knopf übersieht und einfach losfährt, hätte gar keine Frist. Nach
+  // einem merklichen Stück Weg startet sie deshalb von selbst — leicht
+  // zurückdatiert, denn die ersten Meter zählten schon.
+  useEffect(() => {
+    if (!isBikeLeg || b?.electric || bikeStartedAt || !userPos) return
+    const anker = radAnfangsPos.current
+    if (!anker || anker.leg !== legIndex) {
+      radAnfangsPos.current = { leg: legIndex, lat: userPos.lat, lon: userPos.lon }
+      return
+    }
+    if (haversine(anker, userPos) >= AUTO_START_M) radGenommen(AUTO_START_BACKDATE_MS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPos, isBikeLeg, legIndex, bikeStartedAt])
 
   // Verspätungen aus der Suche sind eine Momentaufnahme. Wer schon unterwegs
   // ist, erfährt sonst nie, dass die Bahn inzwischen später kommt — deshalb
@@ -409,6 +431,11 @@ export default function JourneyMode({
     }
   }
 
+  // Geschwindigkeit nur zeigen, wenn sie plausibel ist: unter 1 km/h steht man,
+  // über 90 km/h war es ein GPS-Sprung.
+  const tempoRoh = userPos?.speed != null && !posVeraltet ? userPos.speed * 3.6 : null
+  const tempo = tempoRoh != null && tempoRoh >= 1 && tempoRoh < 90 ? Math.round(tempoRoh) : null
+
   const remainingSec = Math.max(0, FREE_LIMIT_SEC - bikeSec)
   const remainingMins = Math.ceil(remainingSec / 60)
   const isNearDropoff = isBikeLeg && distToEnd != null && distToEnd <= 250
@@ -430,32 +457,6 @@ export default function JourneyMode({
 
       {/* Schwebende Kopfkarte: wohin es gerade geht + Entfernung */}
       <div className="j-poster">
-        {rerouting ? (
-          <div className="timer-banner off-route">
-            <span>
-              <TargetIcon size={14} /> {t('jmRerouting', lang)}
-            </span>
-          </div>
-        ) : abgekommen ? (
-          <div className="timer-banner urgent off-route">
-            <span>
-              <TargetIcon size={14} /> {t('jmOffRoute', lang)}
-            </span>
-          </div>
-        ) : gpsError || posStale ? (
-          <div className="timer-banner urgent">
-            <TargetIcon size={14} />{' '}
-            {t(gpsError === 'denied' ? 'jmGpsDenied' : 'jmGpsLost', lang)}
-          </div>
-        ) : isNearDropoff ? (
-          <div className="timer-banner urgent">
-            <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
-          </div>
-        ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
-          <div className="timer-banner urgent">
-            <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
-          </div>
-        ) : null}
         {naechsteAbbiegung && !abgekommen && (
           <div className={`j-turn${naechsteAbbiegung.inM <= 25 ? ' now' : ''}`}>
             <TurnIcon kind={naechsteAbbiegung.kind} size={26} />
@@ -475,6 +476,7 @@ export default function JourneyMode({
               <div className="j-kicker">
                 {t('jmHeadTowards', lang)}
                 {startedAt != null && <span className="j-timer"> · {elapsedText(elapsedMs)}</span>}
+                {tempo != null && <span className="j-speed"> · {tempo} km/h</span>}
               </div>
               <div className="j-head-target">{toName}</div>
             </div>
@@ -490,11 +492,39 @@ export default function JourneyMode({
           </button>
         </div>
 
-        {/* Freiminuten: eigene kleine Uhr rechts unter dem Kreuz. In der
-            Bandkette verschwand sie, sobald eine andere Meldung dran war. */}
-        {isBikeLeg && !b?.electric && (
-          <div className="j-biketimer-row">
-            {bikeStartedAt ? (
+        {/* Meldung und Rad-Uhr teilen sich eine Zeile unter der Kopfkarte:
+            zuoberst ragte das Band in die Karte, darunter hing es unter der Uhr. */}
+        <div className="j-status-row">
+          <div className="j-status-msg">
+            {rerouting ? (
+              <div className="timer-banner off-route">
+                <span>
+                  <TargetIcon size={14} /> {t('jmRerouting', lang)}
+                </span>
+              </div>
+            ) : abgekommen ? (
+              <div className="timer-banner urgent off-route">
+                <span>
+                  <TargetIcon size={14} /> {t('jmOffRoute', lang)}
+                </span>
+              </div>
+            ) : gpsError || posStale ? (
+              <div className="timer-banner urgent">
+                <TargetIcon size={14} />{' '}
+                {t(gpsError === 'denied' ? 'jmGpsDenied' : 'jmGpsLost', lang)}
+              </div>
+            ) : isNearDropoff ? (
+              <div className="timer-banner urgent">
+                <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
+              </div>
+            ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
+              <div className="timer-banner urgent">
+                <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
+              </div>
+            ) : null}
+          </div>
+          {isBikeLeg && !b?.electric &&
+            (bikeStartedAt ? (
               <span
                 className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}`}
                 title={`${t('jmTimerFree', lang)} ${remainingMins} ${t('jmTimerFreeMin', lang)}`}
@@ -503,12 +533,11 @@ export default function JourneyMode({
                 {elapsedText(remainingSec * 1000)}
               </span>
             ) : (
-              <button className="j-biketimer start" onClick={radGenommen}>
+              <button className="j-biketimer start" onClick={() => radGenommen()}>
                 <BikeIcon size={13} /> {t('jmBikeTaken', lang)}
               </button>
-            )}
-          </div>
-        )}
+            ))}
+        </div>
 
       </div>
 

@@ -18,6 +18,8 @@ export interface Fix {
   accuracy?: number
   /** Blickrichtung in Grad, 0 = Norden. Im Web meist leer. */
   heading?: number
+  /** Geschwindigkeit in m/s, falls das Gerät sie liefert. */
+  speed?: number
   at: number
 }
 
@@ -68,6 +70,7 @@ export function watchPosition(
           lon: p.coords.longitude,
           accuracy: p.coords.accuracy ?? undefined,
           heading: p.coords.heading ?? undefined,
+          speed: p.coords.speed ?? undefined,
           at: Date.now(),
         }),
       err => onError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost'),
@@ -101,6 +104,7 @@ export function watchPosition(
             lon: pos.coords.longitude,
             accuracy: pos.coords.accuracy ?? undefined,
             heading: pos.coords.trueHeading ?? pos.coords.magneticHeading ?? pos.coords.heading ?? undefined,
+            speed: pos.coords.speed ?? undefined,
             at: pos.timestamp ?? Date.now(),
           })
         },

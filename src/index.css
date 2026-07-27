@@ -2270,6 +2270,13 @@ button {
   font-weight: 600;
 }
 
+/* Tempo neben der Fahrzeit — gleiche Schriftfamilie, damit die Zahlen ruhig stehen */
+.j-speed {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
 .j-timer {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -2360,10 +2367,22 @@ button {
   color: var(--accent);
 }
 
-/* Freiminuten als knappe Uhr rechts unter dem Kreuz — kein Fließtext */
-.j-biketimer-row {
+/* Meldung links, Rad-Uhr rechts — beide auf einer Zeile unter der Kopfkarte */
+.j-status-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.j-status-msg {
+  min-width: 0;
+  display: flex;
+}
+
+.j-status-msg .timer-banner {
+  margin: 0;
+  min-width: 0;
 }
 
 .j-biketimer {
