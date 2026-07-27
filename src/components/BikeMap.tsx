@@ -290,10 +290,24 @@ export default function BikeMap({
       }
     }
 
-    if (m.isStyleLoaded()) {
+    // `isStyleLoaded()` meldet die Renderbereitschaft, nicht den Stil: solange
+    // noch Kacheln nachladen, bleibt es `false`, obwohl `addSource` längst geht.
+    // Der Code landete deshalb im `else` und wartete auf `load` — ein Ereignis,
+    // das zu dem Zeitpunkt schon durch war. Die Ebene entstand nie, die Karte
+    // blieb ohne einen einzigen Rad-Pin. Also fragen wir, was wirklich zählt:
+    // steht der Stil, dürfen Quelle und Ebene dazu.
+    const styleReady = () => !!m.getStyle()?.layers?.length
+    if (styleReady()) {
       applyData()
     } else {
-      m.once('load', applyData)
+      // `styledata` feuert bei jeder Stiländerung erneut — anders als `load`
+      // verpasst man es nicht, wenn man zu spät zuhört.
+      const onStyle = () => {
+        if (!styleReady()) return
+        m.off('styledata', onStyle)
+        applyData()
+      }
+      m.on('styledata', onStyle)
     }
 
     if (here && !userMarker.current) {
