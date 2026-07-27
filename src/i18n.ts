@@ -152,6 +152,8 @@ export const dict = {
     jmReroute: 'Neu berechnen',
     jmRerouting: 'Route wird neu berechnet …',
     jmBikeTaken: 'Rad genommen',
+    pickStartKicker: 'Startpunkt',
+    pickDestKicker: 'Zielpunkt',
     cycleLayerOn: 'Radwege einblenden',
     cycleLayerOff: 'Radwege ausblenden',
     jmTurnLeft: 'links',
@@ -228,7 +230,6 @@ export const dict = {
     placeReplace: '· ersetzen',
 
     // ── Kartenwähler ──
-    moveMapHint: 'Karte verschieben — Pin zeigt dein Ziel',
     confirm: 'Übernehmen',
 
     // ── Wetter ──
@@ -372,6 +373,8 @@ export const dict = {
     jmReroute: 'Recalculate',
     jmRerouting: 'Recalculating route …',
     jmBikeTaken: 'Bike taken',
+    pickStartKicker: 'Start',
+    pickDestKicker: 'Destination',
     cycleLayerOn: 'Show cycle paths',
     cycleLayerOff: 'Hide cycle paths',
     jmTurnLeft: 'left',
@@ -448,7 +451,6 @@ export const dict = {
     placeReplace: '· replace',
 
     // ── Map picker ──
-    moveMapHint: 'Move map — pin marks your destination',
     confirm: 'Confirm',
 
     // ── Weather ──

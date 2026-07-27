@@ -1559,6 +1559,65 @@ button {
   background: var(--paper);
 }
 
+/* Schwebende Kopfzeile wie im Los-Modus: die Karte läuft darunter durch,
+   statt unter einer eigenen Leiste abzuschneiden. */
+.picker-top.floating {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.picker-top.floating > * {
+  pointer-events: auto;
+}
+
+/* Kopfkarte der Kartenwahl — gleiche Form wie im Los-Modus */
+.pk-head-card {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+}
+
+.pk-head-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 17px;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pk-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pk-kicker {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pk-target {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .picker-top {
   flex: none;
   padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 0;
@@ -1584,11 +1643,11 @@ button {
 }
 
 .picker-x {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   flex: none;
   border: 0;
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--card);
   box-shadow: var(--shadow-lift);
   color: var(--ink);
@@ -1671,6 +1730,16 @@ button {
   font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* Schwebend unter der Kopfzeile — die Karte läuft darunter durch */
+.bm-filter-bar.floating {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(70px + env(safe-area-inset-top, 0px) + 14px);
+  z-index: 10;
+  margin: 0;
 }
 
 /* Filterleiste: eigene Zeile über der Karte, damit sie den Hinweis nicht
@@ -2045,6 +2114,10 @@ button {
   font-weight: 600;
   line-height: 1;
   flex: none;
+  /* Ziffern haben in Newsreader keine Unterlängen und sitzen dadurch rund
+     2,5px über der Mitte der Zeile — neben dem Namen wirkte die Zahl angehoben.
+     Gemessen: Ink-Mitte 10,5px, Box-Mitte 13px. */
+  transform: translateY(2.5px);
 }
 
 .j-dist-badge small {

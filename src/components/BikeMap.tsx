@@ -8,6 +8,7 @@ import { addCycleLayer, mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
 import { dict, t } from '../i18n'
+import { useBackGuard } from '../hooks/useBackGuard'
 import type { Language } from '../i18n'
 
 interface Props {
@@ -152,43 +153,6 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
  * Und beim Schließen über X oder Auswahl blieb der Eintrag liegen, sodass der
  * nächste Zurück-Druck ins Leere ging.
  */
-/** Ein von uns selbst ausgelöster Rücksprung — das folgende popstate gehört
- *  nicht dem Nutzer. Modulübergreifend, weil Ansicht A beim Schließen den
- *  Rücksprung auslöst und Ansicht B ihn sonst als Zurück-Druck missversteht. */
-let eigenerRuecksprung = false
-
-function useBackToClose(onClose: () => void) {
-  const schliessen = useRef(onClose)
-  schliessen.current = onClose
-  /** Haben wir den Eintrag schon zurückgenommen? */
-  const konsumiert = useRef(false)
-
-  useEffect(() => {
-    window.history.pushState({ radlOverlay: true }, '')
-    const onPop = () => {
-      // Unseren eigenen Rücksprung nicht als Zurück-Druck des Nutzers werten.
-      // `history.back()` wirkt verzögert: im Entwicklungsmodus ruft React jeden
-      // Effekt doppelt auf, dann fing der *neu* angemeldete Zuhörer das eigene
-      // popstate ab und schloss die Ansicht sofort wieder.
-      if (eigenerRuecksprung) {
-        eigenerRuecksprung = false
-        return
-      }
-      konsumiert.current = true
-      schliessen.current()
-    }
-    window.addEventListener('popstate', onPop)
-    return () => {
-      window.removeEventListener('popstate', onPop)
-      // Regulär geschlossen (X, Auswahl, Reiterwechsel): eigenen Eintrag
-      // zurücknehmen, sonst verpufft der nächste Zurück-Druck.
-      if (!konsumiert.current) {
-        eigenerRuecksprung = true
-        window.history.back()
-      }
-    }
-  }, [])
-}
 
 export default function BikeMap({
   userPos,
@@ -232,7 +196,7 @@ export default function BikeMap({
     }
   }, [userPos])
 
-  useBackToClose(onClose)
+  useBackGuard(!embedded, onClose)
 
 
 
@@ -404,7 +368,7 @@ export default function BikeMap({
 
   return (
     <div className={`picker${embedded ? ' embedded' : ''}`}>
-      <div className="picker-top">
+      <div className="picker-top floating">
         <span>{t('bmTitle', lang)}</span>
         {!embedded && (
           <button className="picker-x" onClick={onClose}>
@@ -413,7 +377,7 @@ export default function BikeMap({
         )}
       </div>
 
-      <div className="bm-filter-bar">
+      <div className="bm-filter-bar floating">
         <button
           className={`bm-filter-chip${filterType === 'all' ? ' active' : ''}`}
           onClick={() => setFilterType('all')}

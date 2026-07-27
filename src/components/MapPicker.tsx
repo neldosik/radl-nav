@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { getGeolocation, reverseGeocode } from '../api'
-import { CloseIcon, TargetIcon } from '../icons'
+import { CloseIcon, PinIcon, TargetIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
+import { useBackGuard } from '../hooks/useBackGuard'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 
 interface Props {
+  /** Kurze Bezeichnung über dem Namen: „Startpunkt" oder „Zielpunkt". */
   title: string
   initial?: LatLon | null
   /** Bekannter Standort aus der App — spart das erneute Fragen. */
@@ -29,43 +31,6 @@ interface Props {
  * Und beim Schließen über X oder Auswahl blieb der Eintrag liegen, sodass der
  * nächste Zurück-Druck ins Leere ging.
  */
-/** Ein von uns selbst ausgelöster Rücksprung — das folgende popstate gehört
- *  nicht dem Nutzer. Modulübergreifend, weil Ansicht A beim Schließen den
- *  Rücksprung auslöst und Ansicht B ihn sonst als Zurück-Druck missversteht. */
-let eigenerRuecksprung = false
-
-function useBackToClose(onClose: () => void) {
-  const schliessen = useRef(onClose)
-  schliessen.current = onClose
-  /** Haben wir den Eintrag schon zurückgenommen? */
-  const konsumiert = useRef(false)
-
-  useEffect(() => {
-    window.history.pushState({ radlOverlay: true }, '')
-    const onPop = () => {
-      // Unseren eigenen Rücksprung nicht als Zurück-Druck des Nutzers werten.
-      // `history.back()` wirkt verzögert: im Entwicklungsmodus ruft React jeden
-      // Effekt doppelt auf, dann fing der *neu* angemeldete Zuhörer das eigene
-      // popstate ab und schloss die Ansicht sofort wieder.
-      if (eigenerRuecksprung) {
-        eigenerRuecksprung = false
-        return
-      }
-      konsumiert.current = true
-      schliessen.current()
-    }
-    window.addEventListener('popstate', onPop)
-    return () => {
-      window.removeEventListener('popstate', onPop)
-      // Regulär geschlossen (X, Auswahl, Reiterwechsel): eigenen Eintrag
-      // zurücknehmen, sonst verpufft der nächste Zurück-Druck.
-      if (!konsumiert.current) {
-        eigenerRuecksprung = true
-        window.history.back()
-      }
-    }
-  }, [])
-}
 
 export default function MapPicker({
   title,
@@ -86,7 +51,7 @@ export default function MapPicker({
   const [ownPos, setOwnPos] = useState<LatLon | null>(null)
   const hier = userPos ?? ownPos
 
-  useBackToClose(onClose)
+  useBackGuard(true, onClose)
 
   // Ohne Vorgabe stand die Karte auf dem Marienplatz — von dort aus muss man
   // erst quer durch die Stadt schieben. Sinnvoller Anfang ist der eigene Ort.
@@ -173,8 +138,16 @@ export default function MapPicker({
 
   return (
     <div className="picker">
-      <div className="picker-top">
-        <span>{title}</span>
+      <div className="picker-top floating">
+        <div className="pk-head-card">
+          <span className="pk-head-icon">
+            <PinIcon size={18} />
+          </span>
+          <div className="pk-head-main">
+            <div className="pk-kicker">{title}</div>
+            <div className="pk-target">{name === '…' ? t('mapPoint', lang) : name}</div>
+          </div>
+        </div>
         <button className="picker-x" onClick={onClose} aria-label={t('bmBack', lang)} title={t('bmBack', lang)}>
           <CloseIcon size={16} />
         </button>
@@ -182,7 +155,6 @@ export default function MapPicker({
       <div className="picker-map">
         <div ref={canvas} className="picker-canvas" />
         <div className="picker-pin" />
-        <div className="picker-hint">{t('moveMapHint', lang)}</div>
         {hier && (
           <button
             className="bm-locate"
@@ -195,7 +167,6 @@ export default function MapPicker({
         )}
       </div>
       <div className="picker-bottom">
-        <div className="picker-name">{name}</div>
         <button className="btn-block" onClick={confirm}>
           {t('confirm', lang)}
         </button>

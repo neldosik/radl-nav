@@ -19,6 +19,7 @@ import { searchRoutes, viewDuration } from './routing'
 import { rideLegsOf, viewStats } from './stats'
 import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
+import { useBackGuard } from './hooks/useBackGuard'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
@@ -139,6 +140,12 @@ export default function App() {
 
   const { theme: themeMode, toggleTheme } = useTheme()
 
+  // Zurück führt innerhalb der App zurück, statt sie zu verlassen.
+  useBackGuard(tab !== 'route', () => setTab('route'))
+  useBackGuard(showFilterModal, () => setShowFilterModal(false))
+  useBackGuard(showWeatherModal, () => setShowWeatherModal(false))
+  useBackGuard(showHeaderMenu, () => setShowHeaderMenu(false))
+
   const selectedView = views?.[sel] ?? null
   const journey = useJourney(selectedView)
   const { legIndex: journeyLeg, startedAt, arrived, userPos, distToEnd, gpsError, posStale } = journey
@@ -157,6 +164,9 @@ export default function App() {
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Los-Modus: Zurück beendet die Navigation, nicht die App.
+  useBackGuard(journeyLeg != null, () => journey.exit())
+
   const journeyView = journeyLeg != null ? selectedView : null
 
   useEffect(() => {
@@ -313,7 +323,7 @@ export default function App() {
       <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
         <MapGuard lang={lang}>
           <MapPicker
-            title={t(pickOnMap === 'from' ? 'pickStartOnMap' : 'pickDestOnMap', lang)}
+            title={t(pickOnMap === 'from' ? 'pickStartKicker' : 'pickDestKicker', lang)}
             initial={pickOnMap === 'from' ? from : to}
             userPos={userPos}
             theme={themeMode}
