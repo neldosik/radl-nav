@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# gh-pages als eigenes Arbeitsverzeichnis (scripts/deploy.sh)
+.gh-pages

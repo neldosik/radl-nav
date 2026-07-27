@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "deploy": "npm run build && cd dist && git init -b gh-pages && git add -A && git commit -m deploy && git push -f https://github.com/neldosik/radl-nav.git gh-pages:gh-pages"
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:list": "bash scripts/deploy-list.sh",
+    "deploy:rollback": "bash scripts/rollback.sh"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^8.0.1",
