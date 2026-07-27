@@ -2,6 +2,31 @@ import { parseFreeBikes, parseStations } from './gbfs'
 import type { GbfsFreeBike, GbfsStationInfo, GbfsStationStatus, GbfsVehicleType } from './gbfs'
 import type { FreeBike, GeocodeMatch, LatLon, PlanResponse, Station } from './types'
 
+/**
+ * Netzfehler mit Ursache. Vorher wurde in App.tsx über den Meldungstext
+ * geraten (`message.includes('fetch')`) — in Safari heißt der Text „Load
+ * failed", in Firefox anders, und ein HTTP 500 sah aus wie ein Programmfehler.
+ */
+export class ApiError extends Error {
+  kind: 'network' | 'http' | 'timeout'
+  status?: number
+
+  constructor(message: string, kind: 'network' | 'http' | 'timeout', status?: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.kind = kind
+    this.status = status
+  }
+}
+
+/** Netzausfall und Zeitüberschreitung einheitlich einpacken. */
+function asApiError(e: unknown, was: string): never {
+  const name = (e as Error)?.name
+  if (name === 'AbortError') throw e
+  if (name === 'TimeoutError') throw new ApiError(`${was} Zeitüberschreitung`, 'timeout')
+  throw new ApiError(`${was} nicht erreichbar`, 'network')
+}
+
 const MOTIS = 'https://api.transitous.org/api'
 const GBFS = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_ml/de'
 const MUNICH_CENTER = '48.137,11.575'
@@ -24,19 +49,26 @@ export async function geocode(text: string, signal?: AbortSignal): Promise<Geoco
   u.searchParams.set('language', 'de')
   u.searchParams.set('place', MUNICH_CENTER)
   u.searchParams.set('placeBias', '3') // ohne dies schlägt Duisburg Münchner Haltestellen
-  const r = await fetch(u, { signal: withTimeout(signal) })
-  if (!r.ok) throw new Error(`geocode HTTP ${r.status}`)
+  let r: Response
+  try {
+    r = await fetch(u, { signal: withTimeout(signal) })
+  } catch (e) {
+    asApiError(e, 'Ortssuche')
+  }
+  if (!r.ok) throw new ApiError(`geocode HTTP ${r.status}`, 'http', r.status)
   return r.json()
 }
 
-/** Koordinaten → menschenlesbare Adresse (nächstgelegener Punkt). */
-export async function reverseGeocode(lat: number, lon: number, signal?: AbortSignal): Promise<string> {
+/** Koordinaten → menschenlesbare Adresse, oder null wenn nichts passt.
+ *  Die Ersatzbeschriftung gehört zur Oberfläche, nicht hierher — vorher stand
+ *  hier fest »Mein Standort«, auch bei englischer Oberfläche. */
+export async function reverseGeocode(lat: number, lon: number, signal?: AbortSignal): Promise<string | null> {
   const u = new URL(`${MOTIS}/v1/reverse-geocode`)
   u.searchParams.set('place', `${lat},${lon}`)
   const r = await fetch(u, { signal: withTimeout(signal) })
   if (!r.ok) throw new Error(`reverse HTTP ${r.status}`)
   const arr = (await r.json()) as GeocodeMatch[]
-  return arr?.[0]?.name ?? 'Mein Standort'
+  return arr?.[0]?.name ?? null
 }
 
 export interface WeatherHour {
@@ -98,7 +130,28 @@ export async function fetchElevationProfile(pts: [number, number][], signal?: Ab
 }
 
 /** Vorhersage (Open-Meteo, ohne Key) für bestimmte Stunde am Punkt. rain = Niederschlag ≥ 0.3 mm. */
-export async function fetchWeatherAt(lat: number, lon: number, when: Date): Promise<WeatherAtTime | null> {
+export async function fetchWeatherAt(
+  lat: number,
+  lon: number,
+  when: Date,
+  signal?: AbortSignal,
+): Promise<WeatherAtTime | null> {
+  try {
+    return await fetchWeatherInner(lat, lon, when, signal)
+  } catch {
+    // Wetter ist Beiwerk — ein Ausfall darf die Suche nicht stören. Als
+    // einzige Netzfunktion warf diese hier und erzeugte beim Aufrufer eine
+    // unbehandelte Zusage.
+    return null
+  }
+}
+
+async function fetchWeatherInner(
+  lat: number,
+  lon: number,
+  when: Date,
+  signal?: AbortSignal,
+): Promise<WeatherAtTime | null> {
   const u = new URL('https://api.open-meteo.com/v1/forecast')
   u.searchParams.set('latitude', String(lat))
   u.searchParams.set('longitude', String(lon))
@@ -109,7 +162,7 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
   const tageVoraus = Math.ceil((when.getTime() - Date.now()) / 86_400_000) + 1
   u.searchParams.set('forecast_days', String(Math.min(16, Math.max(2, tageVoraus))))
   u.searchParams.set('timezone', 'auto')
-  const r = await fetch(u, { signal: withTimeout() })
+  const r = await fetch(u, { signal: withTimeout(signal) })
   if (!r.ok) return null
   const d = await r.json()
   const times: string[] = d?.hourly?.time ?? []
@@ -213,8 +266,13 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal
     // mit Reserve: ein Teil der Optionen wird durch Kunden-Radzeit-Limit gefiltert
     u.searchParams.set('numItineraries', '7')
   }
-  const r = await fetch(u, { signal: withTimeout(signal, PLAN_TIMEOUT_MS) })
-  if (!r.ok) throw new Error(`plan HTTP ${r.status}`)
+  let r: Response
+  try {
+    r = await fetch(u, { signal: withTimeout(signal, PLAN_TIMEOUT_MS) })
+  } catch (e) {
+    asApiError(e, 'Routensuche')
+  }
+  if (!r.ok) throw new ApiError(`plan HTTP ${r.status}`, 'http', r.status)
   return r.json()
 }
 

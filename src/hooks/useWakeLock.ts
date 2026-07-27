@@ -39,6 +39,13 @@ export function useWakeLock(active: boolean): void {
         try {
           const { KeepAwake } = await import('@capacitor-community/keep-awake')
           await KeepAwake.keepAwake()
+          // Wurde die Fahrt währenddessen beendet, gleich wieder freigeben —
+          // sonst bleibt der Bildschirm nach dem Aussteigen an. Der Web-Zweig
+          // unten macht das längst, der native fehlte.
+          if (released) {
+            await KeepAwake.allowSleep().catch(() => {})
+            return
+          }
           native = true
           return
         } catch {

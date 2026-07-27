@@ -10,20 +10,31 @@ import type { ElevationProfile } from '../api'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 
+/** Einmal geholte Höhenprofile behalten. Beim Durchtippen der Routen wurde
+ *  sonst für dieselbe Etappe immer wieder dieselbe Anfrage gestellt. */
+const hoehenPuffer = new Map<string, ElevationProfile | null>()
+
 function BikeLegElevation({ leg, lang }: { leg: Leg; lang: Language }) {
-  const [profile, setProfile] = useState<ElevationProfile | null>(null)
+  const key = leg.legGeometry?.points ?? ''
+  const [profile, setProfile] = useState<ElevationProfile | null>(() => hoehenPuffer.get(key) ?? null)
 
   useEffect(() => {
-    let alive = true
-    if (!leg.legGeometry?.points) return
-    const pts = decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
-    fetchElevationProfile(pts).then(p => {
-      if (alive) setProfile(p)
-    })
-    return () => {
-      alive = false
+    if (!key) return
+    const gepuffert = hoehenPuffer.get(key)
+    if (gepuffert !== undefined) {
+      setProfile(gepuffert)
+      return
     }
-  }, [leg])
+    const ctrl = new AbortController()
+    const pts = decodePolyline(key, leg.legGeometry?.precision ?? 6)
+    fetchElevationProfile(pts, ctrl.signal).then(p => {
+      if (ctrl.signal.aborted) return
+      hoehenPuffer.set(key, p)
+      setProfile(p)
+    })
+    return () => ctrl.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
 
   if (!profile) return null
 
@@ -160,8 +171,22 @@ export default function ItineraryCard({
         </div>
       )}
 
-      {/* Kopf: große Dauer links, Zeitfenster und Preis rechts */}
-      <div className="route-main" onClick={onSelect}>
+      {/* Kopf: große Dauer links, Zeitfenster und Preis rechts.
+          Als echter Knopf, damit die Auswahl auch per Tastatur geht — vorher
+          war es ein div und die Liste mit der Tastatur nicht bedienbar. */}
+      <div
+        className="route-main"
+        role="button"
+        tabIndex={0}
+        aria-pressed={selected}
+        onClick={onSelect}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onSelect()
+          }
+        }}
+      >
         <div className="route-durrow">
           {/* inklusive Umweg zur Rückgabestation — der wird ja mitgefahren */}
           <span className="route-dur">{mins(viewDuration(view))}</span>
@@ -175,7 +200,7 @@ export default function ItineraryCard({
         </div>
       </div>
 
-      <div className="strip" onClick={onSelect}>
+      <div className="strip" onClick={onSelect} aria-hidden="true">
         {stripLegs.map((leg, i) => {
           const k = legKind(leg)
           const isE = k === 'bike' && view.bikeLegs.get(it.legs.indexOf(leg))?.electric

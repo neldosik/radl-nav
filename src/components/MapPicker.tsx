@@ -82,7 +82,7 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
         nameCtrl.current = ctrl
         try {
           const n = await reverseGeocode(c.lat, c.lng, ctrl.signal)
-          if (!ctrl.signal.aborted) setName(n)
+          if (!ctrl.signal.aborted) setName(n ?? t('mapPoint', lang))
         } catch (e) {
           if ((e as Error)?.name !== 'AbortError') setName(t('mapPoint', lang))
         }

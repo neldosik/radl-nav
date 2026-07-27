@@ -68,10 +68,12 @@ export function useJourney(view: ItineraryView | null): Journey {
 
   useWakeLock(active && !arrived)
 
-  // GPS verfolgen, solange navigiert wird.
+  // GPS verfolgen, solange navigiert wird — auf dem Ankunftsschirm nicht mehr.
   useEffect(() => {
-    if (!active) {
-      setUserPos(null)
+    if (!active || arrived) {
+      // Die letzte bekannte Position bleibt stehen: die Übersichtskarte zeigt
+      // damit weiter, wo man ist. Vorher wurde sie geleert und erst beim
+      // nächsten Start der Navigation wieder gefüllt.
       setGpsError(null)
       return
     }
@@ -97,7 +99,7 @@ export function useJourney(view: ItineraryView | null): Journey {
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     )
     return () => navigator.geolocation.clearWatch(id)
-  }, [active])
+  }, [active, arrived])
 
   // Etappenziel erreicht (< 70 m) → nächste Etappe, mit kurzer Vibration.
   useEffect(() => {

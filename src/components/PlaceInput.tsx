@@ -45,6 +45,8 @@ function saveRecent(p: Place) {
 export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, onPickOnMap }: Props) {
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<GeocodeMatch[]>([])
+  /** Suche fehlgeschlagen — sieht sonst aus wie „nichts gefunden". */
+  const [geoError, setGeoError] = useState(false)
   const [open, setOpen] = useState(false)
   const [locating, setLocating] = useState(false)
   const [saveOpen, setSaveOpen] = useState(false)
@@ -67,6 +69,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
     window.clearTimeout(timer.current)
     if (v.trim().length < 2) {
       setMatches([])
+      setGeoError(false)
       abortControllerRef.current?.abort()
       return
     }
@@ -76,9 +79,11 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
       abortControllerRef.current = controller
       try {
         setMatches(await geocode(v, controller.signal))
+        setGeoError(false)
       } catch (err: unknown) {
         if ((err as Error)?.name !== 'AbortError') {
           setMatches([])
+          setGeoError(true)
         }
       }
     }, 300)
@@ -96,8 +101,8 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
     setLocating(true)
     try {
       const pos = await getGeolocation()
-      const name = await reverseGeocode(pos.lat, pos.lon).catch(() => t('myLocation', lang))
-      select({ name, lat: pos.lat, lon: pos.lon }, false)
+      const name = await reverseGeocode(pos.lat, pos.lon).catch(() => null)
+      select({ name: name ?? t('myLocation', lang), lat: pos.lat, lon: pos.lon }, false)
     } catch {
       // Ruhig: Zugriff verweigert oder Zeitüberschreitung
     } finally {
@@ -190,8 +195,11 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
         </div>
       )}
 
-      {open && !saveOpen && (matches.length > 0 || showSuggestions) && (
+      {open && !saveOpen && (matches.length > 0 || showSuggestions || geoError) && (
         <div className="drop">
+          {geoError && matches.length === 0 && (
+            <div className="drop-error">{t('networkError', lang)}</div>
+          )}
           {matches.map(m => (
             <button
               key={`${m.name}-${m.lat}-${m.lon}`}
@@ -233,26 +241,36 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
                 </button>
               )}
 
+              {/* Zwei Knöpfe nebeneinander statt eines im anderen: HTML erlaubt
+                  kein Button im Button, und das Löschen-Element war weder mit
+                  der Tastatur erreichbar noch groß genug zum Treffen. */}
               {saved.map(s => (
-                <button key={s.id} onMouseDown={e => e.preventDefault()} onClick={() => select(s.place)}>
-                  <span className="d-main">
-                    <span className="d-name">
-                      <SlotIcon id={s.id} size={13} /> {s.label}
-                    </span>
-                    <span className="d-area">{s.place.name}</span>
-                  </span>
-                  <span
-                    className="d-del"
+                <div key={s.id} className="d-row">
+                  <button
+                    className="d-row-main"
                     onMouseDown={e => e.preventDefault()}
-                    onClick={e => {
-                      e.stopPropagation()
+                    onClick={() => select(s.place)}
+                  >
+                    <span className="d-main">
+                      <span className="d-name">
+                        <SlotIcon id={s.id} size={13} /> {s.label}
+                      </span>
+                      <span className="d-area">{s.place.name}</span>
+                    </span>
+                  </button>
+                  <button
+                    className="d-del"
+                    aria-label={`${t('placeDelete', lang)}: ${s.label}`}
+                    title={t('placeDelete', lang)}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => {
                       removeSaved(s.id)
                       setRefresh(x => x + 1)
                     }}
                   >
                     <CloseIcon size={12} />
-                  </span>
-                </button>
+                  </button>
+                </div>
               ))}
 
               {recents.map(r => (

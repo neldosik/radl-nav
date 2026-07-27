@@ -495,11 +495,46 @@ button {
   flex: none;
 }
 
+/* Gespeicherter Ort: Auswählen und Löschen sind zwei Knöpfe nebeneinander.
+   Vorher steckte das Löschen als span im Auswahl-Knopf — mit der Tastatur
+   nicht erreichbar und mit 20 px kaum zu treffen. */
+.d-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.d-row .d-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
 .d-del {
   color: var(--faint);
   display: inline-flex;
-  padding: 4px;
+  align-items: center;
+  justify-content: center;
+  /* Mindestmaß für Fingerziele */
+  width: 44px;
+  height: 44px;
   flex: none;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.d-del:hover {
+  color: var(--alert);
+  background: var(--alert-soft);
+}
+
+/* Fehlermeldung im Ausklappmenü der Ortssuche — vorher sah ein Netzausfall
+   aus wie „kein Treffer". */
+.drop-error {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--alert);
 }
 
 .save-title {

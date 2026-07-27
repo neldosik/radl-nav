@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { BikeIcon, BoltIcon, CloseIcon } from '../icons'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
@@ -26,9 +27,30 @@ export default function FilterModal({
   onSelectBikes,
   onClose,
 }: Props) {
+  const dialog = useRef<HTMLDivElement>(null)
+
+  // Escape schließt, und der Fokus wandert in den Dialog — sonst tippt man
+  // mit der Tastatur weiter im Hintergrund herum.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    dialog.current?.focus()
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   return (
     <div className="filter-modal-backdrop" onClick={onClose}>
-      <div className="filter-modal" onClick={e => e.stopPropagation()}>
+      <div
+        className="filter-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('filterTitle', lang)}
+        tabIndex={-1}
+        ref={dialog}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-grabber" />
 
         <div className="filter-modal-head">
@@ -44,7 +66,9 @@ export default function FilterModal({
         <div className="filter-card">
           <label className="filter-label">{t('bikeTypeLabel', lang)}</label>
           <div className="filter-type-grid">
-            <div
+            <button
+              type="button"
+              aria-pressed={bikeType === 'classic'}
               className={`filter-type-card classic${bikeType === 'classic' ? ' active' : ''}`}
               onClick={() => {
                 onSelectBikeType('classic')
@@ -55,9 +79,11 @@ export default function FilterModal({
               <div className="ft-name">Standard</div>
               <div className="ft-sub">{t('standardSub', lang)}</div>
               <div className="ft-mark">✓</div>
-            </div>
+            </button>
 
-            <div
+            <button
+              type="button"
+              aria-pressed={bikeType === 'any'}
               className={`filter-type-card ebike${bikeType === 'any' ? ' active' : ''}`}
               onClick={() => {
                 onSelectBikeType('any')
@@ -68,7 +94,7 @@ export default function FilterModal({
               <div className="ft-name">E-Bikes</div>
               <div className="ft-sub">{t('ebikeSub', lang)}</div>
               <div className="ft-mark">✓</div>
-            </div>
+            </button>
           </div>
         </div>
 

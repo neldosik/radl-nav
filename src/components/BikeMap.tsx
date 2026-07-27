@@ -371,9 +371,14 @@ export default function BikeMap({
     }
   }, [supply, filterType, selected, center, here])
 
-  const list = supply ? nearbyStations(center, supply, RADIUS_M, 100) : []
-  const totalBikes = list.reduce((n, x) => n + x.station.bikes, 0)
-  const totalE = list.reduce((n, x) => n + x.station.ebikes, 0)
+  // Für die Summe zählt der ganze Umkreis. Die Pins sind auf 100 begrenzt,
+  // damit die Karte lesbar bleibt — die Zeile darunter behauptete aber
+  // „im Umkreis" und zählte trotzdem nur diese 100.
+  const imUmkreis = supply
+    ? supply.filter(st => haversine(center, st) <= RADIUS_M && (st.bikes > 0 || st.ebikes > 0))
+    : []
+  const totalBikes = imUmkreis.reduce((n, st) => n + st.bikes, 0)
+  const totalE = imUmkreis.reduce((n, st) => n + st.ebikes, 0)
   const walkDistM = selected && here ? Math.round(haversine(here, { lat: selected.lat, lon: selected.lon })) : null
 
   return (

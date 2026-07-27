@@ -12,7 +12,7 @@ const MapPicker = lazy(() => import('./components/MapPicker'))
 const BikeMap = lazy(() => import('./components/BikeMap'))
 const History = lazy(() => import('./components/History'))
 import { addTrip } from './history'
-import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeocode } from './api'
+import { ApiError, fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeocode } from './api'
 import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
 import { searchRoutes, viewDuration } from './routing'
@@ -67,7 +67,9 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(true)
   const [sel, setSel] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  /** Schlüssel statt fertigem Text: sonst bleibt die Meldung in der Sprache
+   *  stehen, die zum Zeitpunkt der Suche galt. */
+  const [errorKey, setErrorKey] = useState<'networkError' | 'noRoutesFound' | null>(null)
   const [weather, setWeather] = useState<WeatherAtTime | null>(null)
   const [favRoutes, setFavRoutes] = useState<FavRoute[]>(() => loadFavRoutes())
   const [showWeatherModal, setShowWeatherModal] = useState(false)
@@ -89,6 +91,8 @@ export default function App() {
    *  oder Filter, ohne neu zu suchen, zeigt die Liste etwas anderes an, als
    *  oben eingestellt ist — vorher fiel das erst beim Losfahren auf. */
   const [searchedWith, setSearchedWith] = useState<string | null>(null)
+  /** Wann die Liste entstanden ist — Radzahlen altern schnell. */
+  const [searchedAt, setSearchedAt] = useState<number | null>(null)
 
   function toggleLang() {
     const next = lang === 'de' ? 'en' : 'de'
@@ -123,8 +127,8 @@ export default function App() {
     getGeolocation()
       .then(async pos => {
         journey.setUserPos({ ...pos, at: Date.now() })
-        const name = await reverseGeocode(pos.lat, pos.lon).catch(() => t('myLocation', lang))
-        setFrom(f => f ?? { name, lat: pos.lat, lon: pos.lon })
+        const name = await reverseGeocode(pos.lat, pos.lon).catch(() => null)
+        setFrom(f => f ?? { name: name ?? t('myLocation', lang), lat: pos.lat, lon: pos.lon })
       })
       // Vorher stumm: das Startfeld blieb einfach leer, ohne dass jemand
       // erfuhr, dass die Freigabe fehlt.
@@ -152,13 +156,31 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [journeyLeg, arrived])
 
+  // Wetter zur *ausgewählten* Route. Vorher wurde es einmal für die erste
+  // Verbindung geholt und blieb dann über der Karte jeder anderen stehen —
+  // bei einer Route zwei Stunden später eine Vorhersage für den falschen
+  // Zeitpunkt.
+  useEffect(() => {
+    if (!selectedView || !from) {
+      setWeather(null)
+      return
+    }
+    const ctrl = new AbortController()
+    const startTimeStr = selectedView.it.legs[0]?.startTime ?? selectedView.it.startTime
+    fetchWeatherAt(from.lat, from.lon, new Date(startTimeStr), ctrl.signal).then(w => {
+      if (!ctrl.signal.aborted) setWeather(w)
+    })
+    return () => ctrl.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedView, from?.lat, from?.lon])
+
   async function search(f: Place | null = from, tPl: Place | null = to) {
     if (!f || !tPl) return
     searchCtrl.current?.abort()
     const ctrl = new AbortController()
     searchCtrl.current = ctrl
     setLoading(true)
-    setError(null)
+    setErrorKey(null)
     setViews(null)
     setWeather(null)
     const when = timeMode !== 'now' && timeVal ? new Date(timeVal) : undefined
@@ -178,25 +200,21 @@ export default function App() {
       if (ctrl.signal.aborted) return
       setViews(list)
       setSearchedWith(sucheSchluessel(f, tPl, maxBike, bikeType, bikes))
+      setSearchedAt(Date.now())
       setSel(0)
       // Suchfeld einklappen: sonst bleiben für die Ergebnisliste nur ~200 px
       if (list.length) setSearchOpen(false)
-      if (list.length) {
-        const firstLeg = list[0].it.legs[0]
-        const startTimeStr = firstLeg?.startTime ?? list[0].it.startTime
-        const bestTime = new Date(startTimeStr)
-        fetchWeatherAt(f.lat, f.lon, bestTime).then(w => {
-          if (!ctrl.signal.aborted) setWeather(w)
-        })
-      }
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') {
-        const isNetwork =
+      // Das Wetter holt der Effekt unten — es gehört zur *ausgewählten* Route,
+      // nicht dauerhaft zur ersten.
+    } catch (e: unknown) {
+      if ((e as Error)?.name !== 'AbortError') {
+        // Nicht mehr über den Meldungstext raten: in Safari heißt ein
+        // Netzausfall „Load failed", in Firefox anders, und ein HTTP 500 sah
+        // aus wie ein Programmfehler. `ApiError` sagt es direkt.
+        const netz =
           !navigator.onLine ||
-          e?.name === 'TimeoutError' ||
-          e?.message?.includes('fetch') ||
-          e?.message?.includes('network')
-        setError(isNetwork ? t('networkError', lang) : (e?.message ?? t('noRoutesFound', lang)))
+          (e instanceof ApiError && (e.kind === 'network' || e.kind === 'timeout'))
+        setErrorKey(netz ? 'networkError' : 'noRoutesFound')
       }
     } finally {
       if (!ctrl.signal.aborted) setLoading(false)
@@ -256,6 +274,7 @@ export default function App() {
           routeLabel={(from ? shortPlace(from) : '') + ' → ' + (to ? shortPlace(to) : '')}
           onPrev={() => journey.goTo(journeyLeg - 1)}
           onNext={() => journey.goTo(journeyLeg + 1)}
+          onGoTo={i => journey.goTo(i)}
           onArrive={() => {
             if (from && to) {
               // echte Radminuten und -kilometer aus den Etappen, nicht geschätzt
@@ -269,7 +288,11 @@ export default function App() {
               addTrip({
                 from: shortPlace(from),
                 to: shortPlace(to),
-                seconds: viewDuration(journeyView),
+                // Tatsächlich gebrauchte Zeit, nicht die geplante — dafür ist
+                // das Feld da. Ohne Startzeit bleibt die Planung als Rückfall.
+                seconds: startedAt
+                  ? Math.max(1, Math.round((Date.now() - startedAt) / 1000))
+                  : viewDuration(journeyView),
                 legs: journeyView.it.legs.length,
                 bikeMinutes: stats.bikeMinutes,
                 bikeKm: stats.bikeKm,
@@ -607,13 +630,13 @@ export default function App() {
             <span className="stale-action">{t('routeBtn', lang)}</span>
           </button>
         )}
-        {error && (
+        {errorKey && (
           <div className="msg error">
-            {error}
+            {t(errorKey, lang)}
             <button className="retry-btn" onClick={() => search()}>{t('retry', lang)}</button>
           </div>
         )}
-        {!error && !views && !loading && (
+        {!errorKey && !views && !loading && (
           <div className="msg">
             {t('welcomeMsg', lang)}
           </div>
@@ -644,10 +667,17 @@ export default function App() {
                   lang={lang}
                   onSelect={() => setSel(i)}
                   onGo={() => {
+                    // Die angezeigten Radzahlen stammen vom Zeitpunkt der
+                    // Suche. Wer die Liste zwanzig Minuten offen hatte, fährt
+                    // sonst auf einen Bestand zu, den es nicht mehr gibt —
+                    // deshalb vor dem Losfahren still nachladen.
+                    if (from && to && Date.now() - (searchedAt ?? 0) > 3 * 60_000) {
+                      search(from, to)
+                      return
+                    }
                     // Nachführung wieder einschalten: sie blieb sonst für den
                     // Rest der Sitzung aus, sobald man die Karte einmal
                     // angefasst hatte — „folgt mir gar nicht mehr".
-                    setFollowMe(true)
                     // Um die Erlaubnis für Meldungen hier fragen, nicht später:
                     // Browser verlangen dafür eine echte Nutzeraktion, und der
                     // Druck auf „LOS" ist die letzte vor der Radetappe.

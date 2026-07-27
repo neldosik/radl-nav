@@ -40,6 +40,8 @@ interface Props {
   routeLabel: string
   onPrev: () => void
   onNext: () => void
+  /** Direkt auf eine Etappe springen (Chips unten). */
+  onGoTo?: (i: number) => void
   onArrive: () => void
   onExit: () => void
   /** Kamera folgt dem Standort? */
@@ -87,6 +89,7 @@ export default function JourneyMode({
   routeLabel,
   onPrev,
   onNext,
+  onGoTo,
   onArrive,
   onExit,
   follow = true,
@@ -406,7 +409,14 @@ export default function JourneyMode({
             const lk = legKind(l)
             const sel = i === legIndex
             return (
-              <button key={i} className={`j-chip ${lk}${sel ? ' sel' : ''}`}>
+              // Vorher Knöpfe ohne Wirkung: sie sahen bedienbar aus, taten
+              // aber nichts. Jetzt springen sie auf die Etappe.
+              <button
+                key={i}
+                className={`j-chip ${lk}${sel ? ' sel' : ''}`}
+                aria-current={sel ? 'step' : undefined}
+                onClick={() => onGoTo?.(i)}
+              >
                 <ChipIcon leg={l} lang={lang} />
                 <span>{mins(l.duration)}′</span>
               </button>

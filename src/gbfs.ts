@@ -1,5 +1,9 @@
 import type { FreeBike, Station } from './types'
 
+/** Reichweite eines vollen MyRadl-Pedelecs laut Herstellerangabe — nur als
+ *  Notbehelf, wenn der Feed keine echte Restreichweite liefert. */
+const ANGENOMMENE_REICHWEITE_KM = 35
+
 /**
  * Reine Parser für die GBFS-Feeds von MyRadl/nextbike — ohne Netzwerk, damit
  * die Zähl-Logik testbar bleibt. Hier steckten schon zwei echte Bugs:
@@ -118,7 +122,7 @@ export function parseStations(
     }
 
     if (maxBat != null && maxRange == null) {
-      maxRange = Math.round((maxBat / 100) * 35)
+      maxRange = Math.round((maxBat / 100) * ANGENOMMENE_REICHWEITE_KM)
     }
 
     return {
@@ -158,7 +162,15 @@ export function parseFreeBikes(
       const isElec = !!b.vehicle_type_id && electric.has(b.vehicle_type_id)
       const rawBat = b.current_fuel_percent ?? b.battery_level
       const batteryPercent = rawBat != null ? Math.round(rawBat <= 1 ? rawBat * 100 : rawBat) : undefined
-      const rangeKm = b.current_range_meters ? Math.round(b.current_range_meters / 1000) : (batteryPercent != null ? Math.round((batteryPercent / 100) * 35) : undefined)
+      // `current_range_meters: 0` ist eine Aussage („leer"), kein fehlender
+      // Wert — vorher fiel die 0 durch die Wahrheitsprüfung und wurde durch
+      // eine Schätzung aus dem Akkustand ersetzt.
+      const rangeKm =
+        b.current_range_meters != null
+          ? Math.round(b.current_range_meters / 1000)
+          : batteryPercent != null
+            ? Math.round((batteryPercent / 100) * ANGENOMMENE_REICHWEITE_KM)
+            : undefined
       return {
         id: b.bike_id,
         lat: b.lat!,

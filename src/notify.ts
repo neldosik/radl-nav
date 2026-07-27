@@ -22,6 +22,12 @@ const ID_DUE = 4712
 
 let timers: number[] = []
 let nativeScheduled = false
+/**
+ * Zählt die Planungen durch. `LocalNotifications.schedule()` braucht einen
+ * dynamischen Import und einen Bridge-Aufruf; wurde in dieser Zeit abgeräumt,
+ * lief die alte Planung trotzdem zu Ende und meldete sich später ungefragt.
+ */
+let generation = 0
 
 function isNative(): boolean {
   return !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
@@ -85,6 +91,7 @@ export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise
   const { secondsLeft, warnBeforeSec = 5 * 60, stationName } = opts
   await cancelReturnReminders()
   if (secondsLeft <= 0) return
+  const meine = ++generation
 
   const at = stationName ? ` Rückgabe: »${stationName}«.` : ''
   const warnIn = secondsLeft - warnBeforeSec
@@ -96,6 +103,7 @@ export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise
   if (isNative()) {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications')
+      if (meine !== generation) return // zwischenzeitlich abgeräumt
       const notifications = []
       if (warnIn > 0) {
         notifications.push({
@@ -111,8 +119,12 @@ export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise
         body: dueBody,
         schedule: { at: new Date(Date.now() + secondsLeft * 1000) },
       })
-      await LocalNotifications.schedule({ notifications })
       nativeScheduled = true
+      await LocalNotifications.schedule({ notifications })
+      if (meine !== generation) {
+        // Abgeräumt, während der Alarm gestellt wurde — sofort zurücknehmen.
+        await LocalNotifications.cancel({ notifications: [{ id: ID_WARN }, { id: ID_DUE }] }).catch(() => {})
+      }
       return
     } catch {
       // Plugin nicht verfügbar — weiter mit den Browser-Zeitgebern
@@ -127,6 +139,7 @@ export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise
 
 /** Alle geplanten Erinnerungen abräumen — Etappe vorbei oder Fahrt beendet. */
 export async function cancelReturnReminders(): Promise<void> {
+  generation++
   for (const id of timers) window.clearTimeout(id)
   timers = []
   if (!nativeScheduled) return
