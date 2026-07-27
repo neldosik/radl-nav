@@ -73,6 +73,13 @@
   /* Höhe der fest stehenden Reiterleiste: 6 + 56 + 10 + 1px Linie */
   --tabbar-h: calc(73px + env(safe-area-inset-bottom, 0px));
 
+  /* Quer liegt die Kamera-Aussparung seitlich. `viewport-fit=cover` in der
+     index.html schiebt die Seite bewusst darunter — ohne diese beiden Werte
+     verschwände am Rand ein Streifen Bedienfläche unter der Insel. Hochkant
+     sind beide 0, die Ränder bleiben also unverändert. */
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Newsreader', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -170,7 +177,8 @@ button {
 /* ── Kopfzeile ── */
 .poster {
   flex: none;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 12px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) max(20px, var(--sar)) 12px
+    max(20px, var(--sal));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -268,7 +276,7 @@ button {
 /* ── Eingabekarte Start/Ziel ── */
 .inputs {
   flex: none;
-  padding: 0 20px;
+  padding: 0 max(20px, var(--sar)) 0 max(20px, var(--sal));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -830,7 +838,10 @@ button {
 .map-preview {
   flex: none;
   margin: 14px 20px 0;
-  height: 150px;
+  /* Feste 150px fraßen auf kleinen und liegenden Geräten den halben Schirm:
+     bei 360px Höhe blieben der Liste noch 36px. Jetzt wächst die Vorschau
+     mit dem Gerät und bleibt in beiden Richtungen begrenzt. */
+  height: clamp(96px, 20vh, 180px);
   position: relative;
   overflow: hidden;
   border-radius: var(--r-card);
@@ -894,7 +905,7 @@ button {
      Reiterleiste aus dem Bild — dann muss man zu ihr scrollen */
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 20px 20px;
+  padding: 16px max(20px, var(--sar)) 20px max(20px, var(--sal));
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1275,7 +1286,8 @@ button {
   display: flex;
   background: var(--card);
   border-top: 1px solid var(--line);
-  padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 6px max(12px, var(--sar)) calc(10px + env(safe-area-inset-bottom, 0px))
+    max(12px, var(--sal));
 }
 
 .tab {
@@ -1304,7 +1316,8 @@ button {
 .trips-body {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 10px max(20px, var(--sar)) calc(20px + env(safe-area-inset-bottom, 0px))
+    max(20px, var(--sal));
 }
 
 .trips-title,
@@ -1313,7 +1326,8 @@ button {
   font-size: 26px;
   font-weight: 600;
   /* Unten mehr Luft: die Kacheln stießen ohne Abstand an die Überschrift */
-  padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 18px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) max(20px, var(--sar)) 18px
+    max(20px, var(--sal));
   flex: none;
 }
 
@@ -1620,7 +1634,8 @@ button {
 
 .picker-top {
   flex: none;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 0;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) max(16px, var(--sar)) 0
+    max(16px, var(--sal));
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1826,7 +1841,8 @@ button {
   background: var(--card);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   box-shadow: var(--shadow-sheet);
-  padding: 14px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+  padding: 14px max(20px, var(--sar)) calc(22px + env(safe-area-inset-bottom, 0px))
+    max(20px, var(--sal));
 }
 
 .modal-grabber {
@@ -2219,7 +2235,8 @@ button {
   background: var(--card);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   box-shadow: 0 -10px 34px rgba(36, 33, 28, 0.2);
-  padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 12px max(16px, var(--sar)) calc(20px + env(safe-area-inset-bottom, 0px))
+    max(16px, var(--sal));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -2527,8 +2544,8 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: calc(60px + env(safe-area-inset-top, 0px)) 24px
-    calc(40px + env(safe-area-inset-bottom, 0px));
+  padding: calc(60px + env(safe-area-inset-top, 0px)) max(24px, var(--sar))
+    calc(40px + env(safe-area-inset-bottom, 0px)) max(24px, var(--sal));
   gap: 8px;
 }
 
@@ -2611,7 +2628,8 @@ button {
   width: 100%;
   background: var(--card);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
-  padding: 12px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+  padding: 12px max(20px, var(--sar)) calc(28px + env(safe-area-inset-bottom, 0px))
+    max(20px, var(--sal));
 }
 
 .filter-modal-head {
@@ -2961,7 +2979,8 @@ button {
 .app-footer,
 .sig {
   text-align: center;
-  padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 18px max(20px, var(--sar)) calc(20px + env(safe-area-inset-bottom, 0px))
+    max(20px, var(--sal));
   font-size: 11.5px;
   line-height: 1.7;
   color: var(--faint);
@@ -3017,4 +3036,150 @@ button {
 .maplibregl-ctrl-attrib {
   font-size: 9px;
   border-radius: 8px 0 0 0;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Kleine und liegende Geräte
+   Gemessen auf 320x568 und 740x360: der Suchblock nahm 320 von 568 Punkten,
+   der Ergebnisliste blieben 114 — quer sogar nur 36. Die Maße stehen deshalb
+   nicht am Gerät, sondern an der verfügbaren Höhe.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Niedrige Schirme: Rhythmus zusammenziehen, ohne Fingerziele zu opfern */
+@media (max-height: 700px) {
+  .poster {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) max(20px, var(--sar)) 8px
+      max(20px, var(--sal));
+  }
+
+  .poster-name {
+    font-size: 19px;
+  }
+
+  .inputs {
+    gap: 8px;
+  }
+
+  .in-row {
+    height: 48px;
+  }
+
+  .quick-preset-chip,
+  .filter-chip,
+  .fav-chip,
+  .btn-bikemap {
+    height: 36px;
+  }
+
+  .filter-chip,
+  .fav-chip.save {
+    width: 36px;
+  }
+
+  .btn-route-chip,
+  .btn-go,
+  .btn-block,
+  .arrive-btn,
+  .filter-modal-apply {
+    height: 46px;
+  }
+
+  .search-summary {
+    height: 42px;
+  }
+
+  .results {
+    padding: 12px max(20px, var(--sar)) 16px max(20px, var(--sal));
+  }
+}
+
+/* Liegend am Telefon: hier zählt jeder Punkt Karte. Gemessen blieben im
+   Los-Modus 3px zwischen Kopfkarte und Blatt — die Karte war praktisch weg. */
+@media (max-height: 460px) {
+  /* Etappenchips und Fortschritt sind unterwegs entbehrlich; wohin es geht,
+     steht in der Kopfkarte, und Weiter/Zurück bleiben. */
+  .j-strips,
+  .j-progress {
+    display: none;
+  }
+
+  .j-panel {
+    gap: 8px;
+    padding: 8px max(12px, var(--sar)) calc(10px + env(safe-area-inset-bottom, 0px))
+      max(12px, var(--sal));
+  }
+
+  .j-legcard {
+    gap: 10px;
+  }
+
+  .j-bigico {
+    width: 38px;
+    height: 38px;
+  }
+
+  .j-mins {
+    font-size: 24px;
+  }
+
+  .j-nav-prev,
+  .j-nav-bike,
+  .j-nav-next {
+    height: 48px;
+  }
+
+  .j-nav-prev,
+  .j-nav-bike {
+    width: 56px;
+  }
+
+  /* Kopfkarte flacher, damit oben und unten zusammen weniger Platz nehmen */
+  .j-head-card,
+  .j-end {
+    height: 46px;
+  }
+
+  .j-turn {
+    padding: 8px 12px;
+    font-size: 15px;
+  }
+
+  .app-footer,
+  .sig {
+    display: none;
+  }
+
+  /* Die Vorschaukarte nähme hier ein Drittel der Liste. Die Karte ist im
+     Los-Modus ohnehin einen Griff entfernt; quer zählt die Liste mehr. */
+  .results-map,
+  .map-preview {
+    display: none;
+  }
+}
+
+/* Liegend ist Höhe knapp und Breite reichlich — also nebeneinander statt
+   untereinander. Untereinander blieben der Ergebnisliste 28 von 360 Punkten. */
+@media (max-height: 460px) and (min-width: 560px) {
+  .inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'felder steuerung'
+      'orte   steuerung';
+    align-items: start;
+    gap: 8px 14px;
+  }
+
+  .in-card {
+    grid-area: felder;
+  }
+
+  .quick-presets-row {
+    grid-area: orte;
+  }
+
+  .controls {
+    grid-area: steuerung;
+  }
 }
