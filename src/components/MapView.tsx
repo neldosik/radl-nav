@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
-import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
+import { legPath } from '../routing'
 import { haversine, planPickup, projectOnPath } from '../geo'
 import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
@@ -94,19 +94,9 @@ export default function MapView({
     if (!m) return
 
     const features = v.it.legs.map((leg, idx) => {
-      const coords: [number, number][] = leg.legGeometry?.points
-        ? decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6)
-        : [
-            [leg.from.lon, leg.from.lat],
-            [leg.to.lon, leg.to.lat],
-          ]
-      // Rückgabe nur an echten Stationen: das von MOTIS gewählte Ende liegt
-      // sonst irgendwo im Feld. Das letzte Stück bis zur Station gehört mit
-      // auf die Linie, sonst bricht die Route sichtbar ab.
-      const info = v.bikeLegs.get(idx)
-      if (info?.returnSnapped && info.endStation) {
-        coords.push([info.endStation.lon, info.endStation.lat])
-      }
+      // Eine Quelle für Zeichnen, Fangen und Restzeit — inklusive des letzten
+      // Stücks zur Rückgabestation (siehe legPath).
+      const coords: [number, number][] = legPath(v, idx).map(p => [p.lon, p.lat])
       return {
         type: 'Feature' as const,
         properties: {
@@ -286,11 +276,9 @@ export default function MapView({
     const gezogen = (() => {
       if (!userPos || activeLegRef.current == null) return userPos
       const v = viewRef.current
-      const leg = v?.it.legs[activeLegRef.current]
-      if (!leg?.legGeometry?.points) return userPos
-      const pfad = decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(
-        ([lon, lat]) => ({ lat, lon }),
-      )
+      if (!v) return userPos
+      const pfad = legPath(v, activeLegRef.current)
+      if (pfad.length < 2) return userPos
       const pr = projectOnPath(pfad, userPos)
       if (!pr || pr.dist > SNAP_MAX_M) return userPos
       return { ...userPos, lat: pr.point.lat, lon: pr.point.lon }

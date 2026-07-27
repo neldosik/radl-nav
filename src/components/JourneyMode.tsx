@@ -19,8 +19,7 @@ import { fetchTripStatus } from '../api'
 import type { TripStatus } from '../api'
 import { planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
-import { decodePolyline } from '../polyline'
-import { FREE_LIMIT_SEC } from '../routing'
+import { FREE_LIMIT_SEC, legPath } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
 import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
 import { pickupText } from './ItineraryCard'
@@ -222,16 +221,9 @@ export default function JourneyMode({
   const posVeraltet = posStale || gpsError != null
   // Linie der Etappe nur bei Wechsel neu dekodieren — sie ändert sich nicht,
   // der Standort dagegen im Sekundentakt.
-  const linie = useMemo(
-    () =>
-      leg?.legGeometry?.points
-        ? decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
-            lat,
-            lon,
-          }))
-        : [],
-    [leg?.legGeometry?.points, leg?.legGeometry?.precision],
-  )
+  // Dieselbe Linie wie auf der Karte — mit dem letzten Stück zur
+  // Rückgabestation. Ohne das endete die Messung vor dem eigentlichen Ziel.
+  const linie = useMemo(() => (leg ? legPath(view, legIndex) : []), [view, legIndex, leg])
   // Abbiegehinweise aus der Geometrie; Transitous liefert praktisch nur
   // „CONTINUE" (siehe turns.ts).
   const abbiegungen = useMemo(() => turnsFromPath(linie), [linie])

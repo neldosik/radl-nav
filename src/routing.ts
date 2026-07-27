@@ -54,6 +54,35 @@ export function legTarget(view: ItineraryView, i: number): Place | null {
   return { name: leg.to.name, lat: leg.to.lat, lon: leg.to.lon }
 }
 
+/**
+ * Die vollständige Linie einer Etappe — inklusive des letzten Stücks zur
+ * Rückgabestation.
+ *
+ * MOTIS beendet eine Radetappe dort, wo es gerade passt; zurückgegeben werden
+ * darf aber nur an einer echten Station (sonst 20 € Strafe). Wer nur die rohe
+ * Geometrie nimmt, misst und zeichnet bis zu einem Punkt, der gar nicht das
+ * Ziel ist: die Restzeit springt am Ende, der Standort wird auf ein zu kurzes
+ * Band gezogen und der letzte Abschnitt bekommt keine Abbiegehinweise.
+ */
+export function legPath(view: ItineraryView, i: number): LatLon[] {
+  const leg = view.it.legs[i]
+  if (!leg) return []
+  const pts: LatLon[] = leg.legGeometry?.points
+    ? decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
+        lat,
+        lon,
+      }))
+    : [
+        { lat: leg.from.lat, lon: leg.from.lon },
+        { lat: leg.to.lat, lon: leg.to.lon },
+      ]
+  const b = view.bikeLegs.get(i)
+  if (b?.returnSnapped && b.endStation) {
+    pts.push({ lat: b.endStation.lat, lon: b.endStation.lon })
+  }
+  return pts
+}
+
 /** Fahrtdauer inklusive der Umwege zu den Rückgabestationen. */
 export function viewDuration(v: ItineraryView): number {
   return v.it.duration + v.extraSec

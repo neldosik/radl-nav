@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildView, itinerarySignature, legTarget, returnsToStation, viewDuration, viewEndTime } from './routing'
+import { buildView, itinerarySignature, legPath, legTarget, returnsToStation, viewDuration, viewEndTime } from './routing'
 import type { Itinerary, Leg, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes = 5): Station => ({
@@ -141,6 +141,27 @@ describe('Rückgabe nur an Stationen', () => {
   it('navigiert zur Station statt zum MOTIS-Punkt', () => {
     const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
     expect(legTarget(v, 0)).toEqual({ name: 'C', lat: near.lat, lon: near.lon })
+  })
+
+  it('zieht die Linie bis zur Station weiter, nicht nur das Ziel', () => {
+    const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
+    const pfad = legPath(v, 0)
+    const letzter = pfad[pfad.length - 1]
+    // Sonst enden Karte, Restzeit und Abbiegehinweise vor dem eigentlichen Ziel
+    expect(letzter.lat).toBeCloseTo(near.lat, 6)
+    expect(letzter.lon).toBeCloseTo(near.lon, 6)
+    expect(pfad.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('lässt die Linie unangetastet, wenn ohnehin an einer Station zurückgegeben wird', () => {
+    const stationsRueckgabe = bikeLeg({
+      rental: rental({ fromStationName: 'A', toStationName: 'B', returnConstraint: 'ROUNDTRIP_STATION' }),
+    })
+    const v = buildView(route([stationsRueckgabe]), { ...opts, stations, supply: [] })!
+    const pfad = legPath(v, 0)
+    const letzter = pfad[pfad.length - 1]
+    expect(letzter.lat).toBeCloseTo(END.lat, 6)
+    expect(letzter.lon).toBeCloseTo(END.lon, 6)
   })
 
   it('schiebt auch die Ankunftszeit um den Umweg nach hinten', () => {
