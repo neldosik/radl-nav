@@ -25,3 +25,6 @@ dist-ssr
 
 # gh-pages als eigenes Arbeitsverzeichnis (scripts/deploy.sh)
 .gh-pages
+
+# Interner Design-Handoff — bleibt lokal, gehoert nicht ins oeffentliche Repo
+Radl Navi редизайн/
