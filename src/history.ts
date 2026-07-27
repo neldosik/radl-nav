@@ -57,6 +57,8 @@ export interface TripStats {
   count: number
   minutes: number
   bikeMinutes: number
+  /** Gefahrene Radkilometer — Grundlage für CO₂ und die Abzeichen. */
+  bikeKm: number
   savedEuro: number
   calories: number
   co2Grams: number
@@ -72,7 +74,15 @@ const kmOf = (t: TripRecord) => t.bikeKm ?? (t.bikeMinutes * 15) / 60
  * Ankunftsschirm (`stats.ts`).
  */
 export function tripStats(trips: TripRecord[]): TripStats {
-  const stats = { count: trips.length, minutes: 0, bikeMinutes: 0, savedEuro: 0, calories: 0, co2Grams: 0 }
+  const stats = {
+    count: trips.length,
+    minutes: 0,
+    bikeMinutes: 0,
+    bikeKm: 0,
+    savedEuro: 0,
+    calories: 0,
+    co2Grams: 0,
+  }
   for (const t of trips) {
     // Ältere Einträge kennen nur „electric: true/false" für die ganze Fahrt.
     const eMin = t.electricMinutes ?? (t.electric ? t.bikeMinutes : 0)
@@ -80,6 +90,7 @@ export function tripStats(trips: TripRecord[]): TripStats {
 
     stats.minutes += Math.round(t.seconds / 60)
     stats.bikeMinutes += t.bikeMinutes
+    stats.bikeKm += kmOf(t)
     // Gespart = Preis ohne ÖPNV-Abo minus tatsächlich gezahlter Preis.
     // Beim E-Bike ist die Differenz null, es kostet mit und ohne Abo.
     stats.savedEuro += (noSubCent(cMin) - legCostCent(cMin, false)) / 100
@@ -87,6 +98,7 @@ export function tripStats(trips: TripRecord[]): TripStats {
     stats.co2Grams += Math.round(kmOf(t) * (CAR_CO2_PER_KM - BIKE_CO2_PER_KM))
   }
   stats.savedEuro = Math.round(stats.savedEuro)
+  stats.bikeKm = Math.round(stats.bikeKm * 10) / 10
   return stats
 }
 

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { pickRentalUri } from '../format'
@@ -159,7 +158,13 @@ export default function BikeMap({
   // dann liefert die App keine Position — also selbst nachfragen.
   const [ownPos, setOwnPos] = useState<LatLon | null>(null)
   const here = userPos ?? ownPos
-  const center = here ?? MUNICH
+  /** Mitte des sichtbaren Ausschnitts — danach richtet sich, welche Räder zu
+   *  sehen sind. Vorher hing das am eigenen Standort: wer die Karte in einen
+   *  Nachbarbezirk schob, bekam dort keine Pins, obwohl die Daten für ganz
+   *  München längst im Speicher lagen. */
+  const [mapCenter, setMapCenter] = useState<LatLon | null>(null)
+  const home = here ?? MUNICH
+  const center = mapCenter ?? home
 
   useEffect(() => {
     if (userPos) return
@@ -207,8 +212,15 @@ export default function BikeMap({
       zoom: 14.5,
       attributionControl: { compact: true },
     })
+    // Nach jedem Schieben und Zoomen die Liste neu auf den Ausschnitt beziehen.
+    const onMoveEnd = () => {
+      const c = m.getCenter()
+      setMapCenter({ lat: c.lat, lon: c.lng })
+    }
+    m.on('moveend', onMoveEnd)
     map.current = m
     return () => {
+      m.off('moveend', onMoveEnd)
       m.remove()
       map.current = null
     }
@@ -368,7 +380,9 @@ export default function BikeMap({
         <button
           className="bm-locate"
           title={t('bmLocateTitle', lang)}
-          onClick={() => map.current?.easeTo({ center: [center.lon, center.lat], zoom: 15 })}
+          // Zurück zum eigenen Standort — nicht zur aktuellen Kartenmitte,
+          // sonst tut der Knopf nichts.
+          onClick={() => map.current?.easeTo({ center: [home.lon, home.lat], zoom: 15 })}
         >
           <TargetIcon size={18} />
         </button>

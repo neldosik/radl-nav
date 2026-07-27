@@ -35,9 +35,10 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
   const shownDay = pickedDay ?? chartData.reduce((a, b) => (b.mins > a.mins ? b : a)).day
   const co2Label = s.co2Grams >= 1000 ? `${(s.co2Grams / 1000).toFixed(1)} kg` : `${s.co2Grams} g`
 
-  // Achievement Badges
+  // Abzeichen — jetzt an dem gemessen, was draufsteht. „50 km" prüfte vorher
+  // `bikeMinutes >= 120`, also zwei Stunden statt Kilometern.
   const badges = [
-    { id: 'km50', label: '50 km Radler', unlocked: s.bikeMinutes >= 120 },
+    { id: 'km50', label: '50 km Radler', unlocked: s.bikeKm >= 50 },
     { id: 'save25', label: '25 € gespart', unlocked: s.savedEuro >= 25 },
     { id: 'eco10', label: 'Eco-Held 10 kg', unlocked: s.co2Grams >= 10000 },
   ]

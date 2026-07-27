@@ -105,7 +105,7 @@ export const dict = {
     cardReturnWarn: 'Keine Rückgabestation in der Nähe (20 € Strafe)',
 
     // History
-    histTitle: 'Meine Fahrten & Stat',
+    histTitle: 'Meine Fahrten & Statistik',
     histTrips: 'Fahrten',
     histMinutes: 'Minuten',
     histBikeMin: 'Min auf dem Rad',

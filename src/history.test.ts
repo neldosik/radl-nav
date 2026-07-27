@@ -49,7 +49,28 @@ describe('tripStats', () => {
   })
 
   it('kommt mit leerer Liste klar', () => {
-    expect(tripStats([])).toEqual({ count: 0, minutes: 0, bikeMinutes: 0, savedEuro: 0, calories: 0, co2Grams: 0 })
+    expect(tripStats([])).toEqual({
+      count: 0,
+      minutes: 0,
+      bikeMinutes: 0,
+      bikeKm: 0,
+      savedEuro: 0,
+      calories: 0,
+      co2Grams: 0,
+    })
+  })
+
+  it('summiert die Radkilometer und schätzt sie für alte Einträge', () => {
+    // Neue Fahrten bringen die Strecke mit …
+    expect(tripStats([trip({ bikeKm: 4.2 })]).bikeKm).toBe(4.2)
+    // … alte kennen nur Minuten: 20 Min bei 15 km/h ≈ 5 km
+    expect(tripStats([trip({ bikeMinutes: 20, bikeKm: undefined })]).bikeKm).toBe(5)
+  })
+
+  it('rechnet E-Bike-Minuten mit dem niedrigeren Kalorienwert', () => {
+    const klassisch = tripStats([trip({ bikeMinutes: 30, electric: false })]).calories
+    const pedelec = tripStats([trip({ bikeMinutes: 30, electric: true })]).calories
+    expect(pedelec).toBeLessThan(klassisch)
   })
 })
 
