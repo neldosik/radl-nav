@@ -262,7 +262,7 @@ export async function loadFreeBikes(): Promise<FreeBike[]> {
 
 const STATIONS_CACHE_KEY = 'radl.stations_cache'
 
-/** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek, inkl. Offline-Кэш). */
+/** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek, inkl. Offline-Puffer). */
 export async function loadStations(): Promise<Station[]> {
   try {
     const [info, status, types, fb] = (await Promise.all([
@@ -286,7 +286,7 @@ export async function loadStations(): Promise<Station[]> {
       return parsed
     }
   } catch {
-    // Ошибка сети — пробуем достать из оффлайн-кэша
+    // Netzfehler — unten den Offline-Puffer versuchen
   }
 
   try {

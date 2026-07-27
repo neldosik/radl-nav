@@ -1,139 +1,125 @@
-# 🚲 Radl Navi — велик (MyRadl) + MVV
+# 🚲 Radl Navi — MyRadl + MVV
 
-Мюнхенский мультимодальный навигатор: строит маршруты «пешком → велик MyRadl →
-общественный транспорт» с живым наличием великов и контролем бесплатных 30 минут.
-То, чего нет ни в Google Maps, ни в MVGO.
+Multimodaler Routenplaner für München: verbindet **Fußweg → MyRadl-Rad → ÖPNV**
+zu einer durchgehenden Route, mit Live-Verfügbarkeit der Räder und einem Blick
+auf die 30 Freiminuten. Diese Kombination bieten weder Google Maps noch MVGO.
 
-**Дизайн:** modernist / Swiss-бруталист (из Claude Design `RadlNavi.dc.html`) —
-светлый фон `#f3f2f2`, красный акцент `#ec3013`, шрифт Archivo 800, острые углы,
-2px-разделители, крупная типографика, SVG-иконки, **немецкий UI**. Токены живут в
-`src/index.css`, иконки в `src/icons.tsx`.
+Privates, nicht-kommerzielles Projekt. **Kein Backend**: statische PWA, alle
+verwendeten Schnittstellen sind offen und liefern CORS `*`.
 
-**Без бэкенда**: статичная PWA, все API открытые и с CORS `*`.
+**Live: https://neldosik.github.io/radl-nav/** (GitHub Pages, Zweig `gh-pages`)
 
-**Живёт здесь: https://neldosik.github.io/radl-nav/** (GitHub Pages, ветка `gh-pages`).
+**Gestaltung** „Papier & Petrol": warme Papierflächen (`#f4f1ea`), Petrol als
+Akzent für alles Kostenlose (`#1f7a6f`), Terracotta für alles Kostenpflichtige
+(`#b4552a`), Newsreader für Zahlen und Überschriften, Public Sans für den Rest.
+Deutschsprachige Oberfläche mit englischer Umschaltung. Gestaltungsvariablen in
+`src/index.css`, Symbole in `src/icons.tsx`.
 
-## Запуск
+## Entwicklung
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173/radl-nav/
-npm test           # 126 тестов расчётной логики (vitest)
-npm run deploy     # build + коммит в gh-pages → прод обновится за ~1 мин
+npm run dev        # http://localhost:5173/
+npm test           # 126 Tests der Rechenlogik (vitest)
+npm run build      # Produktionsbündel nach dist/
 ```
 
-### Деплой и откат
+### Veröffentlichen und zurückrollen
 
-`gh-pages` подключена как отдельное рабочее дерево (`git worktree`) в `.gh-pages/`.
-Каждый деплой — обычный коммит сверху, push без `-f`, история сохраняется.
+`gh-pages` hängt als eigenes Arbeitsverzeichnis (`git worktree`) unter
+`.gh-pages/`. Jedes Deployment ist ein normaler Commit obendrauf, der Push
+kommt ohne `-f` aus, die Historie bleibt erhalten.
 
 ```bash
-npm run deploy                    # собрать и выложить
-npm run deploy:list               # последние 20 деплоев: время + исходный коммит
-npm run deploy:rollback           # на один деплой назад
-npm run deploy:rollback -- a1b2c3 # на конкретный деплой
+npm run deploy                    # bauen und veröffentlichen
+npm run deploy:list               # letzte 20 Deployments: Zeit und Quell-Commit
+npm run deploy:rollback           # ein Deployment zurück
+npm run deploy:rollback -- a1b2c3 # auf ein bestimmtes Deployment
 ```
 
-Откат не переписывает историю: старое дерево файлов кладётся **новым** коммитом
-сверху. Видно, когда откатывались, и откат отката — та же команда.
+Der Rollback schreibt keine Historie um: der alte Dateibaum wird als **neuer**
+Commit obenauf gelegt. So bleibt nachvollziehbar, wann zurückgegangen wurde,
+und der Rollback des Rollbacks ist derselbe Handgriff.
 
-Скрипт умеет `DEPLOY_REMOTE=<remote>` — полезно, чтобы прогнать деплой на
-тестовый remote, не трогая прод.
+Mit `DEPLOY_REMOTE=<remote>` lässt sich ein Deployment gegen ein Testrepository
+fahren, ohne die Produktion anzufassen.
 
-## Структура
+## Aufbau
 
-| Файл | Ответственность |
+| Datei | Zuständigkeit |
 |---|---|
-| `src/gbfs.ts` | чистые парсеры GBFS: разделение обычных/электро, отсев станционных великов |
-| `src/stats.ts` | калории (MET), CO₂ по километрам, стоимость аренды — по отдельности для e-bike и обычного |
-| `src/hooks/useWakeLock.ts` | экран не гаснет: Capacitor KeepAwake → Wake Lock API → видео-заглушка |
-| `src/geo.ts` | расстояния, ближайшие станции, разбор группы по станциям, кластеризация |
-| `src/routing.ts` | правила маршрутов: фильтры (MyRadl, лимит времени, e-bike), веломарафон, поиск |
-| `src/api.ts` | только сеть: Transitous, GBFS, Open-Meteo |
-| `src/hooks/useJourney.ts` | Los-Modus: GPS, wake lock, автопереход этапов |
-| `src/hooks/useTheme.ts` | светлая/тёмная тема |
-| `src/history.ts` | журнал поездок и статистика (localStorage) |
-| `src/notify.ts` | напоминание «пора сдавать велик» (LocalNotifications / Notification API) |
-| `src/App.tsx` | композиция экранов и состояние поиска |
+| `src/gbfs.ts` | reine GBFS-Parser: Standardräder von E-Bikes trennen, Stationsräder nicht doppelt zählen |
+| `src/geo.ts` | Entfernungen, nächstgelegene Stationen, Abholplanung für Gruppen, Verdichtung freier Räder |
+| `src/routing.ts` | Routenregeln: Filter (nur MyRadl, Zeitlimit, Radtyp), Rückgabestation, Suche |
+| `src/stats.ts` | Kalorien (MET), CO₂ über die Strecke, Leihkosten — getrennt für E-Bike und Standardrad |
+| `src/notify.ts` | Erinnerung „Rad zurückgeben" (LocalNotifications bzw. Notification API) |
+| `src/api.ts` | ausschließlich Netz: Transitous, GBFS, Open-Meteo |
+| `src/history.ts` | Fahrtenbuch und Statistik (localStorage) |
+| `src/hooks/useJourney.ts` | Los-Modus: GPS, Etappenwechsel, Bildschirm wachhalten |
+| `src/hooks/useWakeLock.ts` | Bildschirm an: Capacitor KeepAwake → Wake Lock API → Video-Notnagel |
+| `src/hooks/useTheme.ts` | heller und dunkler Modus |
+| `src/App.tsx` | Zusammensetzen der Ansichten und Zustand der Suche |
 
-Тестами покрыта расчётная логика (`gbfs`, `geo`, `routing`, `stats`, `notify`, `format`, `polyline`) —
-там, где ошибка не видна глазами: подсчёт великов, бесплатные 30 минут, фильтры маршрутов.
+Getestet ist die Rechenlogik (`gbfs`, `geo`, `routing`, `stats`, `notify`,
+`format`, `polyline`) — dort, wo ein Fehler nicht ins Auge fällt: Zählung der
+Räder, die 30 Freiminuten, die Routenfilter.
 
-## Данные
+## Datenquellen
 
-| Источник | Что даёт | Примечания |
+| Quelle | Liefert | Anmerkung |
 |---|---|---|
-| `api.transitous.org/api/v5/plan` | интермодальный роутинг (MOTIS, вся Германия) | без ключа; fair-use, некоммерческое; нужен вменяемый User-Agent при серверном использовании |
-| `api.transitous.org/api/v1/geocode` | автокомплит адресов/остановок | `place=48.137,11.575&placeBias=3` — иначе результаты не мюнхенские |
-| `gbfs.nextbike.net/.../nextbike_ml/de/*` | станции MyRadl + живое наличие (ttl 60 с) | e-bike отличаем по `propulsion_type != human` |
-| `.../free_bike_status.json` | свободностоящие велики (~4300, из них ~1200 электро) | **обязательно** учитывать: только станций мало. Брать можно, возвращать — лишь на станции (иначе 20 €) |
-| Google Maps deep-links | turn-by-turn по каждому этапу | `/maps/dir/?api=1&travelmode=bicycling\|walking\|transit` |
+| `api.transitous.org/api/v5/plan` | intermodales Routing (MOTIS, deutschlandweit) | ohne Schlüssel; Fair Use, nicht-kommerziell |
+| `api.transitous.org/api/v1/geocode` | Adress- und Haltestellensuche | `place=48.137,11.575&placeBias=3` — sonst schlägt Duisburg Münchner Haltestellen |
+| `gbfs.nextbike.net/.../nextbike_ml/de/*` | MyRadl-Stationen und Live-Bestand (ttl 60 s) | E-Bikes über `propulsion_type != human` |
+| `.../free_bike_status.json` | Fahrzeugliste | 4682 Einträge, davon 422 wirklich freistehend — die übrigen stehen an Stationen und sind bereits in `station_status` enthalten (Stand 27.07.2026) |
+| Google-Maps-Deeplinks | Turn-by-turn je Etappe | `/maps/dir/?api=1&travelmode=bicycling\|walking\|transit` |
 
-### Критичные параметры plan
+### Wichtige Parameter für `plan`
 
-- `preTransitRentalFormFactors=BICYCLE` (+ `post`, `direct`) — **обязательно**, иначе MOTIS суёт самокаты Dott в каждый маршрут;
-- `maxPre/PostTransitTime=1800` — вело-подвоз до 30 мин (дефолт 15);
-- `maxDirectTime=2700` — иначе прямые вело-варианты пропадают;
-- полилинии: Google polyline, **precision 6** (API v2+).
+- `preTransitRentalFormFactors=BICYCLE` (samt `post` und `direct`) — **notwendig**, sonst setzt MOTIS Dott-Roller in jede Route;
+- `maxPre/PostTransitTime=1800` — Radzubringer bis 30 Minuten statt der voreingestellten 15;
+- `maxDirectTime=2700` — sonst fallen reine Radrouten weg;
+- Polylinien: Google Polyline, **Precision 6** (ab API v2).
 
-### `returnConstraint` — почему MOTIS вёл к свободному велику (проверено 27.07.2026)
+### `returnConstraint`: warum die Navigation zum falschen Ziel führte (geprüft 27.07.2026)
 
-MOTIS берёт правило возврата из GBFS. Для свободностоящих великов nextbike
-отдаёт `returnConstraint: NONE` — «бросай где хочешь», — и MOTIS завершает
-вело-этап в произвольной точке; на практике ровно там, где стоит **другой**
-свободный велик. Замер на живом ответе: конец этапа 0 м до свободного велика и
-317 м до ближайшей станции. Для MyRadl это неверно — вне станции 20 € штрафа.
+MOTIS übernimmt die Rückgaberegel aus dem GBFS-Feed. Für freistehende Räder
+steht dort `returnConstraint: NONE` — „überall abstellbar" —, woraufhin MOTIS
+die Radetappe an einem beliebigen Punkt beendet; in der Praxis genau dort, wo
+ein **anderes** freistehendes Rad steht. Messung an einer echten Antwort:
+Etappenende 0 m vom nächsten freien Rad entfernt, 317 m zur nächsten Station.
 
-Серверного параметра «возвращать только на станцию» в MOTIS нет
-(`ignore*RentalReturnConstraints` работает только в обратную сторону), поэтому
-чиним на клиенте: `routing.ts` перепривязывает конец такого этапа к ближайшей
-реальной станции (`returnSnapped`, радиус 1500 м), добавляет крюк в длительность
-и в лимит времени, а навигация ведёт туда (`legTarget`). Признак станции —
-`returnConstraint ∈ {ANY_STATION, ROUNDTRIP_STATION}`; `toStationName` бывает
-пустым даже у корректных этапов и годится только как запасной сигнал.
+Für MyRadl ist das falsch — außerhalb einer Station werden 20 € fällig. Einen
+Serverparameter „nur an Stationen zurückgeben" gibt es in MOTIS nicht
+(`ignore*RentalReturnConstraints` wirkt nur in die andere Richtung). Deshalb
+korrigiert `routing.ts` das clientseitig: Das Etappenende wird auf die nächste
+echte Station umgehängt (`returnSnapped`, Suchradius 1500 m), der Umweg zählt
+gegen Zeitlimit und Freiminuten, und die Navigation führt dorthin
+(`legTarget`). Maßgeblich ist `returnConstraint ∈ {ANY_STATION,
+ROUNDTRIP_STATION}`; `toStationName` ist auch bei korrekten Etappen mitunter
+leer und taugt nur als Ersatzsignal.
 
-### Офлайн и приватность
+### Offline und Datenschutz
 
-- шрифты лежат в бандле (`src/fonts`, SIL OFL) — ни одного запроса к
-  `fonts.googleapis.com`: работает без сети и не отдаёт IP пользователя Google;
-- Service Worker держит два кэша: app shell (документ + хешированные ассеты +
-  шрифты) и тайлы карты. Приложение стартует без сети, станции берутся из
-  `localStorage`-кэша;
-- стартовый бандл 81 КБ gzip, maplibre (273 КБ gzip) подгружается с первой картой.
+- Schriften liegen im Bündel (`src/fonts`, SIL Open Font License) — kein Aufruf
+  zu `fonts.googleapis.com`, also auch ohne Netz vollständig und ohne
+  IP-Weitergabe an Dritte;
+- der Service Worker hält zwei getrennte Puffer: App-Hülle (Dokument,
+  gebündelte Dateien, Schriften) und Kartenkacheln. Die App startet ohne Netz,
+  die Stationsliste kommt dann aus dem `localStorage`-Puffer;
+- Startbündel 82 kB gzip; maplibre-gl (273 kB gzip) wird erst mit der ersten
+  Karte nachgeladen.
 
-## Правила MyRadl (проверено 21.07.2026, myradl.de)
+## MyRadl-Konditionen (geprüft 21.07.2026, myradl.de)
 
-- 30 бесплатных минут на классический велик — **pro Ausleihe** (за каждую аренду), только с абонементом ÖPNV (Deutschlandticket ок); дальше 1 €/30 мин, кап 9 €/сутки;
-- e-bike платный всегда (1,50 €/30 мин с абонементом);
-- кулдауна между арендами в AGB (nextbike 04/2024) и FAQ **нет** → чейнинг великов = легальные «бесплатные марафоны»;
-- возврат только на официальных станциях, вне станции штраф 20 €;
-- резервирование в приложении: max 15 мин; до 4 великов на аккаунт.
+Die App rechnet mit diesen Regeln; sie sind an einer Stelle hinterlegt
+(`src/stats.ts`) und lassen sich dort anpassen.
 
-## Roadmap
-
-- [x] деплой (GitHub Pages) + установка на телефон (PWA);
-- [x] режим «Поехали»: пошаговое ведение, автопереход этапов по геолокации (<70 м), wake lock;
-- [x] фильтр типа велика (обычные/электро): `*RentalPropulsionTypes=HUMAN` + клиентская страховка по `rental.propulsionType`;
-- [x] GPS «Моя геолокация» с reverse-geocode (реальный адрес) прямо в поле;
-- [x] сохранённые места 🏠 Дом / 💼 Работа / 🎓 Школа + свои (localStorage `radl.saved`);
-- [x] выбор времени: Jetzt / Abfahrt / Ankunft (`time` + `arriveBy` в plan);
-- [x] навигация в Los-Modus: уличный зум + жёсткое слежение камеры за GPS;
-- [x] погодная подсказка (Open-Meteo, без ключа) — предупреждение о дожде на время поездки;
-- [x] любимые маршруты в один тап (`radl.favroutes`);
-- [x] «веломарафон»: подсказка смены велика на станции у середины длинного вело-этапа;
-- [x] живые задержки MVG (`realTime`/`scheduledStartTime`/`cancelled`) + отсчёт «Abfahrt in X»;
-- [x] выбор точки на карте (MapPicker: центральный пин + reverse-geocode);
-- [x] карта в Los-Modus почти на весь экран (~68%), панель снизу без скролла;
-- [x] таймер поездки (mm:ss в хедере) + экран прибытия «Angekommen · X Min · маршрут»;
-- [x] карта-обзор над списком маршрутов (видно путь до «Losfahren»);
-- [x] «Räder in der Nähe» — карта великов вокруг без построения маршрута;
-- [x] журнал поездок: сколько ездил, сколько на велике, сколько сэкономил;
-- [x] учёт количества великов: разбор по нескольким станциям («3 an »A« + 1 an »B««)
-      и честное «Nur X von N E-Bikes in der Nähe» + сколько рядом e-bike/обычных;
-- [ ] «веломарафон»: автосплит вело-этапа >28 мин через промежуточную станцию;
-- [ ] выбор времени отправления/прибытия (`time`, `arriveBy`);
-- [x] таймер «пора сдавать велик»: системное уведомление за 5 мин и по истечении
-      (`notify.ts`; в APK через LocalNotifications, в вебе — пока вкладка жива);
-- [ ] резервирование из приложения (исследовать nextbike booking API);
-- [ ] велик между двумя транспортными этапами (склейка двух plan-запросов через via-точку);
-- [ ] пресеты «дом/работа/универ».
+- 30 Freiminuten je Ausleihe auf dem Standardrad, nur mit ÖPNV-Abo
+  (Deutschlandticket genügt); danach 1 €/30 Min, gedeckelt bei 9 €/24 h;
+- E-Bike ist immer kostenpflichtig (1,50 €/30 Min mit Abo);
+- die Freiminuten gelten **je Ausleihe**. Bei langen Radetappen weist die App
+  deshalb auf eine Station etwa in der Mitte hin, an der sich das Rad wechseln
+  lässt — die Fahrt bleibt damit innerhalb der Freiminuten;
+- Rückgabe ausschließlich an offiziellen Stationen, außerhalb 20 € Gebühr;
+- Reservierung in der offiziellen App: max. 15 Minuten, bis zu 4 Räder je Konto.
