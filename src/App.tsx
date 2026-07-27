@@ -3,6 +3,7 @@ import PlaceInput from './components/PlaceInput'
 import ItineraryCard from './components/ItineraryCard'
 import JourneyMode from './components/JourneyMode'
 import FilterModal, { MAX_BIKES_PER_ACCOUNT } from './components/FilterModal'
+import MapGuard from './components/MapGuard'
 
 // maplibre-gl ist mit Abstand der größte Brocken im Bündel und wird erst
 // gebraucht, wenn es Ergebnisse gibt — der Startbildschirm kommt ohne aus.
@@ -189,21 +190,23 @@ export default function App() {
   if (pickOnMap) {
     return (
       <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
-        <MapPicker
-          title={pickOnMap === 'from'
-            ? (lang === 'en' ? 'Select Start on Map' : 'Startpunkt auf Karte wählen')
-            : (lang === 'en' ? 'Select Destination on Map' : 'Zielpunkt auf Karte wählen')
-          }
-          initial={pickOnMap === 'from' ? from : to}
-          theme={themeMode}
-          lang={lang}
-          onPick={p => {
-            if (pickOnMap === 'from') setFrom(p)
-            else setTo(p)
-            setPickOnMap(null)
-          }}
-          onClose={() => setPickOnMap(null)}
-        />
+        <MapGuard lang={lang}>
+          <MapPicker
+            title={pickOnMap === 'from'
+              ? (lang === 'en' ? 'Select Start on Map' : 'Startpunkt auf Karte wählen')
+              : (lang === 'en' ? 'Select Destination on Map' : 'Zielpunkt auf Karte wählen')
+            }
+            initial={pickOnMap === 'from' ? from : to}
+            theme={themeMode}
+            lang={lang}
+            onPick={p => {
+              if (pickOnMap === 'from') setFrom(p)
+              else setTo(p)
+              setPickOnMap(null)
+            }}
+            onClose={() => setPickOnMap(null)}
+          />
+        </MapGuard>
       </Suspense>
     )
   }
@@ -245,17 +248,19 @@ export default function App() {
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
         >
-          <Suspense fallback={<div className="map" />}>
-            <MapView
-              view={journeyView}
-              activeLeg={journeyLeg}
-              userPos={userPos}
-              bikesNeeded={bikes}
-              theme={themeMode}
-              follow={followMe}
-              onUserPan={() => setFollowMe(false)}
-            />
-          </Suspense>
+          <MapGuard lang={lang}>
+            <Suspense fallback={<div className="map" />}>
+              <MapView
+                view={journeyView}
+                activeLeg={journeyLeg}
+                userPos={userPos}
+                bikesNeeded={bikes}
+                theme={themeMode}
+                follow={followMe}
+                onUserPan={() => setFollowMe(false)}
+              />
+            </Suspense>
+          </MapGuard>
         </JourneyMode>
       </div>
     )
@@ -297,17 +302,19 @@ export default function App() {
     return (
       <div className="app with-tabs">
         <Suspense fallback={<div className="msg">{t('calculating', lang)}</div>}>
-          <BikeMap
-            embedded
-            userPos={userPos}
-            theme={themeMode}
-            lang={lang}
-            onSelectPlace={p => {
-              setFrom(p)
-              setTab('route')
-            }}
-            onClose={() => setTab('route')}
-          />
+          <MapGuard lang={lang}>
+            <BikeMap
+              embedded
+              userPos={userPos}
+              theme={themeMode}
+              lang={lang}
+              onSelectPlace={p => {
+                setFrom(p)
+                setTab('route')
+              }}
+              onClose={() => setTab('route')}
+            />
+          </MapGuard>
         </Suspense>
         {tabBar}
       </div>
@@ -528,9 +535,11 @@ export default function App() {
       {/* Übersichtskarte mit Wetterhinweis — wie im Entwurf über der Liste */}
       {hasResults && (
         <div className="results-map" ref={mapBoxRef}>
-          <Suspense fallback={<div className="map" />}>
-            <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
-          </Suspense>
+          <MapGuard lang={lang}>
+            <Suspense fallback={<div className="map" />}>
+              <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+            </Suspense>
+          </MapGuard>
           {weather && (
             <button
               className={`weather${weather.rain ? ' rain' : ''}`}

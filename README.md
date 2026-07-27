@@ -75,6 +75,7 @@ fahren, ohne die Produktion anzufassen.
 | `src/history.ts` | Fahrtenbuch und Statistik (localStorage) |
 | `src/hooks/useJourney.ts` | Los-Modus: GPS, Etappenwechsel, Bildschirm wachhalten |
 | `src/hooks/useWakeLock.ts` | Bildschirm an: Capacitor KeepAwake → Wake Lock API → Video-Notnagel |
+| `src/components/MapGuard.tsx` | fängt fehlendes WebGL ab — ohne Karte läuft der Rest weiter |
 | `src/hooks/useTheme.ts` | heller und dunkler Modus |
 | `src/App.tsx` | Zusammensetzen der Ansichten und Zustand der Suche |
 

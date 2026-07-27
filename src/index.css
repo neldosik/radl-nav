@@ -2378,6 +2378,42 @@ button {
   margin-bottom: 10px;
 }
 
+/* Ersatz für die Karte, wenn das Gerät kein WebGL kann. Füllt denselben Platz,
+   damit die Anordnung ringsum unverändert bleibt. */
+.map-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  text-align: center;
+  background: var(--paper);
+  border-radius: inherit;
+}
+
+.map-fallback b {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.map-fallback span {
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 30ch;
+  color: var(--muted);
+}
+
+/* Im Los-Modus und im Kartenwähler füllt die Karte den Bildschirm — dort darf
+   der Hinweis nicht absolut über allem liegen, sondern nimmt seinen Platz ein. */
+.j-map .map-fallback,
+.picker-map .map-fallback {
+  position: absolute;
+}
+
 /* Erklärender Nachsatz unter einer Auswahl (z. B. Obergrenze von MyRadl) */
 .filter-hint {
   margin-top: 8px;
