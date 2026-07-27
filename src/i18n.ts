@@ -14,7 +14,6 @@ export function saveLanguage(lang: Language) {
 export const dict = {
   de: {
     // Header & Menu
-    appName: 'RADL NAVI',
     appSub: 'MyRadl + MVV · München',
     menuTitle: 'Hauptmenü',
     // Untere Reiter
@@ -24,11 +23,9 @@ export const dict = {
     dry: 'trocken',
     lightMode: 'Heller Modus',
     darkMode: 'Dunkler Modus',
-    myTrips: 'Meine Fahrten',
     langToggle: 'Auf Englisch umschalten',
     soundOn: 'Töne an',
     soundOff: 'Töne stumm',
-    managePlaces: 'Orte verwalten',
 
     // Inputs & Presets
     von: 'VON',
@@ -44,20 +41,14 @@ export const dict = {
     now: 'Jetzt',
     depart: 'Abfahrt',
     arrive: 'Ankunft',
-    bike: 'Rad',
     standard: 'Standard',
     ebike: 'E-Bike',
-    limit: 'Limit',
     noLimit: '∞ Limit',
     saveRoute: 'Strecke merken',
-    bikesNearby: 'Räder in der Nähe',
     routeBtn: 'Route',
     change: 'Ändern',
 
     // Badges & Filters
-    fastest: 'Schnellste',
-    free100: '100 % gratis',
-    fewestTransfers: 'Wenigste Umstiege',
 
     // Filter Modal
     filterTitle: 'Rad-Filter & Zeitlimit',
@@ -75,8 +66,6 @@ export const dict = {
     retry: 'Erneut versuchen',
 
     // Navigation & Map
-    borrowBtn: 'Leihen',
-    startAsPoint: 'Als Start übernehmen',
 
     // BikeMap
     bmTitle: 'Räder in der Nähe',
@@ -94,8 +83,6 @@ export const dict = {
     bmEmptyHint: 'Tippe auf einen Pin — Details & Räder anzeigen',
 
     // JourneyMode
-    jmGoMode: 'Los-Modus',
-    jmLeg: 'ETAPPE',
     jmEnd: 'ENDE',
     jmPrev: 'Vorherige',
     jmNext: 'Nächste',
@@ -121,16 +108,8 @@ export const dict = {
     histSaved: 'gespart',
     histWeekTitle: 'Wochenübersicht (Rad-Minuten):',
     histEmpty: 'Noch keine Fahrten. Nach „Angekommen" landet jede Fahrt hier — nur auf diesem Gerät.',
-    histClear: 'Verlauf löschen',
 
     // ItineraryCard
-    freeWithSub: '0 € mit Deutschlandticket',
-    eBikeCost: 'E-Bike · 1,50 €/30 Min',
-    bikeTooLong: 'Rad länger als 30 Freiminuten',
-    direction: 'Richtung:',
-    startNav: 'LOS — Navigation starten',
-    departNow: 'Abfahrt jetzt',
-    departIn: 'Abfahrt in',
 
     // PlaceInput
     myLocation: 'Mein Standort',
@@ -150,7 +129,6 @@ export const dict = {
   },
   en: {
     // Header & Menu
-    appName: 'RADL NAVI',
     appSub: 'MyRadl + MVV · Munich',
     menuTitle: 'Main Menu',
     // Bottom tabs
@@ -160,11 +138,9 @@ export const dict = {
     dry: 'dry',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
-    myTrips: 'My Trips',
     langToggle: 'Switch to German',
     soundOn: 'Sound on',
     soundOff: 'Mute sound',
-    managePlaces: 'Manage Places',
 
     // Inputs & Presets
     von: 'FROM',
@@ -180,20 +156,14 @@ export const dict = {
     now: 'Now',
     depart: 'Depart',
     arrive: 'Arrive',
-    bike: 'Bike',
     standard: 'Standard',
     ebike: 'E-Bike',
-    limit: 'Limit',
     noLimit: '∞ Unlimited',
     saveRoute: 'Save Route',
-    bikesNearby: 'Bikes Nearby',
     routeBtn: 'Route',
     change: 'Change',
 
     // Badges & Filters
-    fastest: 'Fastest',
-    free100: '100 % free',
-    fewestTransfers: 'Fewest Transfers',
 
     // Filter Modal
     filterTitle: 'Bike Filter & Time Limit',
@@ -211,8 +181,6 @@ export const dict = {
     retry: 'Retry',
 
     // Navigation & Map
-    borrowBtn: 'Rent',
-    startAsPoint: 'Set as Start',
 
     // BikeMap
     bmTitle: 'Bikes Nearby',
@@ -230,8 +198,6 @@ export const dict = {
     bmEmptyHint: 'Tap a pin — see details & bikes',
 
     // JourneyMode
-    jmGoMode: 'Go Mode',
-    jmLeg: 'LEG',
     jmEnd: 'END',
     jmPrev: 'Previous',
     jmNext: 'Next',
@@ -257,16 +223,8 @@ export const dict = {
     histSaved: 'saved',
     histWeekTitle: 'Weekly overview (bike minutes):',
     histEmpty: 'No trips yet. After pressing "Arrived" each trip appears here — only on this device.',
-    histClear: 'Clear history',
 
     // ItineraryCard
-    freeWithSub: '0 € with subscription',
-    eBikeCost: 'E-Bike · €1.50/30 min',
-    bikeTooLong: 'Bike ride > 30 free mins',
-    direction: 'Direction:',
-    startNav: 'GO — Start Navigation',
-    departNow: 'Depart now',
-    departIn: 'Depart in',
 
     // PlaceInput
     myLocation: 'My Location',

@@ -6,7 +6,10 @@ import App from './App.tsx'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+    // Absolut '/sw.js' zeigte auf die Domainwurzel — unter /radl-nav/ war das
+    // eine 404, der Worker war nie registriert. BASE_URL trifft beide Fälle
+    // (GitHub Pages im Unterordner und die Capacitor-WebView).
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {})
   })
 }
 

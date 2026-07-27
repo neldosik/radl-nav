@@ -131,6 +131,7 @@ export default function PlaceInput({ placeholder, value, lang = 'de', onSelect, 
         className="in-field"
         value={text}
         placeholder={placeholder}
+        aria-label={placeholder}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 200)}

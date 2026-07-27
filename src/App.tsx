@@ -19,7 +19,7 @@ import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, re
 import type { FavRoute, SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, RainIcon, SendIcon, SettingsIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
 import type { ItineraryView, Place } from './types'
-import { loadLanguage, saveLanguage, t } from './i18n'
+import { dict, loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
 
 export default function App() {
@@ -152,7 +152,11 @@ export default function App() {
       }
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
-        const isNetwork = !navigator.onLine || e?.message?.includes('fetch') || e?.message?.includes('network')
+        const isNetwork =
+          !navigator.onLine ||
+          e?.name === 'TimeoutError' ||
+          e?.message?.includes('fetch') ||
+          e?.message?.includes('network')
         setError(isNetwork ? t('networkError', lang) : (e?.message ?? t('noRoutesFound', lang)))
       }
     } finally {
@@ -615,6 +619,12 @@ export default function App() {
               <button className="filter-modal-close" onClick={() => setShowWeatherModal(false)}>
                 <CloseIcon size={13} />
               </button>
+            </div>
+
+            <div className={`weather-advice${weather.rain ? ' rain' : ''}`}>
+              {weather.rain
+                ? dict[lang].weatherRain(weather.timeLabel, weather.precip.toFixed(1), weather.temp)
+                : dict[lang].weatherDry(weather.timeLabel, weather.temp)}
             </div>
 
             <div className="weather-hourly-list">

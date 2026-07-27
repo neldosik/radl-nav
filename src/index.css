@@ -9,7 +9,7 @@
   --card: #fffdf8; /* Karten und Blätter */
   --ink: #24211c; /* Text */
   --muted: #6b6459; /* Nebentext */
-  --faint: #7d7368; /* inaktiv — #9a9287 kam auf --paper nur auf 2,6:1 */
+  --faint: #756b60; /* inaktiv — 4,62:1 auf Papier; #7d7368 lag mit 4,11 unter AA */
   --accent: #1f7a6f; /* Petrol — gratis, aktiv, Rad */
   --accent-deep: #17594f;
   --accent-soft: rgba(31, 122, 111, 0.12);
@@ -2501,6 +2501,23 @@ button {
 .achieve-badge.locked {
   color: var(--faint);
   opacity: 0.8;
+}
+
+/* Rat zur Fahrt — Uhrzeit der Vorhersage plus Empfehlung */
+.weather-advice {
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border-radius: var(--r-card);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.weather-advice.rain {
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 /* Stündlicher Wetterverlauf */

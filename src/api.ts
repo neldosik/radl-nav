@@ -6,13 +6,25 @@ const MOTIS = 'https://api.transitous.org/api'
 const GBFS = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_ml/de'
 const MUNICH_CENTER = '48.137,11.575'
 
+/** Netzaufruf mit Zeitgrenze. Ohne sie blieb der Ladezustand hängen, wenn ein
+ *  Dienst nicht antwortet — abgebrochen wird auch weiterhin über `signal`. */
+const REQUEST_TIMEOUT_MS = 20_000
+/** Die Routensuche bei Transitous ist der schwere Aufruf: meist ~2 s, unter
+ *  Last aber auch mal über 20 s. Sie bekommt deshalb mehr Luft als die
+ *  kleinen Abfragen (Geocode, Wetter, GBFS). */
+const PLAN_TIMEOUT_MS = 45_000
+function withTimeout(signal?: AbortSignal, ms = REQUEST_TIMEOUT_MS): AbortSignal {
+  const limit = AbortSignal.timeout(ms)
+  return signal ? AbortSignal.any([signal, limit]) : limit
+}
+
 export async function geocode(text: string, signal?: AbortSignal): Promise<GeocodeMatch[]> {
   const u = new URL(`${MOTIS}/v1/geocode`)
   u.searchParams.set('text', text)
   u.searchParams.set('language', 'de')
   u.searchParams.set('place', MUNICH_CENTER)
   u.searchParams.set('placeBias', '3') // ohne dies schlägt Duisburg Münchner Haltestellen
-  const r = await fetch(u, { signal })
+  const r = await fetch(u, { signal: withTimeout(signal) })
   if (!r.ok) throw new Error(`geocode HTTP ${r.status}`)
   return r.json()
 }
@@ -21,7 +33,7 @@ export async function geocode(text: string, signal?: AbortSignal): Promise<Geoco
 export async function reverseGeocode(lat: number, lon: number, signal?: AbortSignal): Promise<string> {
   const u = new URL(`${MOTIS}/v1/reverse-geocode`)
   u.searchParams.set('place', `${lat},${lon}`)
-  const r = await fetch(u, { signal })
+  const r = await fetch(u, { signal: withTimeout(signal) })
   if (!r.ok) throw new Error(`reverse HTTP ${r.status}`)
   const arr = (await r.json()) as GeocodeMatch[]
   return arr?.[0]?.name ?? 'Mein Standort'
@@ -65,7 +77,7 @@ export async function fetchElevationProfile(pts: [number, number][], signal?: Ab
     const u = new URL('https://api.open-meteo.com/v1/elevation')
     u.searchParams.set('latitude', lats)
     u.searchParams.set('longitude', lons)
-    const r = await fetch(u, { signal })
+    const r = await fetch(u, { signal: withTimeout(signal) })
     if (!r.ok) return null
     const d = await r.json()
     const elevations: number[] = d?.elevation ?? []
@@ -93,7 +105,7 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
   u.searchParams.set('hourly', 'temperature_2m,precipitation')
   u.searchParams.set('forecast_days', '2')
   u.searchParams.set('timezone', 'auto')
-  const r = await fetch(u)
+  const r = await fetch(u, { signal: withTimeout() })
   if (!r.ok) return null
   const d = await r.json()
   const times: string[] = d?.hourly?.time ?? []
@@ -194,19 +206,42 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal
     // mit Reserve: ein Teil der Optionen wird durch Kunden-Radzeit-Limit gefiltert
     u.searchParams.set('numItineraries', '7')
   }
-  const r = await fetch(u, { signal })
+  const r = await fetch(u, { signal: withTimeout(signal, PLAN_TIMEOUT_MS) })
   if (!r.ok) throw new Error(`plan HTTP ${r.status}`)
   return r.json()
 }
 
+/** Kurzlebiger Puffer je Feed. loadStations() und loadFreeBikes() laufen bei
+ *  jeder Suche parallel und holten beide `free_bike_status` (1,7 MB) und
+ *  `vehicle_types` — also 1,7 MB doppelt pro Suche. Der Feed hat laut GBFS
+ *  ohnehin ttl 60, häufiger als alle 30 s lohnt kein neuer Abruf. */
+const FEED_TTL_MS = 30_000
+const feedCache = new Map<string, { at: number; value: unknown }>()
+const feedInFlight = new Map<string, Promise<unknown>>()
+
 /** Holt einen GBFS-Feed; bei Fehler null statt Exception. */
 async function gbfs(feed: string): Promise<unknown> {
-  try {
-    const r = await fetch(`${GBFS}/${feed}.json`)
-    return r.ok ? await r.json() : null
-  } catch {
-    return null
-  }
+  const cached = feedCache.get(feed)
+  if (cached && Date.now() - cached.at < FEED_TTL_MS) return cached.value
+
+  const running = feedInFlight.get(feed)
+  if (running) return running
+
+  const task = (async () => {
+    try {
+      const r = await fetch(`${GBFS}/${feed}.json`, { signal: AbortSignal.timeout(20_000) })
+      const value = r.ok ? await r.json() : null
+      if (value != null) feedCache.set(feed, { at: Date.now(), value })
+      return value
+    } catch {
+      return null
+    } finally {
+      feedInFlight.delete(feed)
+    }
+  })()
+
+  feedInFlight.set(feed, task)
+  return task
 }
 
 type FeedData = { data?: Record<string, unknown> } | null
