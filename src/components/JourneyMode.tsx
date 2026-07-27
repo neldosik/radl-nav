@@ -53,8 +53,11 @@ interface Props {
   onGoTo?: (i: number) => void
   onArrive: () => void
   onExit: () => void
-  /** Route ab dem aktuellen Standort neu berechnen */
+  /** Route ab dem aktuellen Standort neu berechnen — wird automatisch
+   *  ausgelöst, sobald man von der Linie abkommt. */
   onReroute?: () => void
+  /** Läuft die Neuberechnung gerade? */
+  rerouting?: boolean
   /** Kamera folgt dem Standort? */
   follow?: boolean
   onToggleFollow?: () => void
@@ -107,6 +110,7 @@ export default function JourneyMode({
   follow = true,
   onToggleFollow,
   onReroute,
+  rerouting = false,
   children,
 }: Props) {
   const legs = view.it.legs
@@ -198,6 +202,39 @@ export default function JourneyMode({
     }
   }, [bikeSec, isBikeLeg])
 
+  // ── Standort auf die Etappenlinie projizieren ──
+  // Muss vor dem Ankunftsscreen stehen: darunter kehrt die Komponente früh
+  // zurück, und ein Hook dahinter liefe nicht bei jedem Rendern.
+  const posVeraltet = posStale || gpsError != null
+  const projektion =
+    userPos && !posVeraltet && leg?.legGeometry?.points
+      ? projectOnPath(
+          decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
+            lat,
+            lon,
+          })),
+          userPos,
+        )
+      : null
+  // Restzeit der laufenden Etappe. Ohne brauchbaren Standort bleibt es bei der
+  // Gesamtdauer — eine geratene Restzeit wäre schlechter als gar keine.
+  const restMin =
+    projektion == null || !leg ? null : Math.max(1, Math.round((leg.duration * projektion.share) / 60))
+  const zeigtRest = restMin != null && !!leg && restMin < mins(leg.duration)
+
+  // Abseits der Route? Erst nach mehreren Messungen hintereinander, sonst
+  // löst ein einzelner GPS-Ausreißer zwischen Häusern schon aus.
+  const abseits = projektion != null && projektion.dist > OFF_ROUTE_M
+  if (projektion != null) abseitsZaehler.current = abseits ? abseitsZaehler.current + 1 : 0
+  const abgekommen = !arrived && abseitsZaehler.current >= OFF_ROUTE_FIXES
+
+  // Automatisch neu rechnen. Der Mindestabstand zwischen zwei Läufen sitzt in
+  // App, damit ein zappelndes GPS den freien Dienst nicht im Sekundentakt fragt.
+  useEffect(() => {
+    if (abgekommen && onReroute && !rerouting) onReroute()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abgekommen, rerouting])
+
   // ── Ankunftsscreen ──
   if (arrived) {
     // Echte Etappendauern und -längen statt pauschal 15 Min je Radetappe;
@@ -260,28 +297,6 @@ export default function JourneyMode({
   // Ohne frischen Fix ist die Zahl geraten — dann lieber kein Wert als ein
   // falscher. Vorher blieb im Tunnel „300 m" stehen, während man weiterfuhr.
   const distVeraltet = posStale || gpsError != null
-
-  // Restzeit der laufenden Etappe. Ohne brauchbaren Standort bleibt es bei der
-  // Gesamtdauer — eine geratene Restzeit wäre schlechter als gar keine.
-  const projektion =
-    userPos && !distVeraltet && leg.legGeometry?.points
-      ? projectOnPath(
-          decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
-            lat,
-            lon,
-          })),
-          userPos,
-        )
-      : null
-  const restMin =
-    projektion == null ? null : Math.max(1, Math.round((leg.duration * projektion.share) / 60))
-  const zeigtRest = restMin != null && restMin < mins(leg.duration)
-
-  // Abseits der Route? Erst nach mehreren Messungen hintereinander, sonst
-  // löst ein einzelner GPS-Ausreißer zwischen Häusern schon den Hinweis aus.
-  const abseits = projektion != null && projektion.dist > OFF_ROUTE_M
-  if (projektion != null) abseitsZaehler.current = abseits ? abseitsZaehler.current + 1 : 0
-  const zeigtNeuBerechnen = !!onReroute && abseitsZaehler.current >= OFF_ROUTE_FIXES
 
   // Kurzer Hinweis zur aktuellen Etappe
   let infoLine: string | null = null
@@ -361,14 +376,17 @@ export default function JourneyMode({
           </button>
         </div>
 
-        {zeigtNeuBerechnen ? (
+        {rerouting ? (
+          <div className="timer-banner off-route">
+            <span>
+              <TargetIcon size={14} /> {t('jmRerouting', lang)}
+            </span>
+          </div>
+        ) : abgekommen ? (
           <div className="timer-banner urgent off-route">
             <span>
               <TargetIcon size={14} /> {t('jmOffRoute', lang)}
             </span>
-            <button className="off-route-btn" onClick={onReroute}>
-              {t('jmReroute', lang)}
-            </button>
           </div>
         ) : gpsError || posStale ? (
           <div className="timer-banner urgent">

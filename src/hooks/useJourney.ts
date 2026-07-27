@@ -38,6 +38,9 @@ export interface Journey {
   start: () => void
   exit: () => void
   goTo: (i: number) => void
+  /** Nach einer Neuberechnung weiterfahren: ohne Handgriff-Pause und ohne
+   *  die Fahrzeit zurückzusetzen — die Fahrt läuft ja weiter. */
+  continueOn: (i: number) => void
   markArrived: () => void
   setUserPos: (p: UserPos | null) => void
 }
@@ -141,6 +144,11 @@ export function useJourney(view: ItineraryView | null): Journey {
     },
     goTo: (i: number) => {
       manuellBis.current = Date.now() + MANUAL_HOLD_MS
+      setLegIndex(i)
+    },
+    continueOn: (i: number) => {
+      manuellBis.current = 0
+      setArrived(false)
       setLegIndex(i)
     },
     markArrived: () => setArrived(true),

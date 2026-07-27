@@ -82,6 +82,15 @@ export default function App() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null)
+  /** Läuft gerade eine automatische Neuberechnung? Dann darf der Effekt
+   *  unten den Los-Modus nicht beenden — die Fahrt geht weiter. */
+  const rerouting = useRef(false)
+  /** Wann zuletzt automatisch neu berechnet wurde. */
+  const letzteNeuberechnung = useRef(0)
+  /** Die Trefferliste, auf die weitergefahren werden soll. Daran erkennt der
+   *  Effekt unten den Abschluss der Neuberechnung. */
+  const rerouteZiel = useRef<ItineraryView[] | null>(null)
+  const [rerouteLaeuft, setRerouteLaeuft] = useState(false)
   const mapBoxRef = useRef<HTMLDivElement>(null)
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
   const [presetHint, setPresetHint] = useState<string | null>(null)
@@ -140,6 +149,18 @@ export default function App() {
   const journeyView = journeyLeg != null ? selectedView : null
 
   useEffect(() => {
+    // Beim Neuberechnen bleibt die Navigation an: die neue Liste ist ja der
+    // Ersatz für die Route, auf der man gerade unterwegs ist. Die Sperre fällt
+    // erst, wenn genau diese Liste angekommen ist — `search` setzt zwischendurch
+    // `views` auf null, und ein früheres Zurücksetzen hätte den Los-Modus
+    // beendet, bevor React den Effekt überhaupt gerechnet hat.
+    if (rerouting.current) {
+      if (views && views === rerouteZiel.current) {
+        rerouting.current = false
+        rerouteZiel.current = null
+      }
+      return
+    }
     journey.exit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, views])
@@ -174,8 +195,8 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedView, from?.lat, from?.lon])
 
-  async function search(f: Place | null = from, tPl: Place | null = to) {
-    if (!f || !tPl) return
+  async function search(f: Place | null = from, tPl: Place | null = to): Promise<ItineraryView[] | null> {
+    if (!f || !tPl) return null
     searchCtrl.current?.abort()
     const ctrl = new AbortController()
     searchCtrl.current = ctrl
@@ -187,7 +208,7 @@ export default function App() {
     const timeOpts = when ? { time: when, arriveBy: timeMode === 'arrive' } : {}
     try {
       const [stations, freeBikes] = await Promise.all([loadStations(), loadFreeBikes()])
-      if (ctrl.signal.aborted) return
+      if (ctrl.signal.aborted) return null
       const supply = [...stations, ...clusterFreeBikes(freeBikes)]
       const list = await searchRoutes(f, tPl, {
         stations,
@@ -197,7 +218,7 @@ export default function App() {
         time: timeOpts,
         signal: ctrl.signal,
       })
-      if (ctrl.signal.aborted) return
+      if (ctrl.signal.aborted) return null
       setViews(list)
       setSearchedWith(sucheSchluessel(f, tPl, maxBike, bikeType, bikes))
       setSearchedAt(Date.now())
@@ -206,6 +227,7 @@ export default function App() {
       if (list.length) setSearchOpen(false)
       // Das Wetter holt der Effekt unten — es gehört zur *ausgewählten* Route,
       // nicht dauerhaft zur ersten.
+      return list
     } catch (e: unknown) {
       if ((e as Error)?.name !== 'AbortError') {
         // Nicht mehr über den Meldungstext raten: in Safari heißt ein
@@ -218,6 +240,44 @@ export default function App() {
       }
     } finally {
       if (!ctrl.signal.aborted) setLoading(false)
+    }
+    return null
+  }
+
+  /** Mindestabstand zwischen zwei automatischen Neuberechnungen. Transitous
+   *  ist ein freier Dienst; ohne Sperre feuert ein zappelndes GPS im
+   *  Sekundentakt. */
+  const REROUTE_COOLDOWN_MS = 45_000
+
+  /**
+   * Route ab dem aktuellen Standort neu berechnen und *weiterfahren* — die
+   * Navigation soll nicht in die Ergebnisliste zurückfallen.
+   */
+  async function reroute() {
+    if (!userPos || !to || rerouting.current) return
+    if (!navigator.onLine) return
+    if (Date.now() - letzteNeuberechnung.current < REROUTE_COOLDOWN_MS) return
+
+    letzteNeuberechnung.current = Date.now()
+    rerouting.current = true
+    setRerouteLaeuft(true)
+    const hier = { name: t('myLocation', lang), lat: userPos.lat, lon: userPos.lon }
+    setFrom(hier)
+    try {
+      const liste = await search(hier, to)
+      if (liste && liste.length) {
+        // Auf der neuen besten Route weiterfahren: Fahrzeit läuft weiter,
+        // die automatische Etappenschaltung bleibt scharf.
+        rerouteZiel.current = liste
+        journey.continueOn(0)
+      } else {
+        // Nichts gefunden — dann lieber die Liste zeigen als stumm bleiben.
+        rerouting.current = false
+        rerouteZiel.current = null
+        journey.exit()
+      }
+    } finally {
+      setRerouteLaeuft(false)
     }
   }
 
@@ -305,18 +365,8 @@ export default function App() {
             journey.markArrived()
           }}
           onExit={journey.exit}
-          onReroute={() => {
-            // Ab dem aktuellen Standort neu suchen. Bewusst auf Knopfdruck statt
-            // automatisch: Transitous ist ein freier Dienst, und bei einer
-            // ÖPNV-Route wirft ein Neustart womöglich die Verbindung um, die
-            // man gerade noch erreichen würde.
-            if (!userPos || !to) return
-            journey.exit()
-            const hier = { name: t('myLocation', lang), lat: userPos.lat, lon: userPos.lon }
-            setFrom(hier)
-            setSearchOpen(false)
-            search(hier, to)
-          }}
+          onReroute={reroute}
+          rerouting={rerouteLaeuft}
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
         >
