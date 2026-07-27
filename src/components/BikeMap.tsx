@@ -140,6 +140,38 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
   return ctx.getImageData(0, 0, w * dpr, h * dpr)
 }
 
+/**
+ * Zurück-Geste/Zurück-Taste schließt diese Ansicht.
+ *
+ * Zwei Fehler steckten hier: Der Effekt hing an `onClose`, das in App.tsx als
+ * Inline-Funktion übergeben wird — bei jedem Rerender (die Uhr tickt alle
+ * 30 s) lief er erneut und schob einen weiteren History-Eintrag nach. Nach
+ * fünf Minuten brauchte es zehn Drücke auf „Zurück", bis etwas passierte.
+ * Und beim Schließen über X oder Auswahl blieb der Eintrag liegen, sodass der
+ * nächste Zurück-Druck ins Leere ging.
+ */
+function useBackToClose(onClose: () => void) {
+  const schliessen = useRef(onClose)
+  schliessen.current = onClose
+  /** Haben wir den Eintrag schon zurückgenommen? */
+  const konsumiert = useRef(false)
+
+  useEffect(() => {
+    window.history.pushState({ radlOverlay: true }, '')
+    const onPop = () => {
+      konsumiert.current = true
+      schliessen.current()
+    }
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      // Regulär geschlossen (X, Auswahl, Reiterwechsel): eigenen Eintrag
+      // zurücknehmen, sonst verpufft der nächste Zurück-Druck.
+      if (!konsumiert.current) window.history.back()
+    }
+  }, [])
+}
+
 export default function BikeMap({
   userPos,
   theme = 'light',
@@ -163,6 +195,10 @@ export default function BikeMap({
    *  Nachbarbezirk schob, bekam dort keine Pins, obwohl die Daten für ganz
    *  München längst im Speicher lagen. */
   const [mapCenter, setMapCenter] = useState<LatLon | null>(null)
+  /** Welche Pillen-Symbole gerade im Sprite-Atlas liegen. Jede Kombination aus
+   *  Radzahl, E-Bike-Zahl, Filter und Auswahl erzeugt eine eigene Grafik von
+   *  gut 26 kB; ohne Freigabe wuchs der Atlas über die ganze Sitzung an. */
+  const iconIds = useRef<Set<string>>(new Set())
   const home = here ?? MUNICH
   const center = mapCenter ?? home
 
@@ -177,17 +213,7 @@ export default function BikeMap({
     }
   }, [userPos])
 
-  // Geste / Zurück-Taste zum Schließen
-  useEffect(() => {
-    window.history.pushState({ bikemapOpen: true }, '')
-    const handlePopState = () => {
-      onClose()
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [onClose])
+  useBackToClose(onClose)
 
 
 
@@ -223,6 +249,7 @@ export default function BikeMap({
       m.off('moveend', onMoveEnd)
       m.remove()
       map.current = null
+      iconIds.current.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -238,6 +265,9 @@ export default function BikeMap({
       return station.bikes > 0 || station.ebikes > 0
     })
 
+    // Welche Symbole dieser Durchgang braucht — alles andere wird danach frei.
+    const gebraucht = new Set<string>()
+
     const geojson = {
       type: 'FeatureCollection' as const,
       features: filtered.map(({ station }) => {
@@ -245,9 +275,11 @@ export default function BikeMap({
         const isSel = selected ? (selected.id ? selected.id === uniqueId : selected.lat === station.lat && selected.lon === station.lon) : false
         const iconId = `pill-${station.bikes}-${station.ebikes}-${filterType}-${isSel ? 'sel' : 'norm'}`
 
+        gebraucht.add(iconId)
         if (!m.hasImage(iconId)) {
           const imgData = generatePillBadgeCanvas(station.bikes, station.ebikes, isSel, filterType)
           m.addImage(iconId, imgData, { pixelRatio: 2 })
+          iconIds.current.add(iconId)
         }
 
         return {
@@ -265,6 +297,13 @@ export default function BikeMap({
           },
         }
       }),
+    }
+
+    // Nicht mehr benötigte Symbole freigeben, sonst wächst der Atlas endlos.
+    for (const id of [...iconIds.current]) {
+      if (gebraucht.has(id)) continue
+      if (m.hasImage(id)) m.removeImage(id)
+      iconIds.current.delete(id)
     }
 
     const applyData = () => {

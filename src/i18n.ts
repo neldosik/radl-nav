@@ -85,6 +85,7 @@ export const dict = {
     networkError: 'Keine Verbindung — prüfe dein Internet.',
     locationDenied: 'Kein Standort — Startpunkt bitte von Hand eingeben.',
     retry: 'Erneut versuchen',
+    resultsStale: 'Orte oder Filter geändert — Ergebnisse sind veraltet',
 
     // ── Karte allgemein ──
     mapUnavailable: 'Karte nicht verfügbar',
@@ -130,6 +131,8 @@ export const dict = {
     jmReturnOnly: 'Rückgabe nur an Station:',
     jmNoReturnStation: 'Keine Rückgabestation in der Nähe — frei abstellen kostet 20 €',
     jmHeadTowards: 'Fahre Richtung',
+    jmGpsLost: 'Kein GPS-Signal — Entfernung nicht aktuell',
+    jmGpsDenied: 'Standort nicht freigegeben — kein Etappenwechsel',
     jmFollowing: 'Folgt dir',
     jmRecenter: 'Zentrieren',
     jmOpenNextbike: 'In Nextbike öffnen',
@@ -287,6 +290,7 @@ export const dict = {
     networkError: 'No connection — check your internet.',
     locationDenied: 'No location — please enter the starting point yourself.',
     retry: 'Retry',
+    resultsStale: 'Places or filters changed — results are out of date',
 
     // ── Map ──
     mapUnavailable: 'Map unavailable',
@@ -332,6 +336,8 @@ export const dict = {
     jmReturnOnly: 'Return only at station:',
     jmNoReturnStation: 'No return station nearby — parking elsewhere costs 20 €',
     jmHeadTowards: 'Head towards',
+    jmGpsLost: 'No GPS signal — distance not current',
+    jmGpsDenied: 'Location not granted — no automatic leg change',
     jmFollowing: 'Following you',
     jmRecenter: 'Recenter',
     jmOpenNextbike: 'Open in Nextbike',

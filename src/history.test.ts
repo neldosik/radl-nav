@@ -32,6 +32,26 @@ describe('tripStats', () => {
     expect(s.bikeMinutes).toBe(20)
   })
 
+  it('rechnet je Ausleihe, nicht über die Fahrtsumme', () => {
+    // Zwei Ausleihen à 25 Min: mit Abo beide frei, ohne Abo je 1 € → 2 € gespart.
+    // Über die Summe (50 Min) gerechnet käme nur 1 € heraus — der Fehler,
+    // den die Etappenliste behebt.
+    const zweiAusleihen = tripStats([
+      trip({
+        bikeMinutes: 50,
+        legMinutes: [
+          { minutes: 25, electric: false },
+          { minutes: 25, electric: false },
+        ],
+      }),
+    ])
+    expect(zweiAusleihen.savedEuro).toBe(2)
+  })
+
+  it('fällt für alte Einträge ohne Etappenliste auf die Summe zurück', () => {
+    expect(tripStats([trip({ bikeMinutes: 50, legMinutes: undefined })]).savedEuro).toBe(1)
+  })
+
   it('rechnet gespart = Preis ohne Abo minus Preis mit Abo', () => {
     // 12 Min: ohne Abo 1 €, mit Abo frei → 1 € gespart
     expect(tripStats([trip({ bikeMinutes: 12 })]).savedEuro).toBe(1)

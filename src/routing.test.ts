@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildView, itinerarySignature, legTarget, returnsToStation, viewDuration } from './routing'
+import { buildView, itinerarySignature, legTarget, returnsToStation, viewDuration, viewEndTime } from './routing'
 import type { Itinerary, Leg, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes = 5): Station => ({
@@ -141,6 +141,22 @@ describe('Rückgabe nur an Stationen', () => {
   it('navigiert zur Station statt zum MOTIS-Punkt', () => {
     const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
     expect(legTarget(v, 0)).toEqual({ name: 'C', lat: near.lat, lon: near.lon })
+  })
+
+  it('schiebt auch die Ankunftszeit um den Umweg nach hinten', () => {
+    const v = buildView(route([freeDrop]), { ...opts, stations: [stations[0], near], supply: [] })!
+    const roh = +new Date(v.it.endTime)
+    const korrigiert = +new Date(viewEndTime(v))
+    // Sonst zeigt die Karte eine längere Dauer und dieselbe Ankunft wie zuvor.
+    expect(korrigiert - roh).toBe(v.extraSec * 1000)
+  })
+
+  it('lässt die Ankunftszeit unverändert, wenn es keinen Umweg gibt', () => {
+    const atStation = bikeLeg({
+      rental: rental({ fromStationName: 'A', toStationName: 'B', returnConstraint: 'ANY_STATION' }),
+    })
+    const v = buildView(route([atStation]), opts)!
+    expect(viewEndTime(v)).toBe(v.it.endTime)
   })
 
   it('rechnet den Umweg in die Fahrtdauer ein', () => {

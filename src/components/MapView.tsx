@@ -182,6 +182,28 @@ export default function MapView({
     m.on('dragstart', handPan)
     m.on('zoomstart', handPan)
     map.current = m
+
+    // Aufräumen ist hier keine Kür: Eine maplibre-Karte hält einen
+    // WebGL-Kontext, Worker, Kachelpuffer und Fenster-Listener fest. App.tsx
+    // gibt je nach Ansicht völlig verschiedene Bäume zurück (Los-Modus,
+    // Reiter Räder, Reiter Fahrten, Trefferliste), MapView wird also bei jedem
+    // Wechsel ausgehängt und neu eingehängt — nicht bloß neu gerendert.
+    // Ohne dieses `remove()` blieb jede alte Karte samt Kontext liegen; ein
+    // Browser gibt nur eine Handvoll WebGL-Kontexte her, danach bleibt die
+    // Karte leer. BikeMap und MapPicker machen es seit jeher richtig.
+    return () => {
+      markers.current.forEach(mk => mk.remove())
+      markers.current = []
+      userMarker.current?.remove()
+      userMarker.current = null
+      m.off('dragstart', handPan)
+      m.off('zoomstart', handPan)
+      m.remove()
+      map.current = null
+      ready.current = false
+      prevCamPosRef.current = null
+      camAtRef.current = 0
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

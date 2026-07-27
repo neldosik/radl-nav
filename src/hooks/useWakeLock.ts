@@ -25,6 +25,9 @@ export function useWakeLock(active: boolean): void {
     let sentinel: WakeLockSentinel | null = null
     let native = false
     let fallback: (() => void) | null = null
+    /** Verhindert, dass zwei Anfragen gleichzeitig laufen (visibilitychange
+     *  und focus feuern beim Entsperren oft dicht hintereinander). */
+    let laeuft = false
 
     const isNative = !!(
       window as { Capacitor?: { isNativePlatform?: () => boolean } }
@@ -43,23 +46,39 @@ export function useWakeLock(active: boolean): void {
         }
       }
       if ('wakeLock' in navigator) {
+        if (laeuft) return // schon eine Anfrage unterwegs
+        laeuft = true
         try {
-          sentinel = await navigator.wakeLock.request('screen')
+          const s = await navigator.wakeLock.request('screen')
+          sentinel = s
+          // Der Browser gibt den Halter beim Verstecken des Dokuments selbst
+          // frei — und behält dabei das Sentinel-Objekt. Ohne dieses Ereignis
+          // blieb `sentinel` gesetzt, die Prüfung unten sah „habe ich schon"
+          // und forderte nie neu an: der Bildschirm ging nach der ersten
+          // Sperre für den Rest der Fahrt aus.
+          s.addEventListener('release', () => {
+            if (sentinel === s) sentinel = null
+          })
           if (released) {
-            sentinel.release().catch(() => {})
+            s.release().catch(() => {})
             sentinel = null
           }
           return
         } catch {
           // z. B. Akkusparmodus: verweigert den Halter — Notnagel unten
+        } finally {
+          laeuft = false
         }
       }
       if (!fallback) fallback = startVideoFallback()
     }
 
+    /** Halter noch gültig? `released` ist die verlässliche Auskunft. */
+    const haeltNoch = () => !!sentinel && !sentinel.released
+
     // Nach dem Zurückkommen ist der Halter weg — neu anfordern.
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && !sentinel && !native) acquire()
+      if (document.visibilityState === 'visible' && !haeltNoch() && !native) acquire()
     }
 
     acquire()

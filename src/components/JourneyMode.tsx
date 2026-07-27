@@ -27,6 +27,10 @@ interface Props {
   view: ItineraryView
   legIndex: number
   distToEnd: number | null
+  /** Kein Standort: Freigabe fehlt oder Signal weg. */
+  gpsError?: 'denied' | 'lost' | null
+  /** Letzter Fix ist alt — die Entfernung stimmt nicht mehr. */
+  posStale?: boolean
   bikesNeeded: number
   now: number
   startedAt: number | null
@@ -72,6 +76,8 @@ export default function JourneyMode({
   view,
   legIndex,
   distToEnd,
+  gpsError = null,
+  posStale = false,
   bikesNeeded,
   now,
   startedAt,
@@ -101,16 +107,30 @@ export default function JourneyMode({
   const warned2Min = useRef(false)
   const vibratedTransit = useRef(false)
 
-  const bikeStartedAt = useRef<number | null>(null)
+  /**
+   * Beginn der Ausleihe je Etappe — einmal festgehalten und danach nie wieder
+   * überschrieben.
+   *
+   * Vorher lag hier ein einzelner Ref, der bei jeder Änderung von `legIndex`
+   * neu auf `Date.now()` gesetzt wurde. Wer nach 25 Minuten einmal auf
+   * „Vorherige" und wieder auf „Nächste" tippte, sah plötzlich wieder volle
+   * Freiminuten: die Warnungen waren entwertet und die Systemmeldung lag eine
+   * halbe Stunde daneben. Der Zähler hängt jetzt an der Etappe, nicht daran,
+   * wann man sie zuletzt angesehen hat.
+   */
+  const bikeStarts = useRef<Map<number, number>>(new Map())
 
   useEffect(() => {
-    bikeStartedAt.current = isBikeLeg ? Date.now() : null
+    if (isBikeLeg && !bikeStarts.current.has(legIndex)) {
+      bikeStarts.current.set(legIndex, Date.now())
+    }
     warned5Min.current = false
     warned2Min.current = false
     vibratedTransit.current = false
   }, [legIndex, isBikeLeg])
 
-  const bikeSec = bikeStartedAt.current ? Math.floor((now - bikeStartedAt.current) / 1000) : 0
+  const bikeStartedAt = isBikeLeg ? (bikeStarts.current.get(legIndex) ?? null) : null
+  const bikeSec = bikeStartedAt ? Math.floor((now - bikeStartedAt) / 1000) : 0
 
   // Bildschirm wachhalten macht `useJourney` über `useWakeLock` — hier stand
   // ein zweiter Halter, der den ersten überschrieb und nie neu angefordert wurde.
@@ -132,8 +152,11 @@ export default function JourneyMode({
       cancelReturnReminders()
       return
     }
+    // Beim Zurückspringen auf eine laufende Etappe zählt die Restzeit, nicht
+    // das volle Fenster.
+    const verstrichen = bikeStartedAt ? Math.floor((Date.now() - bikeStartedAt) / 1000) : 0
     scheduleReturnReminders({
-      secondsLeft: FREE_LIMIT_SEC,
+      secondsLeft: Math.max(0, FREE_LIMIT_SEC - verstrichen),
       stationName: b?.endStation?.name ?? null,
     })
     return () => {
@@ -216,6 +239,9 @@ export default function JourneyMode({
       : distToEnd >= 950
         ? `${(distToEnd / 1000).toFixed(1)} km`
         : `${Math.max(10, Math.round(distToEnd / 10) * 10)} m`
+  // Ohne frischen Fix ist die Zahl geraten — dann lieber kein Wert als ein
+  // falscher. Vorher blieb im Tunnel „300 m" stehen, während man weiterfuhr.
+  const distVeraltet = posStale || gpsError != null
 
   // Kurzer Hinweis zur aktuellen Etappe
   let infoLine: string | null = null
@@ -283,7 +309,7 @@ export default function JourneyMode({
               </div>
               <div className="j-head-target">{toName}</div>
             </div>
-            {distText && (
+            {distText && !distVeraltet && (
               <div className="j-dist-badge">
                 {distText.replace(/ ?(km|m)$/, '')}
                 <small> {distText.endsWith('km') ? 'km' : 'm'}</small>
@@ -295,7 +321,12 @@ export default function JourneyMode({
           </button>
         </div>
 
-        {isNearDropoff ? (
+        {gpsError || posStale ? (
+          <div className="timer-banner urgent">
+            <TargetIcon size={14} />{' '}
+            {t(gpsError === 'denied' ? 'jmGpsDenied' : 'jmGpsLost', lang)}
+          </div>
+        ) : isNearDropoff ? (
           <div className="timer-banner urgent">
             <PinIcon size={14} /> {t('jmDropoff', lang)} <b>{distText}</b> {t('jmDropoffAction', lang)}
           </div>

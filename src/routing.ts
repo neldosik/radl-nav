@@ -59,6 +59,19 @@ export function viewDuration(v: ItineraryView): number {
   return v.it.duration + v.extraSec
 }
 
+/**
+ * Ankunftszeit inklusive derselben Umwege.
+ *
+ * `it.endTime` kommt unverändert von MOTIS und weiß nichts von der
+ * Umhängung auf die Rückgabestation. Die Karte zeigte deshalb nebeneinander
+ * eine korrigierte Dauer und eine unkorrigierte Ankunft — bei 900 m Umweg
+ * lagen die beiden Angaben rund vier Minuten auseinander.
+ */
+export function viewEndTime(v: ItineraryView): string {
+  if (!v.extraSec) return v.it.endTime
+  return new Date(+new Date(v.it.endTime) + v.extraSec * 1000).toISOString()
+}
+
 export interface BuildOpts {
   /** Echte Stationen — Ausleihe, Rückgabe und Radwechsel nur hier. */
   stations: Station[]
@@ -212,7 +225,7 @@ export async function searchRoutes(
     .sort(
       (a, b) =>
         Number(a.warnReturn) - Number(b.warnReturn) ||
-        +new Date(a.it.endTime) - +new Date(b.it.endTime),
+        +new Date(viewEndTime(a)) - +new Date(viewEndTime(b)),
     )
     .slice(0, maxResults)
 }

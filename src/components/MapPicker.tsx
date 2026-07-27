@@ -17,23 +17,46 @@ interface Props {
   onClose: () => void
 }
 
+/**
+ * Zurück-Geste/Zurück-Taste schließt diese Ansicht.
+ *
+ * Zwei Fehler steckten hier: Der Effekt hing an `onClose`, das in App.tsx als
+ * Inline-Funktion übergeben wird — bei jedem Rerender (die Uhr tickt alle
+ * 30 s) lief er erneut und schob einen weiteren History-Eintrag nach. Nach
+ * fünf Minuten brauchte es zehn Drücke auf „Zurück", bis etwas passierte.
+ * Und beim Schließen über X oder Auswahl blieb der Eintrag liegen, sodass der
+ * nächste Zurück-Druck ins Leere ging.
+ */
+function useBackToClose(onClose: () => void) {
+  const schliessen = useRef(onClose)
+  schliessen.current = onClose
+  /** Haben wir den Eintrag schon zurückgenommen? */
+  const konsumiert = useRef(false)
+
+  useEffect(() => {
+    window.history.pushState({ radlOverlay: true }, '')
+    const onPop = () => {
+      konsumiert.current = true
+      schliessen.current()
+    }
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      // Regulär geschlossen (X, Auswahl, Reiterwechsel): eigenen Eintrag
+      // zurücknehmen, sonst verpufft der nächste Zurück-Druck.
+      if (!konsumiert.current) window.history.back()
+    }
+  }, [])
+}
+
 export default function MapPicker({ title, initial, theme = 'light', lang = 'de', onPick, onClose }: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const nameTimer = useRef<number | undefined>(undefined)
+  const nameCtrl = useRef<AbortController | null>(null)
   const [name, setName] = useState('…')
 
-  // Geste: Zurück per Android/iOS Zurück-Button
-  useEffect(() => {
-    window.history.pushState({ pickerOpen: true }, '')
-    const handlePopState = () => {
-      onClose()
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [onClose])
+  useBackToClose(onClose)
 
   useEffect(() => {
     if (!canvas.current || map.current) return
@@ -48,14 +71,28 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
     const update = () => {
       const c = m.getCenter()
       window.clearTimeout(nameTimer.current)
+      // Laufende Abfrage abbrechen. Ohne das gewann die zuletzt *eintreffende*
+      // Antwort, nicht die zuletzt *gestellte*: eine langsame Antwort für den
+      // alten Punkt überschrieb den Namen des neuen, und „Übernehmen" lieferte
+      // dann fremde Koordinaten zum angezeigten Namen.
+      nameCtrl.current?.abort()
       setName('…')
       nameTimer.current = window.setTimeout(async () => {
-        setName(await reverseGeocode(c.lat, c.lng).catch(() => t('mapPoint', lang)))
+        const ctrl = new AbortController()
+        nameCtrl.current = ctrl
+        try {
+          const n = await reverseGeocode(c.lat, c.lng, ctrl.signal)
+          if (!ctrl.signal.aborted) setName(n)
+        } catch (e) {
+          if ((e as Error)?.name !== 'AbortError') setName(t('mapPoint', lang))
+        }
       }, 350)
     }
     m.on('load', update)
     m.on('moveend', update)
     return () => {
+      window.clearTimeout(nameTimer.current)
+      nameCtrl.current?.abort()
       m.remove()
       map.current = null
     }

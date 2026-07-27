@@ -16,7 +16,7 @@ import { fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeo
 import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
 import { searchRoutes, viewDuration } from './routing'
-import { viewStats } from './stats'
+import { rideLegsOf, viewStats } from './stats'
 import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
 import { useJourney } from './hooks/useJourney'
@@ -26,6 +26,20 @@ import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, Rai
 import type { ItineraryView, Place } from './types'
 import { dict, loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
+
+/** Kennzeichnet eine Suche eindeutig: Orte plus alle Filter, die das Ergebnis
+ *  beeinflussen. Unterscheidet sich der aktuelle Stand davon, ist die Liste
+ *  veraltet. */
+function sucheSchluessel(
+  from: Place | null,
+  to: Place | null,
+  maxBike: number,
+  bikeType: string,
+  bikes: number,
+): string {
+  const ort = (p: Place | null) => (p ? `${p.lat.toFixed(5)},${p.lon.toFixed(5)}` : '-')
+  return `${ort(from)}|${ort(to)}|${maxBike}|${bikeType}|${bikes}`
+}
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => loadLanguage())
@@ -69,6 +83,12 @@ export default function App() {
   const mapBoxRef = useRef<HTMLDivElement>(null)
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>(() => loadSaved())
   const [presetHint, setPresetHint] = useState<string | null>(null)
+  /** Hinweis, wenn der Standort nicht freigegeben ist. */
+  const [geoHint, setGeoHint] = useState<string | null>(null)
+  /** Womit die angezeigte Liste erzeugt wurde. Ändert der Nutzer danach Orte
+   *  oder Filter, ohne neu zu suchen, zeigt die Liste etwas anderes an, als
+   *  oben eingestellt ist — vorher fiel das erst beim Losfahren auf. */
+  const [searchedWith, setSearchedWith] = useState<string | null>(null)
 
   function toggleLang() {
     const next = lang === 'de' ? 'en' : 'de'
@@ -92,16 +112,20 @@ export default function App() {
 
   const selectedView = views?.[sel] ?? null
   const journey = useJourney(selectedView)
-  const { legIndex: journeyLeg, startedAt, arrived, userPos, distToEnd } = journey
+  const { legIndex: journeyLeg, startedAt, arrived, userPos, distToEnd, gpsError, posStale } = journey
 
   useEffect(() => {
     getGeolocation()
       .then(async pos => {
-        journey.setUserPos(pos)
+        journey.setUserPos({ ...pos, at: Date.now() })
         const name = await reverseGeocode(pos.lat, pos.lon).catch(() => t('myLocation', lang))
         setFrom(f => f ?? { name, lat: pos.lat, lon: pos.lon })
       })
-      .catch(() => {})
+      // Vorher stumm: das Startfeld blieb einfach leer, ohne dass jemand
+      // erfuhr, dass die Freigabe fehlt.
+      .catch((err: GeolocationPositionError) => {
+        if (err?.code === 1) setGeoHint(t('locationDenied', lang))
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const journeyView = journeyLeg != null ? selectedView : null
@@ -148,6 +172,7 @@ export default function App() {
       })
       if (ctrl.signal.aborted) return
       setViews(list)
+      setSearchedWith(sucheSchluessel(f, tPl, maxBike, bikeType, bikes))
       setSel(0)
       // Suchfeld einklappen: sonst bleiben für die Ergebnisliste nur ~200 px
       if (list.length) setSearchOpen(false)
@@ -215,6 +240,8 @@ export default function App() {
           view={journeyView}
           legIndex={journeyLeg}
           distToEnd={distToEnd}
+          gpsError={gpsError}
+          posStale={posStale}
           bikesNeeded={bikes}
           now={nowTick}
           startedAt={startedAt}
@@ -228,6 +255,12 @@ export default function App() {
             if (from && to) {
               // echte Radminuten und -kilometer aus den Etappen, nicht geschätzt
               const stats = viewStats(journeyView)
+              // Die einzelnen Ausleihen mitgeben: der Preis hängt an ihnen,
+              // nicht an der Fahrtsumme.
+              const etappen = rideLegsOf(journeyView).map(l => ({
+                minutes: l.minutes,
+                electric: l.electric,
+              }))
               addTrip({
                 from: shortPlace(from),
                 to: shortPlace(to),
@@ -236,6 +269,7 @@ export default function App() {
                 bikeMinutes: stats.bikeMinutes,
                 bikeKm: stats.bikeKm,
                 electricMinutes: stats.electricMinutes,
+                legMinutes: etappen,
                 electric: journeyView.hasElectric,
               })
             }
@@ -274,6 +308,11 @@ export default function App() {
   }
 
   const hasResults = !!views && views.length > 0
+  /** Liste vorhanden, aber Orte oder Filter wurden seither geändert. */
+  const listeVeraltet =
+    hasResults &&
+    searchedWith != null &&
+    searchedWith !== sucheSchluessel(from, to, maxBike, bikeType, bikes)
   const minDuration = views ? Math.min(...views.map(viewDuration)) : Infinity
   const minTransfers = views ? Math.min(...views.map(v => v.it.legs.length)) : Infinity
 
@@ -448,6 +487,7 @@ export default function App() {
 
         </div>
         {presetHint && <div className="preset-hint">{presetHint}</div>}
+        {geoHint && <div className="preset-hint warn">{geoHint}</div>}
 
         <div className="controls">
           {/* Reihe 1: Zeitwahl über die volle Breite, rechts zwei runde Knöpfe */}
@@ -553,6 +593,15 @@ export default function App() {
       )}
 
       <section className="results">
+        {/* Ohne diesen Hinweis blieb die alte Liste kommentarlos stehen, wenn man
+            im Filter etwas umstellte oder ein anderes Ziel wählte — im
+            schlimmsten Fall fuhr man mit „LOS" zum vorherigen Ziel. */}
+        {listeVeraltet && (
+          <button className="stale-hint" onClick={() => search()}>
+            {t('resultsStale', lang)}
+            <span className="stale-action">{t('routeBtn', lang)}</span>
+          </button>
+        )}
         {error && (
           <div className="msg error">
             {error}

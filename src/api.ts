@@ -103,7 +103,11 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
   u.searchParams.set('latitude', String(lat))
   u.searchParams.set('longitude', String(lon))
   u.searchParams.set('hourly', 'temperature_2m,precipitation')
-  u.searchParams.set('forecast_days', '2')
+  // Vorhersagefenster an die gewünschte Zeit anpassen: bei „Ankunft in vier
+  // Tagen" reichten zwei Tage nicht, und die Suche unten nahm dann einfach die
+  // letzte verfügbare Stunde — eine Vorhersage aus einem anderen Zeitraum.
+  const tageVoraus = Math.ceil((when.getTime() - Date.now()) / 86_400_000) + 1
+  u.searchParams.set('forecast_days', String(Math.min(16, Math.max(2, tageVoraus))))
   u.searchParams.set('timezone', 'auto')
   const r = await fetch(u, { signal: withTimeout() })
   if (!r.ok) return null
@@ -123,6 +127,9 @@ export async function fetchWeatherAt(lat: number, lon: number, when: Date): Prom
       bi = i
     }
   }
+  // Liegt die gewünschte Stunde außerhalb der gelieferten Daten, ist der
+  // „beste" Treffer bedeutungslos — dann lieber gar kein Wetter zeigen.
+  if (bd > 60 * 60 * 1000) return null
   const precip = precs[bi] ?? 0
   // Die nächsten Stunden mitgeben — daraus baut die Oberfläche den Regenverlauf.
   const hourly: WeatherHour[] = []
@@ -261,6 +268,10 @@ export async function loadFreeBikes(): Promise<FreeBike[]> {
 }
 
 const STATIONS_CACHE_KEY = 'radl.stations_cache'
+/** Wie alt der Offline-Stand höchstens sein darf. Radzahlen von gestern sind
+ *  eine Vermutung, die von letzter Woche eine Falschaussage — und die App
+ *  zeigte sie ohne Vorbehalt als Live-Bestand an. */
+const STATIONS_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 /** Live-Status aller MyRadl-Stationen (GBFS, ttl 60 Sek, inkl. Offline-Puffer). */
 export async function loadStations(): Promise<Station[]> {
@@ -292,8 +303,11 @@ export async function loadStations(): Promise<Station[]> {
   try {
     const cached = localStorage.getItem(STATIONS_CACHE_KEY)
     if (cached) {
-      const { data } = JSON.parse(cached)
-      if (Array.isArray(data)) return data
+      // `at` wurde beim Schreiben immer mitgespeichert, beim Lesen aber nie
+      // ausgewertet — beliebig alte Bestände galten als aktuell.
+      const { at, data } = JSON.parse(cached)
+      const alter = typeof at === 'number' ? Date.now() - at : Infinity
+      if (Array.isArray(data) && alter < STATIONS_CACHE_MAX_AGE_MS) return data
     }
   } catch {}
 

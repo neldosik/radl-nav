@@ -14,6 +14,11 @@ export interface TripRecord {
   bikeMinutes: number
   /** Davon auf einem E-Bike — fehlt bei Fahrten vor dieser Version. */
   electricMinutes?: number
+  /** Die einzelnen Ausleihen. Die Freiminuten gelten **je Ausleihe**, deshalb
+   *  lässt sich der Preis aus der Fahrtsumme nicht rekonstruieren: zweimal
+   *  25 Minuten sind mit Abo kostenlos, 50 Minuten am Stück nicht.
+   *  Fehlt bei Fahrten vor dieser Version. */
+  legMinutes?: { minutes: number; electric: boolean }[]
   /** Radkilometer laut Route — fehlt bei Fahrten vor dieser Version. */
   bikeKm?: number
   /** Fahrt enthielt ein kostenpflichtiges E-Bike */
@@ -84,17 +89,25 @@ export function tripStats(trips: TripRecord[]): TripStats {
     co2Grams: 0,
   }
   for (const t of trips) {
-    // Ältere Einträge kennen nur „electric: true/false" für die ganze Fahrt.
-    const eMin = t.electricMinutes ?? (t.electric ? t.bikeMinutes : 0)
-    const cMin = Math.max(0, t.bikeMinutes - eMin)
+    // Die Freiminuten gelten je Ausleihe. Liegen die Etappen vor, wird je
+    // Etappe gerechnet; sonst bleibt nur die Fahrtsumme als Näherung —
+    // die unterschätzt die Ersparnis, überschätzt sie aber nie.
+    const etappen: { minutes: number; electric: boolean }[] = t.legMinutes?.length
+      ? t.legMinutes
+      : [
+          { minutes: Math.max(0, t.bikeMinutes - (t.electricMinutes ?? (t.electric ? t.bikeMinutes : 0))), electric: false },
+          { minutes: t.electricMinutes ?? (t.electric ? t.bikeMinutes : 0), electric: true },
+        ].filter(e => e.minutes > 0)
 
     stats.minutes += Math.round(t.seconds / 60)
     stats.bikeMinutes += t.bikeMinutes
     stats.bikeKm += kmOf(t)
-    // Gespart = Preis ohne ÖPNV-Abo minus tatsächlich gezahlter Preis.
-    // Beim E-Bike ist die Differenz null, es kostet mit und ohne Abo.
-    stats.savedEuro += (noSubCent(cMin) - legCostCent(cMin, false)) / 100
-    stats.calories += legKcal(cMin, false) + legKcal(eMin, true)
+    for (const e of etappen) {
+      // Gespart = Preis ohne ÖPNV-Abo minus tatsächlich gezahlter Preis.
+      // Beim E-Bike ist die Differenz null, es kostet mit und ohne Abo.
+      if (!e.electric) stats.savedEuro += (noSubCent(e.minutes) - legCostCent(e.minutes, false)) / 100
+      stats.calories += legKcal(e.minutes, e.electric)
+    }
     stats.co2Grams += Math.round(kmOf(t) * (CAR_CO2_PER_KM - BIKE_CO2_PER_KM))
   }
   stats.savedEuro = Math.round(stats.savedEuro)

@@ -10,10 +10,15 @@ const ARRIVE_RADIUS_M = 70
 const MAX_ACCURACY_M = 100
 /** Unter dieser Bewegung ist es GPS-Rauschen — kein neuer Zustand, kein Rerender. */
 const MIN_MOVE_M = 3
+/** Ab hier gilt der letzte Fix als veraltet und die Entfernung als geraten. */
+const STALE_AFTER_MS = 30_000
 
 export interface UserPos extends LatLon {
   /** Genauigkeit des Fixes in Metern (falls das Gerät sie liefert). */
   accuracy?: number
+  /** Wann der Fix eintraf — damit die Oberfläche eine eingefrorene Anzeige
+   *  als solche kennzeichnen kann. */
+  at: number
 }
 
 export interface Journey {
@@ -24,6 +29,10 @@ export interface Journey {
   userPos: UserPos | null
   /** Luftlinie zum Etappenziel, sobald GPS vorhanden */
   distToEnd: number | null
+  /** Kein Standort: 'denied' = Freigabe fehlt, 'lost' = Signal weg (Tunnel). */
+  gpsError: 'denied' | 'lost' | null
+  /** Der letzte Fix ist älter als STALE_AFTER_MS — Entfernung ist geraten. */
+  posStale: boolean
   start: () => void
   exit: () => void
   goTo: (i: number) => void
@@ -40,6 +49,7 @@ export function useJourney(view: ItineraryView | null): Journey {
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [arrived, setArrived] = useState(false)
   const [userPos, setUserPos] = useState<UserPos | null>(null)
+  const [gpsError, setGpsError] = useState<'denied' | 'lost' | null>(null)
   const active = legIndex != null
   const viewRef = useRef(view)
   viewRef.current = view
@@ -50,19 +60,27 @@ export function useJourney(view: ItineraryView | null): Journey {
   useEffect(() => {
     if (!active) {
       setUserPos(null)
+      setGpsError(null)
       return
     }
     if (!navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(
       p => {
+        setGpsError(null)
         const acc = p.coords.accuracy
         // Ausreißer verwerfen: ein 500-m-Fix schaltet sonst Etappen weiter
         // und lässt die Karte springen.
         if (acc != null && acc > MAX_ACCURACY_M) return
-        const next = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: acc }
-        setUserPos(prev => (prev && haversine(prev, next) < MIN_MOVE_M ? prev : next))
+        const next = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: acc, at: Date.now() }
+        // Nur die Koordinaten entscheiden über „hat sich bewegt"; der
+        // Zeitstempel wird immer mitgeführt, sonst altert die Anzeige im Stand.
+        setUserPos(prev =>
+          prev && haversine(prev, next) < MIN_MOVE_M ? { ...prev, at: next.at } : next,
+        )
       },
-      () => {},
+      // Vorher eine leere Funktion: fiel GPS aus, blieb die zuletzt bekannte
+      // Entfernung stehen und wurde weiter als aktuell angezeigt.
+      err => setGpsError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost'),
       // maximumAge 0: im Fahrbetrieb ist ein drei Sekunden alter Fix wertlos.
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     )
@@ -85,6 +103,7 @@ export function useJourney(view: ItineraryView | null): Journey {
 
   const target = legIndex != null && view ? legTarget(view, legIndex) : null
   const distToEnd = target && userPos ? haversine(userPos, target) : null
+  const posStale = !!userPos && Date.now() - userPos.at > STALE_AFTER_MS
 
   return {
     legIndex,
@@ -92,6 +111,8 @@ export function useJourney(view: ItineraryView | null): Journey {
     arrived,
     userPos,
     distToEnd,
+    gpsError,
+    posStale,
     start: () => {
       setLegIndex(0)
       setStartedAt(Date.now())

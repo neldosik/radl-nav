@@ -4,7 +4,7 @@ import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbike
 import { BikeIcon, BoltIcon, ExternalIcon, PinIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { decodePolyline } from '../polyline'
-import { viewDuration } from '../routing'
+import { viewDuration, viewEndTime } from '../routing'
 import { fetchElevationProfile } from '../api'
 import type { ElevationProfile } from '../api'
 import { dict, t } from '../i18n'
@@ -169,7 +169,7 @@ export default function ItineraryCard({
         </div>
         <div className="route-body">
           <div className="route-times">
-            {hm(it.startTime)} → {hm(it.endTime)}
+            {hm(it.startTime)} → {hm(viewEndTime(view))}
           </div>
           <div className={`route-tag ${tagKind}`}>{tagText}</div>
         </div>

@@ -2378,6 +2378,40 @@ button {
   margin-bottom: 10px;
 }
 
+/* Hinweis in Warnfarbe — etwa wenn der Standort nicht freigegeben ist. */
+.preset-hint.warn {
+  color: var(--warn);
+}
+
+/* Hinweis über der Trefferliste, wenn Orte oder Filter seit der Suche
+   geändert wurden. Anklickbar — ein Tipp sucht neu. */
+.stale-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--warn);
+  border-radius: var(--r-card);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stale-hint .stale-action {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--warn);
+  color: var(--card);
+  font-size: 12px;
+}
+
 /* Ersatz für die Karte, wenn das Gerät kein WebGL kann. Füllt denselben Platz,
    damit die Anordnung ringsum unverändert bleibt. */
 .map-fallback {
