@@ -14,7 +14,8 @@ import {
   TargetIcon,
   WalkIcon,
 } from '../icons'
-import { planPickup } from '../geo'
+import { planPickup, projectOnPath } from '../geo'
+import { decodePolyline } from '../polyline'
 import { FREE_LIMIT_SEC } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
 import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
@@ -23,10 +24,18 @@ import { playWarningSound } from '../audio'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 
+/** Ab wie vielen Metern neben der Linie gilt man als abgekommen. In engen
+ *  Straßen streut GPS leicht um 20-30 m, deshalb nicht knapper. */
+const OFF_ROUTE_M = 90
+/** So viele Messungen hintereinander, bevor der Hinweis kommt. */
+const OFF_ROUTE_FIXES = 3
+
 interface Props {
   view: ItineraryView
   legIndex: number
   distToEnd: number | null
+  /** Aktueller Standort — für die Restzeit der laufenden Etappe. */
+  userPos?: { lat: number; lon: number } | null
   /** Kein Standort: Freigabe fehlt oder Signal weg. */
   gpsError?: 'denied' | 'lost' | null
   /** Letzter Fix ist alt — die Entfernung stimmt nicht mehr. */
@@ -44,6 +53,8 @@ interface Props {
   onGoTo?: (i: number) => void
   onArrive: () => void
   onExit: () => void
+  /** Route ab dem aktuellen Standort neu berechnen */
+  onReroute?: () => void
   /** Kamera folgt dem Standort? */
   follow?: boolean
   onToggleFollow?: () => void
@@ -80,6 +91,7 @@ export default function JourneyMode({
   distToEnd,
   gpsError = null,
   posStale = false,
+  userPos = null,
   bikesNeeded,
   now,
   startedAt,
@@ -94,6 +106,7 @@ export default function JourneyMode({
   onExit,
   follow = true,
   onToggleFollow,
+  onReroute,
   children,
 }: Props) {
   const legs = view.it.legs
@@ -109,6 +122,8 @@ export default function JourneyMode({
   const warned5Min = useRef(false)
   const warned2Min = useRef(false)
   const vibratedTransit = useRef(false)
+  /** Wie oft hintereinander lag der Standort abseits der Linie? */
+  const abseitsZaehler = useRef(0)
 
   /**
    * Beginn der Ausleihe je Etappe — einmal festgehalten und danach nie wieder
@@ -246,6 +261,28 @@ export default function JourneyMode({
   // falscher. Vorher blieb im Tunnel „300 m" stehen, während man weiterfuhr.
   const distVeraltet = posStale || gpsError != null
 
+  // Restzeit der laufenden Etappe. Ohne brauchbaren Standort bleibt es bei der
+  // Gesamtdauer — eine geratene Restzeit wäre schlechter als gar keine.
+  const projektion =
+    userPos && !distVeraltet && leg.legGeometry?.points
+      ? projectOnPath(
+          decodePolyline(leg.legGeometry.points, leg.legGeometry.precision ?? 6).map(([lon, lat]) => ({
+            lat,
+            lon,
+          })),
+          userPos,
+        )
+      : null
+  const restMin =
+    projektion == null ? null : Math.max(1, Math.round((leg.duration * projektion.share) / 60))
+  const zeigtRest = restMin != null && restMin < mins(leg.duration)
+
+  // Abseits der Route? Erst nach mehreren Messungen hintereinander, sonst
+  // löst ein einzelner GPS-Ausreißer zwischen Häusern schon den Hinweis aus.
+  const abseits = projektion != null && projektion.dist > OFF_ROUTE_M
+  if (projektion != null) abseitsZaehler.current = abseits ? abseitsZaehler.current + 1 : 0
+  const zeigtNeuBerechnen = !!onReroute && abseitsZaehler.current >= OFF_ROUTE_FIXES
+
   // Kurzer Hinweis zur aktuellen Etappe
   let infoLine: string | null = null
   let infoWarn = false
@@ -324,7 +361,16 @@ export default function JourneyMode({
           </button>
         </div>
 
-        {gpsError || posStale ? (
+        {zeigtNeuBerechnen ? (
+          <div className="timer-banner urgent off-route">
+            <span>
+              <TargetIcon size={14} /> {t('jmOffRoute', lang)}
+            </span>
+            <button className="off-route-btn" onClick={onReroute}>
+              {t('jmReroute', lang)}
+            </button>
+          </div>
+        ) : gpsError || posStale ? (
           <div className="timer-banner urgent">
             <TargetIcon size={14} />{' '}
             {t(gpsError === 'denied' ? 'jmGpsDenied' : 'jmGpsLost', lang)}
@@ -359,8 +405,11 @@ export default function JourneyMode({
           </span>
           <div className="j-legmain">
             <div className="j-legtop">
-              <span className="j-mins">{mins(leg.duration)}</span>
-              <span className="j-legname">{t('jmMin', lang)} · {name}</span>
+              <span className="j-mins">{restMin ?? mins(leg.duration)}</span>
+              <span className="j-legname">
+                {t('jmMin', lang)}
+                {zeigtRest ? ` ${t('jmLeft', lang)}` : ''} · {name}
+              </span>
               {leg.cancelled ? (
                 <span className="delay cancel">{t('cardCancelled', lang)}</span>
               ) : delay != null && delay !== 0 ? (

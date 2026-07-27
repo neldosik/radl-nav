@@ -263,6 +263,7 @@ export default function App() {
           view={journeyView}
           legIndex={journeyLeg}
           distToEnd={distToEnd}
+          userPos={userPos}
           gpsError={gpsError}
           posStale={posStale}
           bikesNeeded={bikes}
@@ -304,6 +305,18 @@ export default function App() {
             journey.markArrived()
           }}
           onExit={journey.exit}
+          onReroute={() => {
+            // Ab dem aktuellen Standort neu suchen. Bewusst auf Knopfdruck statt
+            // automatisch: Transitous ist ein freier Dienst, und bei einer
+            // ÖPNV-Route wirft ein Neustart womöglich die Verbindung um, die
+            // man gerade noch erreichen würde.
+            if (!userPos || !to) return
+            journey.exit()
+            const hier = { name: t('myLocation', lang), lat: userPos.lat, lon: userPos.lon }
+            setFrom(hier)
+            setSearchOpen(false)
+            search(hier, to)
+          }}
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
         >

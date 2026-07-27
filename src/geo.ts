@@ -116,3 +116,74 @@ export function nearestStation(p: LatLon, stations: Station[], maxDist = 150): S
   }
   return best
 }
+
+/**
+ * Senkrechter Abstand eines Punktes zu einer Strecke, in Metern.
+ * Auf Stadtmaßstab reicht die ebene Näherung; die Längengrade werden dabei
+ * mit dem Kosinus der Breite gestaucht.
+ */
+function distToSegment(p: LatLon, a: LatLon, b: LatLon): number {
+  const kx = Math.cos((p.lat * Math.PI) / 180) * 111320
+  const ky = 110540
+  const px = (p.lon - a.lon) * kx
+  const py = (p.lat - a.lat) * ky
+  const bx = (b.lon - a.lon) * kx
+  const by = (b.lat - a.lat) * ky
+  const len2 = bx * bx + by * by
+  const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, (px * bx + py * by) / len2))
+  const dx = px - t * bx
+  const dy = py - t * by
+  return Math.hypot(dx, dy)
+}
+
+export interface PathProjection {
+  /** Abstand zur Linie in Metern */
+  dist: number
+  /** Anteil der Strecke, der noch vor einem liegt (0…1) */
+  share: number
+}
+
+/**
+ * Den Standort auf die Etappenlinie projizieren.
+ *
+ * Liefert, wie weit man neben der Linie steht und wie viel von ihr noch übrig
+ * ist. Aus dem Anteil wird die Restzeit (`Dauer × Anteil`) — eine
+ * Geschwindigkeit muss dafür nicht geraten werden, die steckt schon in der
+ * von MOTIS berechneten Etappendauer.
+ *
+ * `null`, wenn die Linie zu kurz ist, um daraus etwas abzuleiten.
+ */
+export function projectOnPath(path: LatLon[], pos: LatLon): PathProjection | null {
+  if (!path || path.length < 2) return null
+
+  const cum: number[] = [0]
+  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + haversine(path[i - 1], path[i]))
+  const total = cum[cum.length - 1]
+  if (total <= 0) return null
+
+  let bestDist = Infinity
+  let bestEntlang = 0
+  for (let i = 1; i < path.length; i++) {
+    const d = distToSegment(pos, path[i - 1], path[i])
+    if (d < bestDist) {
+      bestDist = d
+      // Fußpunkt grob am Segmentanfang — für Restzeit und Abweichung genau genug
+      bestEntlang = cum[i - 1] + Math.min(haversine(path[i - 1], pos), cum[i] - cum[i - 1])
+    }
+  }
+
+  return {
+    dist: bestDist,
+    share: Math.min(1, Math.max(0, (total - bestEntlang) / total)),
+  }
+}
+
+/** Anteil der Etappe, der noch vor einem liegt (0…1), oder null. */
+export function remainingShare(path: LatLon[], pos: LatLon): number | null {
+  return projectOnPath(path, pos)?.share ?? null
+}
+
+/** Abstand zur Etappenlinie in Metern, oder null. */
+export function distanceToPath(path: LatLon[], pos: LatLon): number | null {
+  return projectOnPath(path, pos)?.dist ?? null
+}

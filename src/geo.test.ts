@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { clusterFreeBikes, haversine, nearbyStations, nearestStation, planPickup } from './geo'
-import type { FreeBike, Station } from './types'
+import { clusterFreeBikes, haversine, nearbyStations, nearestStation, planPickup, distanceToPath, remainingShare } from './geo'
+import type { FreeBike, LatLon, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes: number, ebikes = 0): Station => ({
   id,
@@ -126,5 +126,72 @@ describe('clusterFreeBikes', () => {
     ])
     expect(out[0].bikes).toBe(1)
     expect(out[0].ebikes).toBe(1)
+  })
+})
+
+describe('remainingShare', () => {
+  // Gerade Linie nach Norden, rund 1,1 km je 0,01°
+  const path: LatLon[] = [
+    { lat: 48.10, lon: 11.5 },
+    { lat: 48.11, lon: 11.5 },
+    { lat: 48.12, lon: 11.5 },
+    { lat: 48.13, lon: 11.5 },
+  ]
+
+  it('gibt am Anfang die ganze Etappe zurück', () => {
+    expect(remainingShare(path, { lat: 48.10, lon: 11.5 })).toBeCloseTo(1, 2)
+  })
+
+  it('gibt am Ziel nichts mehr zurück', () => {
+    expect(remainingShare(path, { lat: 48.13, lon: 11.5 })).toBeCloseTo(0, 2)
+  })
+
+  it('gibt in der Mitte etwa die Hälfte zurück', () => {
+    const share = remainingShare(path, { lat: 48.115, lon: 11.5 })!
+    expect(share).toBeGreaterThan(0.3)
+    expect(share).toBeLessThan(0.7)
+  })
+
+  it('nimmt den nächstgelegenen Punkt, auch wenn man neben der Linie steht', () => {
+    // deutlich östlich versetzt, aber auf Höhe des dritten Stützpunkts
+    const share = remainingShare(path, { lat: 48.12, lon: 11.53 })!
+    expect(share).toBeCloseTo(1 / 3, 1)
+  })
+
+  it('bleibt zwischen 0 und 1, auch weit hinter dem Ziel', () => {
+    const share = remainingShare(path, { lat: 48.20, lon: 11.5 })!
+    expect(share).toBeGreaterThanOrEqual(0)
+    expect(share).toBeLessThanOrEqual(1)
+  })
+
+  it('liefert null für eine unbrauchbare Linie', () => {
+    expect(remainingShare([], { lat: 48.1, lon: 11.5 })).toBeNull()
+    expect(remainingShare([{ lat: 48.1, lon: 11.5 }], { lat: 48.1, lon: 11.5 })).toBeNull()
+  })
+})
+
+describe('distanceToPath', () => {
+  const path: LatLon[] = [
+    { lat: 48.10, lon: 11.5 },
+    { lat: 48.13, lon: 11.5 },
+  ]
+
+  it('ist auf der Linie nahe null', () => {
+    expect(distanceToPath(path, { lat: 48.115, lon: 11.5 })!).toBeLessThan(5)
+  })
+
+  it('misst den seitlichen Abstand, nicht den zum nächsten Stützpunkt', () => {
+    // 0,001° Länge ≈ 74 m auf dieser Breite, mitten zwischen den Stützpunkten
+    const d = distanceToPath(path, { lat: 48.115, lon: 11.501 })!
+    expect(d).toBeGreaterThan(50)
+    expect(d).toBeLessThan(100)
+  })
+
+  it('erkennt eine deutliche Abweichung', () => {
+    expect(distanceToPath(path, { lat: 48.115, lon: 11.51 })!).toBeGreaterThan(500)
+  })
+
+  it('liefert null für eine unbrauchbare Linie', () => {
+    expect(distanceToPath([], { lat: 48.1, lon: 11.5 })).toBeNull()
   })
 })
