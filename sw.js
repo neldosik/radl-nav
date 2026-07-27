@@ -2,14 +2,70 @@
 //   1. App-Hülle    — damit die App ohne Netz überhaupt startet
 //   2. Kartenkacheln — damit die Karte unterwegs nicht weiß bleibt
 // Version im Namen: ändert sie sich, werden alte Puffer beim Aktivieren gelöscht.
-const CACHE_VERSION = 'v3'
-const TILE_CACHE = `radl-map-tiles-${CACHE_VERSION}`
-const SHELL_CACHE = `radl-shell-${CACHE_VERSION}`
+// Getrennt gezählt — eine neue Hülle soll nicht die gesammelten Kacheln
+// wegwerfen, die unterwegs mühsam zusammengekommen sind.
+const TILE_CACHE = 'radl-map-tiles-v3'
+const SHELL_CACHE = 'radl-shell-v4'
 // Ohne Obergrenze wächst der Kachelpuffer unbegrenzt, bei jeder Fahrt kommen welche dazu.
 const MAX_TILES = 600
 
-self.addEventListener('install', () => {
-  self.skipWaiting()
+/**
+ * Beim Einrichten die Hülle einmal aktiv holen.
+ *
+ * Ohne das griff der Puffer erst ab dem zweiten Start: beim ersten Besuch
+ * übernimmt der Service Worker erst, wenn die Seite ihre Dateien längst
+ * geladen hat — es gibt also keine `fetch`-Ereignisse mehr abzufangen, und
+ * der Puffer blieb leer. Wer die App installiert und danach in die U-Bahn
+ * steigt, stand vor einer weißen Seite.
+ *
+ * Die Namen der gebündelten Dateien enthalten einen Hash und stehen deshalb
+ * nicht fest — wir lesen sie aus dem HTML und die Schriften aus dem CSS.
+ */
+async function precacheShell() {
+  const cache = await caches.open(SHELL_CACHE)
+  const res = await fetch('./', { cache: 'reload' })
+  if (!res.ok) return
+  await cache.put('index.html', res.clone())
+
+  const html = await res.text()
+  const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+    .map(m => m[1])
+    .filter(u => /\.(js|css)$/.test(u))
+    .map(u => new URL(u, self.registration.scope).href)
+
+  // Schriften stehen nur im Stylesheet, nicht im HTML
+  const fonts = []
+  for (const url of refs.filter(u => u.endsWith('.css'))) {
+    try {
+      const cssRes = await fetch(url)
+      if (!cssRes.ok) continue
+      const css = await cssRes.text()
+      for (const m of css.matchAll(/url\(["']?([^"')]+\.woff2?)["']?\)/g)) {
+        fonts.push(new URL(m[1], url).href)
+      }
+    } catch {
+      // Eine Datei weniger im Puffer, kein Grund die Einrichtung abzubrechen
+    }
+  }
+
+  await Promise.all(
+    [...new Set([...refs, ...fonts])].map(u =>
+      cache.add(u).catch(() => {}),
+    ),
+  )
+}
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    (async () => {
+      try {
+        await precacheShell()
+      } catch {
+        // Kein Netz beim Einrichten — dann füllt sich der Puffer eben unterwegs
+      }
+      await self.skipWaiting()
+    })(),
+  )
 })
 
 self.addEventListener('activate', event => {
