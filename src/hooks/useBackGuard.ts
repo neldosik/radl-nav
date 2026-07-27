@@ -23,6 +23,35 @@ import { useEffect, useRef } from 'react'
  */
 let eigenerRuecksprung = false
 
+/**
+ * In der Android-Hülle liegt die Zurück-Geste nicht am Browserverlauf, sondern
+ * am `backButton`-Ereignis der Hülle. Ohne eigenen Zuhörer entscheidet das
+ * Standardverhalten — und das schließt die App, sobald es meint, es gäbe
+ * nichts mehr zurückzugehen. Wir leiten es deshalb selbst auf den Verlauf um
+ * und beenden nur, wenn wirklich keine unserer Ansichten mehr offen ist.
+ */
+let huelleVerdrahtet = false
+
+function huelleVerdrahten() {
+  if (huelleVerdrahtet) return
+  const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+  if (!cap?.isNativePlatform?.()) return
+  huelleVerdrahtet = true
+  import('@capacitor/app')
+    .then(({ App }) => {
+      App.addListener('backButton', ({ canGoBack }) => {
+        if (offeneWaechter > 0 || canGoBack) window.history.back()
+        else App.exitApp()
+      })
+    })
+    .catch(() => {
+      huelleVerdrahtet = false
+    })
+}
+
+/** Wie viele Ansichten gerade einen Eintrag halten. */
+let offeneWaechter = 0
+
 export function useBackGuard(active: boolean, onBack: () => void): void {
   const zurueck = useRef(onBack)
   zurueck.current = onBack
@@ -31,7 +60,9 @@ export function useBackGuard(active: boolean, onBack: () => void): void {
 
   useEffect(() => {
     if (!active) return
+    huelleVerdrahten()
     verbraucht.current = false
+    offeneWaechter++
     window.history.pushState({ radlGuard: true }, '')
 
     const onPop = () => {
@@ -48,6 +79,7 @@ export function useBackGuard(active: boolean, onBack: () => void): void {
     window.addEventListener('popstate', onPop)
 
     return () => {
+      offeneWaechter = Math.max(0, offeneWaechter - 1)
       window.removeEventListener('popstate', onPop)
       // Regulär geschlossen (Kreuz, Auswahl, Reiterwechsel): den eigenen
       // Eintrag zurücknehmen, sonst verpufft der nächste Zurück-Druck.
