@@ -5,7 +5,7 @@
 // Getrennt gezählt — eine neue Hülle soll nicht die gesammelten Kacheln
 // wegwerfen, die unterwegs mühsam zusammengekommen sind.
 const TILE_CACHE = 'radl-map-tiles-v3'
-const SHELL_CACHE = 'radl-shell-v4'
+const SHELL_CACHE = 'radl-shell-v5'
 // Ohne Obergrenze wächst der Kachelpuffer unbegrenzt, bei jeder Fahrt kommen welche dazu.
 const MAX_TILES = 600
 /** Auch die Hülle bekommt eine Grenze: über viele Deployments hinweg sammeln

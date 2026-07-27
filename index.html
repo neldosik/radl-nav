@@ -10,7 +10,17 @@
     <meta name="description" content="Radl Navi München — kostenlose Navigation mit MyRadl-Fahrrädern + MVV (U-Bahn, S-Bahn, Tram, Bus). 30 Freiminuten optimal nutzen." />
     <meta name="theme-color" content="#f4f1ea" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Mit „default" gibt iOS der Webansicht im Startbildschirm-Modus nur
+         Bildschirmhöhe minus Statusleiste: auf einem 13 Pro 797 statt 844,
+         gemessen über `dvh` gegen `lvh`. Die fehlenden 47 px landen unten als
+         Streifen, den weder ein Element noch die Leinwand des Dokuments
+         erreicht — beides ausprobiert, beides wirkungslos. Erst
+         „black-translucent" gibt die volle Höhe; der obere Sicherheitsabstand
+         hält die Kopfzeile weiterhin frei von der Statusleiste.
+
+         Achtung: iOS liest diese Angabe beim Ablegen auf dem Startbildschirm.
+         Eine bereits abgelegte App übernimmt sie erst nach erneutem Ablegen. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="RadlNavi" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <!-- Schriften liegen im Bündel (src/fonts, siehe @font-face in index.css) —

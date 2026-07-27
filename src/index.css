@@ -3228,3 +3228,20 @@ button {
   line-height: 1.7;
   white-space: pre;
 }
+
+/* Der Streifen, den iOS unten abzieht — dieselbe Sache wie die Farbe an
+   `html` weiter oben, nur mit einem echten Element statt der Leinwand.
+   `lvh` nennt die volle Bildschirmhöhe, `dvh` die kürzere Seitenhöhe; auf
+   dem gemessenen iPhone sind das 843.98 gegen 797. Die Differenz ist überall
+   sonst 0, dort entsteht also gar nichts. Kennt ein Browser die Einheiten
+   nicht, fällt die Höhenangabe weg und das Feld bleibt leer. */
+.tabbar::after,
+.j-panel::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: calc(100lvh - 100dvh);
+  background: var(--card);
+}

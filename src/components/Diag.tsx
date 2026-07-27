@@ -33,6 +33,8 @@ function zeilen(): string[] {
     ((navigator as { standalone?: boolean }).standalone ? ' / apple' : '')
 
   return [
+    `stand      ${__STAND__}  ${__GEBAUT__}`,
+    `fehlt unten ${messe('calc(100lvh - 100dvh)')}`,
     `innen      ${innerWidth} x ${innerHeight}`,
     `schirm     ${screen.width} x ${screen.height}  dpr ${devicePixelRatio}`,
     `sicht      ${vv ? `${Math.round(vv.width)} x ${Math.round(vv.height)}  oben ${Math.round(vv.offsetTop)}` : '-'}`,
