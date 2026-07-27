@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import { reverseGeocode } from '../api'
-import { CloseIcon } from '../icons'
+import { getGeolocation, reverseGeocode } from '../api'
+import { CloseIcon, TargetIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
@@ -11,6 +11,8 @@ import type { Language } from '../i18n'
 interface Props {
   title: string
   initial?: LatLon | null
+  /** Bekannter Standort aus der App — spart das erneute Fragen. */
+  userPos?: LatLon | null
   theme?: ThemeMode
   lang?: Language
   onPick: (p: Place) => void
@@ -65,22 +67,51 @@ function useBackToClose(onClose: () => void) {
   }, [])
 }
 
-export default function MapPicker({ title, initial, theme = 'light', lang = 'de', onPick, onClose }: Props) {
+export default function MapPicker({
+  title,
+  initial,
+  userPos = null,
+  theme = 'light',
+  lang = 'de',
+  onPick,
+  onClose,
+}: Props) {
   const canvas = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const nameTimer = useRef<number | undefined>(undefined)
   const nameCtrl = useRef<AbortController | null>(null)
+  const meMarker = useRef<maplibregl.Marker | null>(null)
   const [name, setName] = useState('…')
+  /** Selbst ermittelter Standort, falls die App keinen mitgibt. */
+  const [ownPos, setOwnPos] = useState<LatLon | null>(null)
+  const hier = userPos ?? ownPos
 
   useBackToClose(onClose)
+
+  // Ohne Vorgabe stand die Karte auf dem Marienplatz — von dort aus muss man
+  // erst quer durch die Stadt schieben. Sinnvoller Anfang ist der eigene Ort.
+  useEffect(() => {
+    if (userPos) return
+    let lebt = true
+    getGeolocation()
+      .then(p => lebt && setOwnPos(p))
+      .catch(() => {})
+    return () => {
+      lebt = false
+    }
+  }, [userPos])
 
   useEffect(() => {
     if (!canvas.current || map.current) return
     const m = new maplibregl.Map({
       container: canvas.current,
       style: mapStyleUrl(theme),
-      center: initial ? [initial.lon, initial.lat] : [11.575, 48.137],
-      zoom: initial ? 15 : 12,
+      center: initial
+        ? [initial.lon, initial.lat]
+        : hier
+          ? [hier.lon, hier.lat]
+          : [11.575, 48.137],
+      zoom: initial || hier ? 15 : 12,
       attributionControl: { compact: true },
     })
     map.current = m
@@ -115,6 +146,24 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const m = map.current
+    if (!m || !hier) return
+    if (!meMarker.current) {
+      const el = document.createElement('div')
+      el.className = 'mk-user'
+      meMarker.current = new maplibregl.Marker({ element: el }).setLngLat([hier.lon, hier.lat]).addTo(m)
+      // Kam der Standort erst nach dem Aufbau der Karte und gab es keine
+      // Vorgabe, steht die Karte noch auf der Stadtmitte — dann nachziehen.
+      // Ohne Animation: das erste Zurechtrücken ist kein Vorgang, den man
+      // sehen will, und eine gedrosselte Animation käme nie an.
+      if (!initial) m.jumpTo({ center: [hier.lon, hier.lat], zoom: 15 })
+    } else {
+      meMarker.current.setLngLat([hier.lon, hier.lat])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hier])
+
   function confirm() {
     const m = map.current
     if (!m) return
@@ -126,14 +175,24 @@ export default function MapPicker({ title, initial, theme = 'light', lang = 'de'
     <div className="picker">
       <div className="picker-top">
         <span>{title}</span>
-        <button className="picker-x" onClick={onClose}>
-          <CloseIcon size={14} /> {t('bmBack', lang)}
+        <button className="picker-x" onClick={onClose} aria-label={t('bmBack', lang)} title={t('bmBack', lang)}>
+          <CloseIcon size={16} />
         </button>
       </div>
       <div className="picker-map">
         <div ref={canvas} className="picker-canvas" />
         <div className="picker-pin" />
         <div className="picker-hint">{t('moveMapHint', lang)}</div>
+        {hier && (
+          <button
+            className="bm-locate"
+            aria-label={t('bmLocateTitle', lang)}
+            title={t('bmLocateTitle', lang)}
+            onClick={() => map.current?.easeTo({ center: [hier.lon, hier.lat], zoom: 16 })}
+          >
+            <TargetIcon size={18} />
+          </button>
+        )}
       </div>
       <div className="picker-bottom">
         <div className="picker-name">{name}</div>

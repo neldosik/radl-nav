@@ -315,6 +315,7 @@ export default function App() {
           <MapPicker
             title={t(pickOnMap === 'from' ? 'pickStartOnMap' : 'pickDestOnMap', lang)}
             initial={pickOnMap === 'from' ? from : to}
+            userPos={userPos}
             theme={themeMode}
             lang={lang}
             onPick={p => {
