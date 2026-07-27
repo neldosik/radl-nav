@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
 import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
@@ -15,6 +15,8 @@ import {
   TurnIcon,
   WalkIcon,
 } from '../icons'
+import { fetchTripStatus } from '../api'
+import type { TripStatus } from '../api'
 import { planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
 import { decodePolyline } from '../polyline'
@@ -31,6 +33,9 @@ import type { Language } from '../i18n'
 const OFF_ROUTE_M = 90
 /** So viele Messungen hintereinander, bevor der Hinweis kommt. */
 const OFF_ROUTE_FIXES = 3
+/** Wie oft der Stand der laufenden ÖPNV-Fahrt nachgefragt wird. Häufiger
+ *  lohnt nicht: die Rückmeldungen der Betreiber kommen selten schneller. */
+const LIVE_POLL_MS = 60_000
 
 interface Props {
   view: ItineraryView
@@ -130,6 +135,8 @@ export default function JourneyMode({
   const vibratedTransit = useRef(false)
   /** Wie oft hintereinander lag der Standort abseits der Linie? */
   const abseitsZaehler = useRef(0)
+  /** Frisch nachgefragter Stand der laufenden ÖPNV-Fahrt. */
+  const [liveStatus, setLiveStatus] = useState<TripStatus | null>(null)
 
   /**
    * Beginn der Ausleihe je Etappe — einmal festgehalten und danach nie wieder
@@ -257,6 +264,29 @@ export default function JourneyMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abgekommen, rerouting])
 
+  // Verspätungen aus der Suche sind eine Momentaufnahme. Wer schon unterwegs
+  // ist, erfährt sonst nie, dass die Bahn inzwischen später kommt — deshalb
+  // die laufende Fahrt regelmäßig nachfragen. Eine Fahrt, nicht die ganze Suche.
+  const tripId = leg?.tripId
+  useEffect(() => {
+    setLiveStatus(null)
+    if (!tripId || arrived) return
+    const ctrl = new AbortController()
+    let lebt = true
+    const hole = () => {
+      fetchTripStatus(tripId, ctrl.signal)
+        .then(st => lebt && st && setLiveStatus(st))
+        .catch(() => {})
+    }
+    hole()
+    const id = window.setInterval(hole, LIVE_POLL_MS)
+    return () => {
+      lebt = false
+      ctrl.abort()
+      window.clearInterval(id)
+    }
+  }, [tripId, arrived])
+
   // ── Ankunftsscreen ──
   if (arrived) {
     // Echte Etappendauern und -längen statt pauschal 15 Min je Radetappe;
@@ -308,7 +338,9 @@ export default function JourneyMode({
       ? t('jmGoal', lang)
       : (b?.returnSnapped ? b.endStation?.name : '') || leg.to.name || b?.endStation?.name || ''
   const name = `${legLabel(leg, lang)}${leg.routeShortName ? ` ${leg.routeShortName}` : ''}`
-  const delay = legDelayMin(leg)
+  // Der frisch nachgefragte Stand schlägt den aus der Suche
+  const delay = liveStatus?.realTime ? liveStatus.delayMin : legDelayMin(leg)
+  const abgesagt = liveStatus?.cancelled ?? leg.cancelled
 
   const distText =
     distToEnd == null
@@ -460,7 +492,7 @@ export default function JourneyMode({
                 {t('jmMin', lang)}
                 {zeigtRest ? ` ${t('jmLeft', lang)}` : ''} · {name}
               </span>
-              {leg.cancelled ? (
+              {abgesagt ? (
                 <span className="delay cancel">{t('cardCancelled', lang)}</span>
               ) : delay != null && delay !== 0 ? (
                 <span className="delay">{dict[lang].cardDelay(delay)}</span>

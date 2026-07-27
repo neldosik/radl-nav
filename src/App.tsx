@@ -80,6 +80,11 @@ export default function App() {
   /** Los-Modus: Karte folgt dem Standort, bis man selbst schiebt */
   const [followMe, setFollowMe] = useState(true)
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
+  /** Radwege-Ebene über der Karte — CyclOSM, nur Anzeige. Die Routenführung
+   *  bleibt unberührt, die kommt weiter von MOTIS. */
+  const [cycleLayer, setCycleLayer] = useState<boolean>(
+    () => localStorage.getItem('radl.cyclelayer') === 'true',
+  )
   const [showFilterModal, setShowFilterModal] = useState(false)
   const searchCtrl = useRef<AbortController | null>(null)
   /** Läuft gerade eine automatische Neuberechnung? Dann darf der Effekt
@@ -113,6 +118,12 @@ export default function App() {
     const next = !soundEnabled
     setSoundEnabled(next)
     localStorage.setItem('radl.sound', String(next))
+  }
+
+  function toggleCycleLayer() {
+    const next = !cycleLayer
+    setCycleLayer(next)
+    localStorage.setItem('radl.cyclelayer', String(next))
   }
 
   // Beim Start die gespeicherte Sprache auch ins Dokument schreiben.
@@ -378,6 +389,7 @@ export default function App() {
                 userPos={userPos}
                 bikesNeeded={bikes}
                 theme={themeMode}
+                cycleLayer={cycleLayer}
                 follow={followMe}
                 onUserPan={() => setFollowMe(false)}
               />
@@ -435,6 +447,7 @@ export default function App() {
               userPos={userPos}
               theme={themeMode}
               lang={lang}
+              cycleLayer={cycleLayer}
               onSelectPlace={p => {
                 setFrom(p)
                 setTab('route')
@@ -486,6 +499,9 @@ export default function App() {
               </button>
               <button className="header-menu-item" onClick={toggleSound}>
                 {soundEnabled ? t('soundOn', lang) : t('soundOff', lang)}
+              </button>
+              <button className="header-menu-item" onClick={toggleCycleLayer}>
+                {cycleLayer ? t('cycleLayerOff', lang) : t('cycleLayerOn', lang)}
               </button>
             </div>
           )}
@@ -665,7 +681,13 @@ export default function App() {
         <div className="results-map" ref={mapBoxRef}>
           <MapGuard lang={lang}>
             <Suspense fallback={<div className="map" />}>
-              <MapView view={selectedView} userPos={userPos} bikesNeeded={bikes} theme={themeMode} />
+              <MapView
+                view={selectedView}
+                userPos={userPos}
+                bikesNeeded={bikes}
+                theme={themeMode}
+                cycleLayer={cycleLayer}
+              />
             </Suspense>
           </MapGuard>
           {weather && (

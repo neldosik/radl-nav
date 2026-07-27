@@ -1,3 +1,4 @@
+import { currentPosition } from './geolocation'
 import { parseFreeBikes, parseStations } from './gbfs'
 import type { GbfsFreeBike, GbfsStationInfo, GbfsStationStatus, GbfsVehicleType } from './gbfs'
 import type { FreeBike, GeocodeMatch, LatLon, PlanResponse, Station } from './types'
@@ -204,16 +205,9 @@ async function fetchWeatherInner(
   }
 }
 
-/** GPS-Koordinaten des Browsers (Promise-Wrapper über Geolocation). */
+/** Einmalige Ortung — nativ über die App-Hülle, im Web über den Browser. */
 export function getGeolocation(): Promise<{ lat: number; lon: number }> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))
-    navigator.geolocation.getCurrentPosition(
-      p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      reject,
-      { enableHighAccuracy: true, timeout: 8000 },
-    )
-  })
+  return currentPosition()
 }
 
 /** providerId MyRadl in Transitous (siehe /api/v1/rentals); systemId `nextbike_ml` Filter akzeptiert NICHT. */
@@ -372,3 +366,49 @@ export async function loadStations(): Promise<Station[]> {
   return []
 }
 
+
+export interface TripStatus {
+  /** Verspätung in Minuten, negativ = zu früh */
+  delayMin: number
+  cancelled: boolean
+  /** Trägt die Antwort überhaupt Echtzeitdaten? */
+  realTime: boolean
+}
+
+/**
+ * Aktueller Stand einer laufenden Fahrt.
+ *
+ * Die Verspätungen aus der Routensuche sind Momentaufnahmen vom Zeitpunkt der
+ * Suche. Wer schon unterwegs ist, erfährt sonst nichts davon, dass die Bahn
+ * inzwischen zehn Minuten später kommt. `/api/v1/trip` liefert genau eine
+ * Fahrt — deutlich billiger als die ganze Suche zu wiederholen.
+ */
+export async function fetchTripStatus(tripId: string, signal?: AbortSignal): Promise<TripStatus | null> {
+  const u = new URL(`${MOTIS}/v1/trip`)
+  u.searchParams.set('tripId', tripId)
+  let r: Response
+  try {
+    r = await fetch(u, { signal: withTimeout(signal) })
+  } catch (e) {
+    // Kein Netz — der zuletzt bekannte Stand bleibt einfach stehen
+    if ((e as Error)?.name === 'AbortError') throw e
+    return null
+  }
+  if (!r.ok) return null
+
+  const j = (await r.json()) as {
+    legs?: { startTime?: string; scheduledStartTime?: string; realTime?: boolean; cancelled?: boolean }[]
+  }
+  const leg = j.legs?.[0]
+  if (!leg?.startTime || !leg.scheduledStartTime) return null
+
+  const ist = new Date(leg.startTime).getTime()
+  const soll = new Date(leg.scheduledStartTime).getTime()
+  if (Number.isNaN(ist) || Number.isNaN(soll)) return null
+
+  return {
+    delayMin: Math.round((ist - soll) / 60000),
+    cancelled: !!leg.cancelled,
+    realTime: !!leg.realTime,
+  }
+}

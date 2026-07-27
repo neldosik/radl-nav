@@ -51,6 +51,8 @@ export interface Leg {
   distance?: number
   headsign?: string
   routeShortName?: string
+  /** Kennung der konkreten Fahrt — für Echtzeit-Nachfragen unterwegs */
+  tripId?: string
   routeColor?: string
   routeTextColor?: string
   legGeometry?: { points: string; length?: number; precision?: number }

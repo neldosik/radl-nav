@@ -4,7 +4,7 @@ import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { pickRentalUri } from '../format'
 import { BikeIcon, BoltIcon, CloseIcon, ExternalIcon, TargetIcon, WalkIcon } from '../icons'
-import { mapStyleUrl } from '../mapStyle'
+import { addCycleLayer, mapStyleUrl } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
 import { dict, t } from '../i18n'
@@ -14,6 +14,8 @@ interface Props {
   userPos: LatLon | null
   theme?: ThemeMode
   lang?: Language
+  /** Radwege-Ebene einblenden */
+  cycleLayer?: boolean
   /** als Reiter eingebettet (ohne Vollbild-Overlay und Schließen-Knopf) */
   embedded?: boolean
   /** Station als Startpunkt übernehmen */
@@ -150,6 +152,11 @@ function generatePillBadgeCanvas(bikes: number, ebikes: number, selected: boolea
  * Und beim Schließen über X oder Auswahl blieb der Eintrag liegen, sodass der
  * nächste Zurück-Druck ins Leere ging.
  */
+/** Ein von uns selbst ausgelöster Rücksprung — das folgende popstate gehört
+ *  nicht dem Nutzer. Modulübergreifend, weil Ansicht A beim Schließen den
+ *  Rücksprung auslöst und Ansicht B ihn sonst als Zurück-Druck missversteht. */
+let eigenerRuecksprung = false
+
 function useBackToClose(onClose: () => void) {
   const schliessen = useRef(onClose)
   schliessen.current = onClose
@@ -159,6 +166,14 @@ function useBackToClose(onClose: () => void) {
   useEffect(() => {
     window.history.pushState({ radlOverlay: true }, '')
     const onPop = () => {
+      // Unseren eigenen Rücksprung nicht als Zurück-Druck des Nutzers werten.
+      // `history.back()` wirkt verzögert: im Entwicklungsmodus ruft React jeden
+      // Effekt doppelt auf, dann fing der *neu* angemeldete Zuhörer das eigene
+      // popstate ab und schloss die Ansicht sofort wieder.
+      if (eigenerRuecksprung) {
+        eigenerRuecksprung = false
+        return
+      }
       konsumiert.current = true
       schliessen.current()
     }
@@ -167,7 +182,10 @@ function useBackToClose(onClose: () => void) {
       window.removeEventListener('popstate', onPop)
       // Regulär geschlossen (X, Auswahl, Reiterwechsel): eigenen Eintrag
       // zurücknehmen, sonst verpufft der nächste Zurück-Druck.
-      if (!konsumiert.current) window.history.back()
+      if (!konsumiert.current) {
+        eigenerRuecksprung = true
+        window.history.back()
+      }
     }
   }, [])
 }
@@ -176,6 +194,7 @@ export default function BikeMap({
   userPos,
   theme = 'light',
   lang = 'de',
+  cycleLayer = false,
   embedded = false,
   onSelectPlace,
   onClose,
@@ -350,6 +369,7 @@ export default function BikeMap({
     // steht der Stil, dürfen Quelle und Ebene dazu.
     const styleReady = () => !!m.getStyle()?.layers?.length
     if (styleReady()) {
+      addCycleLayer(m, cycleLayer)
       applyData()
     } else {
       // `styledata` feuert bei jeder Stiländerung erneut — anders als `load`
@@ -357,6 +377,7 @@ export default function BikeMap({
       const onStyle = () => {
         if (!styleReady()) return
         m.off('styledata', onStyle)
+        addCycleLayer(m, cycleLayer)
         applyData()
       }
       m.on('styledata', onStyle)
@@ -369,7 +390,7 @@ export default function BikeMap({
       // Karte einmalig auf den eigenen Standort holen, sobald er da ist
       m.easeTo({ center: [here.lon, here.lat], zoom: 14.5, duration: 500 })
     }
-  }, [supply, filterType, selected, center, here])
+  }, [supply, filterType, selected, center, here, cycleLayer])
 
   // Für die Summe zählt der ganze Umkreis. Die Pins sind auf 100 begrenzt,
   // damit die Karte lesbar bleibt — die Zeile darunter behauptete aber

@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import { decodePolyline } from '../polyline'
 import { legKind } from '../format'
 import { haversine, planPickup, projectOnPath } from '../geo'
-import { addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
+import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
 
@@ -38,6 +38,8 @@ interface Props {
   userPos?: { lat: number; lon: number; accuracy?: number } | null
   bikesNeeded?: number
   theme?: ThemeMode
+  /** Radwege-Ebene einblenden */
+  cycleLayer?: boolean
   /** Kamera folgt dem Standort (Los-Modus) */
   follow?: boolean
   /** Nutzer hat die Karte selbst verschoben — Folgen aussetzen */
@@ -50,6 +52,7 @@ export default function MapView({
   userPos = null,
   bikesNeeded = 1,
   theme = 'light',
+  cycleLayer = false,
   follow = true,
   onUserPan,
 }: Props) {
@@ -70,6 +73,8 @@ export default function MapView({
   onUserPanRef.current = onUserPan
   const bikesRef = useRef(bikesNeeded)
   bikesRef.current = bikesNeeded
+  const cycleRef = useRef(cycleLayer)
+  cycleRef.current = cycleLayer
   const themeRef = useRef(theme)
   themeRef.current = theme
 
@@ -177,6 +182,7 @@ export default function MapView({
     })
     m.on('load', () => {
       addRouteLayers(m, themeRef.current)
+      addCycleLayer(m, cycleRef.current)
       ready.current = true
       if (viewRef.current) draw(viewRef.current, activeLegRef.current)
     })
@@ -220,6 +226,7 @@ export default function MapView({
     m.setStyle(mapStyleUrl(theme))
     m.once('styledata', () => {
       addRouteLayers(m, theme)
+      addCycleLayer(m, cycleRef.current)
       if (viewRef.current) draw(viewRef.current, activeLegRef.current)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -311,6 +318,13 @@ export default function MapView({
     if (activeLegRef.current != null && followRef.current) followUser(gezogen!)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPos])
+
+  // Radwege an/aus, ohne den Kartenstil neu zu laden
+  useEffect(() => {
+    const m = map.current
+    if (!m || !ready.current) return
+    addCycleLayer(m, cycleLayer)
+  }, [cycleLayer])
 
   // „Zentrieren" gedrückt: sofort hinspringen. Vorher passierte bis zum
   // nächsten GPS-Fix nichts — der Knopf wirkte kaputt.

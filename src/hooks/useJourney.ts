@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { haversine } from '../geo'
+import { watchPosition } from '../geolocation'
 import { legTarget } from '../routing'
 import type { ItineraryView, LatLon } from '../types'
 import { useWakeLock } from './useWakeLock'
@@ -80,15 +81,16 @@ export function useJourney(view: ItineraryView | null): Journey {
       setGpsError(null)
       return
     }
-    if (!navigator.geolocation) return
-    const id = navigator.geolocation.watchPosition(
-      p => {
+    // Nativ über die App-Hülle (Play-Dienste, eigene Taktung, Blickrichtung),
+    // im Web über den Browser — die Auswahl trifft `watchPosition`.
+    const watch = watchPosition(
+      f => {
         setGpsError(null)
-        const acc = p.coords.accuracy
+        const acc = f.accuracy
         // Ausreißer verwerfen: ein 500-m-Fix schaltet sonst Etappen weiter
         // und lässt die Karte springen.
         if (acc != null && acc > MAX_ACCURACY_M) return
-        const next = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: acc, at: Date.now() }
+        const next = { lat: f.lat, lon: f.lon, accuracy: acc, at: f.at }
         // Nur die Koordinaten entscheiden über „hat sich bewegt"; der
         // Zeitstempel wird immer mitgeführt, sonst altert die Anzeige im Stand.
         setUserPos(prev =>
@@ -97,11 +99,9 @@ export function useJourney(view: ItineraryView | null): Journey {
       },
       // Vorher eine leere Funktion: fiel GPS aus, blieb die zuletzt bekannte
       // Entfernung stehen und wurde weiter als aktuell angezeigt.
-      err => setGpsError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost'),
-      // maximumAge 0: im Fahrbetrieb ist ein drei Sekunden alter Fix wertlos.
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+      grund => setGpsError(grund),
     )
-    return () => navigator.geolocation.clearWatch(id)
+    return () => watch.stop()
   }, [active, arrived])
 
   // Etappenziel erreicht (< 70 m) → nächste Etappe, mit kurzer Vibration.
