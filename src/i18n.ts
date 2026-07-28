@@ -132,6 +132,8 @@ export const dict = {
     jmCo2Saved: 'CO₂ gespart',
     jmCost: 'Kosten',
     jmTimerFree: 'Rad-Timer: Noch',
+    jmEbikeStufe: (min: number, stufe: number) =>
+      `E-Bike: noch ${min} Min in der ${stufe}. halben Stunde (je 1,50 €)`,
     jmTimerFreeMin: 'Min Freifahrt (Puffer bis 28 Min)',
     jmDropoff: 'Rückgabestation in',
     jmDropoffAction: '— Rad abstellen & sperren',
@@ -355,6 +357,8 @@ export const dict = {
     jmCo2Saved: 'CO₂ saved',
     jmCost: 'cost',
     jmTimerFree: 'Bike timer:',
+    jmEbikeStufe: (min: number, stufe: number) =>
+      `E-Bike: ${min} min left in half-hour ${stufe} (1.50 € each)`,
     jmTimerFreeMin: 'min free ride left (28 min buffer)',
     jmDropoff: 'Drop-off station in',
     jmDropoffAction: '— lock & return bike',

@@ -4,6 +4,7 @@ import type { ItineraryView, Leg } from '../types'
 import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
 import {
   BikeIcon,
+  BoltIcon,
   CompassIcon,
   ChevronLeft,
   ChevronRight,
@@ -442,8 +443,22 @@ export default function JourneyMode({
   const tempoRoh = userPos?.speed != null && !posVeraltet ? userPos.speed * 3.6 : null
   const tempo = tempoRoh != null && tempoRoh >= 1 && tempoRoh < 90 ? Math.round(tempoRoh) : null
 
-  const remainingSec = Math.max(0, FREE_LIMIT_SEC - bikeSec)
+  /**
+   * Restzeit bis zur nächsten Geldgrenze.
+   *
+   * Standardrad: bis die 30 Freiminuten um sind (mit Puffer 28).
+   * E-Bike: bis die nächste angefangene halbe Stunde beginnt — dort gibt es
+   * keine Freiminuten, aber jede Stufe kostet weitere 1,50 €. Genau deshalb
+   * ist die Uhr dort nicht überflüssig, sondern besonders nützlich; sie fehlte
+   * bisher ganz.
+   */
+  const STUFE_SEC = 30 * 60
+  const remainingSec = b?.electric
+    ? STUFE_SEC - (bikeSec % STUFE_SEC)
+    : Math.max(0, FREE_LIMIT_SEC - bikeSec)
   const remainingMins = Math.ceil(remainingSec / 60)
+  /** Wie viele halbe Stunden das E-Bike bereits gekostet hat. */
+  const ebikeStufen = b?.electric ? Math.floor(bikeSec / STUFE_SEC) + 1 : 0
   const isNearDropoff = isBikeLeg && distToEnd != null && distToEnd <= 250
 
   return (
@@ -547,13 +562,17 @@ export default function JourneyMode({
               </div>
             ) : null}
           </div>
-          {isBikeLeg && !b?.electric &&
+          {isBikeLeg &&
             (bikeStartedAt ? (
               <span
-                className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}`}
-                title={`${t('jmTimerFree', lang)} ${remainingMins} ${t('jmTimerFreeMin', lang)}`}
+                className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}${b?.electric ? ' ebike' : ''}`}
+                title={
+                  b?.electric
+                    ? dict[lang].jmEbikeStufe(remainingMins, ebikeStufen)
+                    : `${t('jmTimerFree', lang)} ${remainingMins} ${t('jmTimerFreeMin', lang)}`
+                }
               >
-                <ClockIcon size={13} />
+                {b?.electric ? <BoltIcon size={13} /> : <ClockIcon size={13} />}
                 {elapsedText(remainingSec * 1000)}
               </span>
             ) : (

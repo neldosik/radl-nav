@@ -2558,6 +2558,13 @@ button {
   font-size: 12.5px;
 }
 
+/* E-Bike-Uhr: Terracotta wie überall, wo etwas Geld kostet — sie zählt keine
+   Freiminuten, sondern bis zur nächsten angefangenen halben Stunde. */
+.j-biketimer.ebike {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
 .j-biketimer.urgent {
   background: var(--alert);
   color: #fff;
