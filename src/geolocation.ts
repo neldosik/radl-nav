@@ -25,6 +25,35 @@ export interface Fix {
 
 type Fehler = 'denied' | 'lost'
 
+/** Gewünschter Takt der Standortmeldungen in der Hülle. */
+const WUNSCH_TAKT_MS = 1000
+
+/**
+ * Beobachteter Abstand zwischen zwei Messungen — die Diagnose zeigt ihn.
+ *
+ * Der angeforderte Takt sagt nichts darüber, was das Gerät tatsächlich
+ * liefert; genau daran hing der Fehler mit den 15 Sekunden, und ohne diese
+ * Zahl war er von außen nicht zu sehen.
+ */
+const taktProben: number[] = []
+let letzteMessungAt = 0
+
+function taktMerken(): void {
+  const jetzt = Date.now()
+  if (letzteMessungAt) {
+    taktProben.push(jetzt - letzteMessungAt)
+    if (taktProben.length > 20) taktProben.shift()
+  }
+  letzteMessungAt = jetzt
+}
+
+export function ortungsTakt(): string {
+  if (!taktProben.length) return letzteMessungAt ? 'erst eine Messung' : 'noch keine Messung'
+  const mittel = taktProben.reduce((a, b) => a + b, 0) / taktProben.length
+  const kleinste = Math.min(...taktProben)
+  return `${(mittel / 1000).toFixed(1)} s im Mittel, schnellste ${(kleinste / 1000).toFixed(1)} s (${taktProben.length + 1} Messungen)`
+}
+
 /**
  * Protokoll der Ortungsversuche — die Diagnose zeigt es an.
  *
@@ -190,7 +219,10 @@ export function watchPosition(
   onError: (e: Fehler) => void,
   opts: { highAccuracy?: boolean; minIntervalMs?: number } = {},
 ): Watch {
-  const { highAccuracy = true, minIntervalMs = 1000 } = opts
+  // Untergrenze bewusst unter dem Wunschtakt: liefert der Anbieter einmal
+  // schneller, wird die Messung durchgereicht statt verworfen. Mehr Messungen
+  // heißt weniger zu überbrücken für die Glättung in der Karte.
+  const { highAccuracy = true, minIntervalMs = 500 } = opts
 
   if (!istNativ()) {
     if (!navigator.geolocation) {
@@ -198,7 +230,8 @@ export function watchPosition(
       return { stop: () => {} }
     }
     const id = navigator.geolocation.watchPosition(
-      p =>
+      p => (
+        taktMerken(),
         onFix({
           lat: p.coords.latitude,
           lon: p.coords.longitude,
@@ -206,7 +239,8 @@ export function watchPosition(
           heading: p.coords.heading ?? undefined,
           speed: p.coords.speed ?? undefined,
           at: Date.now(),
-        }),
+        })
+      ),
       err => {
         merkeFehler(`web ${err.code}: ${err.message}`)
         onError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost')
@@ -293,6 +327,7 @@ export function watchPosition(
           return
         }
         kamSchonEinFix = true
+        taktMerken()
         clearTimeout(wachhund)
         onFix({
           lat: pos.coords.latitude,
@@ -304,9 +339,29 @@ export function watchPosition(
         })
       }
 
+      /**
+       * `interval` muss mitgegeben werden.
+       *
+       * Steht es nicht da, setzt die Android-Seite des Plugins es auf den Wert
+       * von `timeout` — bei unseren 15 Sekunden hieß das: von den Play-Diensten
+       * wurde eine Messung **alle 15 Sekunden** angefordert. Schneller kam nur
+       * etwas, wenn zufällig eine andere App gerade häufiger fragte. Auf dem Rad
+       * sind 15 Sekunden rund achtzig Meter — der Punkt konnte gar nicht anders
+       * als springen, und keine Glättung der Welt hilft gegen fehlende Messungen.
+       *
+       * `interval` ist der Wunschtakt, `minimumUpdateInterval` die Sperre nach
+       * oben: schneller als diese Grenze wird nichts durchgereicht, auch wenn
+       * der Anbieter mehr hätte. Eine Sekunde Wunsch mit einer halben als
+       * Untergrenze nimmt mit, was da ist, ohne den Empfänger zu fluten.
+       */
       const anmelden = (genau: boolean) =>
         Geolocation.watchPosition(
-          { enableHighAccuracy: genau, minimumUpdateInterval: minIntervalMs, timeout: 15000 },
+          {
+            enableHighAccuracy: genau,
+            interval: WUNSCH_TAKT_MS,
+            minimumUpdateInterval: minIntervalMs,
+            timeout: 15000,
+          },
           rueckruf,
         )
 

@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { berechtigungsStand, currentPosition, istNativ, ortungsFehler, ortungsProtokoll } from '../geolocation'
+import {
+  berechtigungsStand,
+  currentPosition,
+  istNativ,
+  ortungsFehler,
+  ortungsProtokoll,
+  ortungsTakt,
+} from '../geolocation'
 
 /**
  * Messwerte des Geräts, damit Layoutfehler nicht aus Bildschirmfotos geraten
@@ -51,6 +58,7 @@ function zeilen(rechte: string): string[] {
     `huelle     ${istNativ() ? 'nativ' : 'web'}  plugins: ${plugins()}`,
     `ortfehler  ${ortungsFehler() || '-'}`,
     `ortrechte  ${rechte}`,
+    `orttakt    ${ortungsTakt()}`,
     `sw         ${navigator.serviceWorker?.controller ? 'steuert die Seite' : 'frei'}`,
   ]
 }
