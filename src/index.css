@@ -1289,10 +1289,15 @@ button {
   /* Unten kein Zuschlag auf den Sicherheitsabstand: die 34 Punkte des
      Homezeichens sind bereits Rand genug, addierte man die 10 dazu, stünden
      die Symbole sichtbar zu hoch in einer sonst leeren Leiste. Tiefer als der
-     Sicherheitsabstand geht nicht — dort zeichnet iOS seinen Strich und
-     nimmt die Berührung für die eigene Geste ab. Wo es kein Homezeichen gibt,
-     bleiben es die alten 10. */
-  padding: 6px max(12px, var(--sar)) max(10px, env(safe-area-inset-bottom, 0px))
+     Sicherheitsabstand geht nicht ohne Weiteres — dort zeichnet iOS seinen
+     Strich und nimmt die Berührung für die eigene Geste ab. Wo es kein
+     Homezeichen gibt, bleiben es die alten 10.
+
+     Die 8 Punkte darunter sind der Rest, der sich gefahrlos holen lässt: der
+     Strich selbst ist rund 5 Punkte hoch und endet etwa 8 Punkte über der
+     Kante, die Beschriftungen bleiben damit gut ein Dutzend Punkte darüber.
+     Mehr wäre auf Kosten der Treffsicherheit. */
+  padding: 6px max(12px, var(--sar)) max(10px, calc(env(safe-area-inset-bottom, 0px) - 8px))
     max(12px, var(--sal));
 }
 

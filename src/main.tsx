@@ -30,12 +30,41 @@ import { istNativ } from './geolocation'
  *
  * Ein früher registrierter Worker überlebt die Aktualisierung der App,
  * deshalb wird er hier auch aktiv abgemeldet und sein Puffer geleert.
+ *
+ * Und zwar ohne `istNativ()` zu fragen. Der erste Anlauf hing genau daran:
+ * die Abmeldung sollte nur in der Hülle laufen, erkannt an `window.Capacitor`
+ * — das ist aber gerade das, was fehlt, solange der Worker die Seite ohne
+ * Brücke ausliefert. Die Bedingung war damit nie erfüllt, der Worker blieb
+ * liegen und lieferte weiter aus. Erkannt wird die Hülle deshalb an ihrer
+ * Herkunft, die auch ohne Brücke stimmt: `https://localhost` ohne Port
+ * (androidScheme in capacitor.config.ts) oder `capacitor:`.
+ *
+ * Nach dem Abmelden einmal neu laden — erst dieser Aufruf geht wieder an den
+ * lokalen Server der Hülle und bekommt die Brücke eingesetzt. Ohne das müsste
+ * man die App von Hand neu starten. Die Marke in der Sitzung verhindert eine
+ * Schleife, falls das Abmelden nicht greift.
  */
-if (istNativ() && 'serviceWorker' in navigator) {
+
+/** Hülle auch dann erkennen, wenn die Brücke fehlt. */
+function inHuelle(): boolean {
+  if (istNativ()) return true
+  const { protocol, hostname, port } = window.location
+  if (protocol === 'capacitor:') return true
+  return protocol === 'https:' && hostname === 'localhost' && port === ''
+}
+
+if (inHuelle() && 'serviceWorker' in navigator) {
   navigator.serviceWorker
     .getRegistrations()
-    .then(regs => Promise.all(regs.map(r => r.unregister())))
-    .then(() => caches?.keys().then(namen => Promise.all(namen.map(n => caches.delete(n)))))
+    .then(async regs => {
+      if (!regs.length) return
+      await Promise.all(regs.map(r => r.unregister()))
+      const namen = (await caches?.keys()) ?? []
+      await Promise.all(namen.map(n => caches.delete(n)))
+      if (sessionStorage.getItem('huelle-entpuffert')) return
+      sessionStorage.setItem('huelle-entpuffert', '1')
+      window.location.reload()
+    })
     .catch(() => {})
 } else if ('serviceWorker' in navigator) {
   /**
