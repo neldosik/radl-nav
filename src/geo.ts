@@ -64,11 +64,21 @@ export function nearbyStations(
   maxDist = 600,
   limit = 6,
 ): NearStation[] {
-  return stations
-    .map(s => ({ station: s, dist: haversine(p, s) }))
-    .filter(n => n.dist <= maxDist && (n.station.bikes > 0 || n.station.ebikes > 0))
-    .sort((a, b) => a.dist - b.dist)
-    .slice(0, limit)
+  // Grobfilter vor der Rechnerei: ein Grad Breite sind rund 111 km, ein Grad
+  // Länge auf Münchner Höhe rund 74 km. Wer außerhalb dieses Rechtecks liegt,
+  // kann den Radius nicht unterschreiten — das spart Wurzel und Winkelfunktion
+  // für den Großteil der Einträge. Bei der Radkarte läuft diese Funktion nach
+  // jedem Schieben über mehrere tausend Punkte.
+  const dLat = maxDist / 111_320
+  const dLon = maxDist / (111_320 * Math.cos((p.lat * Math.PI) / 180))
+  const treffer: NearStation[] = []
+  for (const s of stations) {
+    if (s.bikes <= 0 && s.ebikes <= 0) continue
+    if (Math.abs(s.lat - p.lat) > dLat || Math.abs(s.lon - p.lon) > dLon) continue
+    const dist = haversine(p, s)
+    if (dist <= maxDist) treffer.push({ station: s, dist })
+  }
+  return treffer.sort((a, b) => a.dist - b.dist).slice(0, limit)
 }
 
 export interface Pickup extends NearStation {

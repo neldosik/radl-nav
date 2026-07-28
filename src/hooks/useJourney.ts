@@ -11,6 +11,21 @@ const ARRIVE_RADIUS_M = 70
 const MAX_ACCURACY_M = 100
 /** Unter dieser Bewegung ist es GPS-Rauschen — kein neuer Zustand, kein Rerender. */
 const MIN_MOVE_M = 3
+/**
+ * Not-Abschaltung des Los-Modus.
+ *
+ * `useWakeLock` hält den Bildschirm wach, in der Hülle über
+ * FLAG_KEEP_SCREEN_ON — der Bildschirm geht dann gar nicht mehr von selbst
+ * aus. Beendet wurde das nur, wenn jemand aussteigt oder ankommt. Wer die App
+ * in der Tasche vergisst, dessen Akku ist in ein bis zwei Stunden leer: heller
+ * Bildschirm plus GPS mit hoher Genauigkeit sind zusammen der größte
+ * Verbraucher, den ein Telefon kennt.
+ *
+ * Deshalb zwei Wächter: keine nennenswerte Bewegung über längere Zeit, und
+ * eine harte Obergrenze für die Fahrtdauer.
+ */
+const RUHE_TIMEOUT_MS = 12 * 60_000
+const MAX_FAHRT_MS = 4 * 60 * 60_000
 /** Ab hier gilt der letzte Fix als veraltet und die Entfernung als geraten. */
 const STALE_AFTER_MS = 30_000
 /** So lange nach einem Handgriff bleibt die automatische Weiterschaltung aus. */
@@ -74,7 +89,28 @@ export function useJourney(view: ItineraryView | null): Journey {
    */
   const manuellBis = useRef(0)
 
-  useWakeLock(active && !arrived)
+  /** Zuletzt gesehene Bewegung — Bezug für die Not-Abschaltung. */
+  const letzteBewegung = useRef(Date.now())
+  /** Wächter hat abgeschaltet: Bildschirm darf wieder schlafen. */
+  const [eingeschlafen, setEingeschlafen] = useState(false)
+
+  useWakeLock(active && !arrived && !eingeschlafen)
+
+  // Not-Abschaltung: still, ohne die Navigation zu beenden. Wer weiterfährt,
+  // weckt sie mit der nächsten Bewegung wieder.
+  useEffect(() => {
+    if (!active || arrived) {
+      setEingeschlafen(false)
+      letzteBewegung.current = Date.now()
+      return
+    }
+    const id = window.setInterval(() => {
+      const ruht = Date.now() - letzteBewegung.current > RUHE_TIMEOUT_MS
+      const zuLang = startedAt != null && Date.now() - startedAt > MAX_FAHRT_MS
+      setEingeschlafen(ruht || zuLang)
+    }, 30_000)
+    return () => window.clearInterval(id)
+  }, [active, arrived, startedAt])
 
   // GPS verfolgen, solange navigiert wird — auf dem Ankunftsschirm nicht mehr.
   useEffect(() => {
@@ -111,6 +147,9 @@ export function useJourney(view: ItineraryView | null): Journey {
                 ? prev.speed * 0.6 + roh * 0.4
                 : roh
           if (prev && ds < MIN_MOVE_M) return { ...prev, at: next.at, speed: geglaettet }
+          // Echte Bewegung — die Not-Abschaltung bleibt aus bzw. wird wieder
+          // aufgehoben.
+          letzteBewegung.current = Date.now()
           return { ...next, speed: geglaettet }
         })
       },

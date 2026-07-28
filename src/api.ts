@@ -305,13 +305,27 @@ const FEED_TTL_MS = 30_000
  */
 const STATISCHE_FEEDS = new Set(['station_information', 'vehicle_types', 'system_information'])
 const STATIC_TTL_MS = 60 * 60_000
+
+/**
+ * `free_bike_status` ist mit 1,7 MB und rund 4700 Fahrzeugen der mit Abstand
+ * teuerste Feed — herunterladen, JSON parsen und clustern läuft alles im
+ * Hauptthread. Für die Anzeige *freistehender* Räder genügt eine gröbere
+ * Aktualität als für den Bestand an den Stationen: wo ein herrenloses Rad
+ * herumsteht, ändert sich nicht im Halbminutentakt. Zwei Minuten sparen bei
+ * einer Fahrt mit mehreren Suchen und Reiterwechseln mehrere Megabyte.
+ */
+const FREE_BIKES_TTL_MS = 2 * 60_000
 const feedCache = new Map<string, { at: number; value: unknown }>()
 const feedInFlight = new Map<string, Promise<unknown>>()
 
 /** Holt einen GBFS-Feed; bei Fehler null statt Exception. */
 async function gbfs(feed: string): Promise<unknown> {
   const cached = feedCache.get(feed)
-  const ttl = STATISCHE_FEEDS.has(feed) ? STATIC_TTL_MS : FEED_TTL_MS
+  const ttl = STATISCHE_FEEDS.has(feed)
+    ? STATIC_TTL_MS
+    : feed === 'free_bike_status'
+      ? FREE_BIKES_TTL_MS
+      : FEED_TTL_MS
   if (cached && Date.now() - cached.at < ttl) return cached.value
 
   const running = feedInFlight.get(feed)

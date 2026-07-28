@@ -225,6 +225,9 @@ button {
 /* Beide Kopfknöpfe sind gleich große Kreise — vorher war „EN" 40px breit
    und das Zahnrad 36px, was das Symbol verschoben wirken ließ. */
 .header-menu-btn {
+  /* Optisch 36 px, damit die Kopfzeile ruhig bleibt — das Ziel darunter aber
+     in Fingergröße (siehe ::after). */
+  position: relative;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -240,6 +243,14 @@ button {
   color: var(--muted);
   cursor: pointer;
 }
+
+.header-menu-btn::after {
+  content: '';
+  position: absolute;
+  /* 36 px optisch + 2x6 = 48 px Ziel, mit Reserve über dem Mindestmaß von 44. */
+  inset: -6px;
+}
+
 
 .header-menu-btn:hover {
   color: var(--ink);
@@ -900,6 +911,19 @@ button {
   cursor: pointer;
   border: 0;
 }
+
+/* Auch die Wetterplakette wird angetippt (öffnet den Regenverlauf). */
+.weather {
+  position: relative;
+}
+
+.weather::after {
+  content: '';
+  position: absolute;
+  /* 30 px hoch optisch → 48 px Ziel */
+  inset: -9px -4px;
+}
+
 
 .weather.rain {
   color: var(--warn);
@@ -2336,6 +2360,9 @@ button {
 
 /* Vorschau der nächsten Etappen */
 .j-chip {
+  /* Die Chips bleiben optisch schmal — die Zeile soll wenig Platz kosten —,
+     bekommen aber ein Ziel in Fingergröße. Sie werden im Fahren bedient. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2350,6 +2377,13 @@ button {
   font-weight: 600;
   cursor: pointer;
 }
+
+.j-chip::after {
+  content: '';
+  position: absolute;
+  inset: -9px -2px;
+}
+
 
 .j-chip.bike {
   background: var(--accent-soft);
@@ -2701,7 +2735,17 @@ button {
   margin-bottom: 16px;
 }
 
+/* Mindestmaß für Fingerziele: der Knopf hatte nur die Größe seines Symbols
+   (rund 25x15 px). Der negative Rand hält die optische Ausrichtung. */
 .filter-modal-close {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: -10px -10px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -3153,6 +3197,13 @@ button {
 /* Liegend am Telefon: hier zählt jeder Punkt Karte. Gemessen blieben im
    Los-Modus 3px zwischen Kopfkarte und Blatt — die Karte war praktisch weg. */
 @media (max-height: 460px) {
+  /* Quer ist das untere Blatt flach, und der Kompass über dem Folgen-Knopf
+     rutschte in die schwebende Kopfkarte. Nebeneinander statt übereinander. */
+  .j-headup {
+    bottom: calc(var(--j-panel-h, 140px) + 14px);
+    right: calc(max(14px, var(--sar)) + 56px);
+  }
+
   /* Etappenchips und Fortschritt sind unterwegs entbehrlich; wohin es geht,
      steht in der Kopfkarte, und Weiter/Zurück bleiben. */
   .j-strips,

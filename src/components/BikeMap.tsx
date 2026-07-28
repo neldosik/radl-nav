@@ -26,6 +26,9 @@ interface Props {
 
 const MUNICH: LatLon = { lat: 48.137, lon: 11.575 }
 const RADIUS_M = 2500
+/** So viele gezeichnete Pillen bleiben vorrätig, auch wenn sie gerade nicht
+ *  zu sehen sind — Zurückschieben nutzt sie dann wieder. */
+const ICON_VORRAT = 300
 
 
 
@@ -282,11 +285,20 @@ export default function BikeMap({
       }),
     }
 
-    // Nicht mehr benötigte Symbole freigeben, sonst wächst der Atlas endlos.
-    for (const id of [...iconIds.current]) {
-      if (gebraucht.has(id)) continue
-      if (m.hasImage(id)) m.removeImage(id)
-      iconIds.current.delete(id)
+    // Symbole nicht sofort wegwerfen, sondern erst wenn zu viele liegen.
+    //
+    // Vorher flog nach jedem Schieben alles raus, was gerade nicht sichtbar
+    // war — und beim Zurückschieben wurde dieselbe Pille erneut auf ein
+    // Canvas gezeichnet. Ein Vorrat kostet wenig (die Bilder sind winzig) und
+    // spart bei jedem Hin und Her hundert Zeichenvorgänge. Erst über der
+    // Grenze wird aufgeräumt, und zwar das, was dieser Durchgang nicht braucht.
+    if (iconIds.current.size > ICON_VORRAT) {
+      for (const id of [...iconIds.current]) {
+        if (gebraucht.has(id)) continue
+        if (m.hasImage(id)) m.removeImage(id)
+        iconIds.current.delete(id)
+        if (iconIds.current.size <= ICON_VORRAT) break
+      }
     }
 
     const applyData = () => {
