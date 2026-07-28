@@ -389,6 +389,12 @@ export default function App() {
               addTrip({
                 from: shortPlace(from),
                 to: shortPlace(to),
+                // Leer, wenn ohne Standort gefahren wurde — dann lieber kein
+                // Feld als eine Linie, die es nie gab.
+                ...(() => {
+                  const t = journey.spurHolen()
+                  return t.length >= 2 ? { track: t } : {}
+                })(),
                 // Tatsächlich gebrauchte Zeit, nicht die geplante — dafür ist
                 // das Feld da. Ohne Startzeit bleibt die Planung als Rückfall.
                 seconds: startedAt

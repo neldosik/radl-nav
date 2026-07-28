@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ausduennen, punktAnhaengen } from '../track'
 import { haversine } from '../geo'
 import { watchPosition } from '../geolocation'
 import { legTarget } from '../routing'
@@ -44,6 +45,8 @@ export interface UserPos extends LatLon {
 }
 
 export interface Journey {
+  /** Aufgezeichneter Weg, ausgedünnt. */
+  spurHolen: () => LatLon[]
   /** null = Navigation aus, sonst Index der aktuellen Etappe */
   legIndex: number | null
   startedAt: number | null
@@ -70,6 +73,12 @@ export interface Journey {
  * Bildschirm-Wachhalten und automatisches Weiterschalten am Etappenende.
  */
 export function useJourney(view: ItineraryView | null): Journey {
+  /**
+   * Der tatsächlich gefahrene Weg. Gesammelt wird roh, ausgedünnt erst beim
+   * Abholen — währenddessen soll die Fahrt nichts rechnen, was sie nicht muss.
+   */
+  const spur = useRef<LatLon[]>([])
+
   const [legIndex, setLegIndex] = useState<number | null>(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [arrived, setArrived] = useState(false)
@@ -134,6 +143,7 @@ export function useJourney(view: ItineraryView | null): Journey {
         const next: UserPos = { lat: f.lat, lon: f.lon, accuracy: acc, at: f.at, heading: f.heading }
         // Nur die Koordinaten entscheiden über „hat sich bewegt"; der
         // Zeitstempel wird immer mitgeführt, sonst altert die Anzeige im Stand.
+        spur.current = punktAnhaengen(spur.current, next)
         setUserPos(prev => {
           const dt = prev ? (next.at - prev.at) / 1000 : 0
           const ds = prev ? haversine(prev, next) : 0
@@ -188,7 +198,10 @@ export function useJourney(view: ItineraryView | null): Journey {
     distToEnd,
     gpsError,
     posStale,
+    /** Aufgezeichneter Weg, ausgedünnt — für die Ablage in der Fahrtenliste. */
+    spurHolen: () => ausduennen(spur.current),
     start: () => {
+      spur.current = []
       setLegIndex(0)
       setStartedAt(Date.now())
       setArrived(false)

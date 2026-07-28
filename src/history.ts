@@ -14,6 +14,12 @@ export interface TripRecord {
   bikeMinutes: number
   /** Davon auf einem E-Bike — fehlt bei Fahrten vor dieser Version. */
   electricMinutes?: number
+  /**
+   * Tatsächlich gefahrener Weg, ausgedünnt. Fehlt bei Fahrten vor dieser
+   * Fassung und bei solchen, die ohne Standort gefahren wurden — der geplante
+   * Weg steht ohnehin in der Route, interessant ist gerade der wirkliche.
+   */
+  track?: { lat: number; lon: number }[]
   /** Die einzelnen Ausleihen. Die Freiminuten gelten **je Ausleihe**, deshalb
    *  lässt sich der Preis aus der Fahrtsumme nicht rekonstruieren: zweimal
    *  25 Minuten sind mit Abo kostenlos, 50 Minuten am Stück nicht.
