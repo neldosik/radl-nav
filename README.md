@@ -129,6 +129,67 @@ leer und taugt nur als Ersatzsignal.
 - Startbündel 82 kB gzip; maplibre-gl (273 kB gzip) wird erst mit der ersten
   Karte nachgeladen.
 
+## Fallen, die uns schon Zeit gekostet haben
+
+Keine davon lässt sich aus dem Code ableiten — man kann sie nur nachlesen
+oder ein zweites Mal hineintreten. Alle am 28.07.2026 am Gerät festgestellt.
+
+**Service Worker und die Capacitor-Hülle vertragen sich nicht.** Capacitor
+liefert die Seite über einen eigenen lokalen Server aus und setzt dabei die
+Brücke zur Hülle in das HTML ein — daher kommt `window.Capacitor` und damit
+jedes Plugin. Ein Service Worker beantwortet ab dem zweiten Start den
+Seitenaufruf aus seinem Puffer, und in der gepufferten Fassung fehlt die
+Brücke. Das sieht dann aus wie ein Rechteproblem: `istNativ()` meldet falsch,
+Plugins werden nie angesprochen, es erscheint nicht einmal ein Dialog. Der
+Worker wird in der Hülle deshalb abgemeldet — erkannt an der *Herkunft*
+(`https://localhost` ohne Port), nicht an `window.Capacitor`, denn genau das
+fehlt ja. Nebenwirkung: in der Hülle gibt es dadurch keinen Kachelpuffer mehr.
+
+**`@capacitor/geolocation`: `interval` fehlt, also gilt `timeout`.** Steht
+`interval` nicht in den Optionen, setzt die Android-Seite es auf den Wert von
+`timeout`. Mit `timeout: 15000` wurde damit eine Messung **alle 15 Sekunden**
+angefordert; schneller kam nur etwas, wenn zufällig eine andere App häufiger
+fragte. Auf dem Rad sind das achtzig Meter je Messung.
+
+**Und `maximumAge` steht dort auf 0.** Damit zählt keine vorhandene Messung,
+es muss eine frische her — in Räumen dauert das lang oder gelingt nicht, und
+der Aufruf lief in die Frist. Für „wo bin ich" genügt eine zwei Minuten alte.
+
+**`enableHighAccuracy: true` wählt die Berechtigung mit aus.** Ab Android 12
+verlangt das Plugin damit die *genaue* Freigabe. Ist am Gerät nur der
+ungefähre Ort erlaubt, kommt eine Absage — von außen sieht das aus wie
+„Berechtigung ist doch erteilt".
+
+**iOS im Startbildschirm-Modus: die Seite ist kürzer als der Bildschirm.** Auf
+einem 13 Pro 797 statt 844 Punkte — genau die 47 der Statusleiste, die oben
+als Sicherheitsabstand ohnehin angerechnet werden. Unten bleibt ein Streifen.
+Weder eine Farbe an `html` noch ein Füllfeld kommen dort an, und
+`black-translucent` ändert nichts. Was hilft: `100lvh` als Höhe (nicht ein
+gemessener Aufschlag — der misst sich selbst, siehe `luecke.ts`) und die
+Reiterleiste aus der festen Verankerung in den Fluss nehmen.
+
+**ImageMagick überspringt SVG mit XML-Kommentar.** Es meldet den Fehler nur
+auf stderr und lässt die Zieldatei stillschweigend unverändert. Beim Erneuern
+der Symbole blieben so drei Dateien alt — aufgefallen ist es erst beim
+Vergleich der Eckfarbe (`-format "%[pixel:p{5,5}]"`).
+
+**Fest verankerte Elemente werden in WebKit auf das Sichtfeld beschnitten.**
+Ein `::after` an einer `position: fixed`-Leiste, das darüber hinausragt, wird
+nicht gezeichnet. Eine Probe damit beweist deshalb nichts über die
+Erreichbarkeit einer Fläche.
+
+**`@testing-library` räumt nicht von selbst auf**, solange vitest seine
+Funktionen nicht global bereitstellt. Ohne `cleanup()` im `afterEach` bleiben
+die Ansichten früherer Prüfungen angemeldet und fangen fremde Ereignisse ab.
+Und `history.length` wächst nach einem Rücksprung nicht mehr zuverlässig —
+gezählt wird der Aufruf von `pushState`.
+
+**`num_docks_available` ist in diesem Feed ohne Aussage.** Am 28.07.2026
+meldeten 782 von 784 Stationen 0 freie Plätze und gleichzeitig
+`is_returning: true` — die Stationen sind virtuelle Flächen ohne Ständer. Eine
+Warnung „Station voll" darauf zu bauen, träfe fast überall zu und läge fast
+überall falsch.
+
 ## Lizenz
 
 MIT — siehe [LICENSE](LICENSE). Kartendaten © OpenStreetMap-Mitwirkende,
