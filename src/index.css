@@ -3236,3 +3236,32 @@ button {
 }
 
 
+
+/* ── Ausgleich der iOS-Lücke ── */
+/* Siehe luecke.ts: `--fehlt` steht nur im Startbildschirm-Modus und nur dort,
+   wo die Seite kürzer ist als der Bildschirm. Ohne die Klasse ändert sich
+   nichts — auf jedem anderen Gerät greift keine dieser Regeln.
+
+   Zwei Eingriffe. Die Seite wird um die fehlende Höhe länger, damit sie bis
+   zur Bildschirmkante reicht. Und die Reiterleiste gibt ihre feste
+   Verankerung auf: fest verankert richtet sie sich nach dem Sichtfeld und
+   säße wieder zu hoch, im Fluss dagegen nach dem Rahmen der App. Sie ist
+   ohnehin dessen letztes Kind, der Platzhalter darunter entfällt deshalb. */
+.hat-luecke,
+.hat-luecke body,
+.hat-luecke #root {
+  height: calc(100dvh + var(--fehlt, 0px));
+}
+
+.hat-luecke .app {
+  height: calc(100dvh + var(--fehlt, 0px));
+}
+
+.hat-luecke .tabbar {
+  position: relative;
+  flex: none;
+}
+
+.hat-luecke .app.with-tabs {
+  padding-bottom: 0;
+}
