@@ -36,7 +36,7 @@ function zeilen(): string[] {
   return [
     `stand      ${__STAND__}  ${__GEBAUT__}`,
     `fehlt unten ${messe('calc(100lvh - 100dvh)')}`,
-    `ausgleich  ${document.documentElement.classList.contains('hat-luecke') ? `an (${getComputedStyle(document.documentElement).getPropertyValue('--fehlt').trim()})` : 'aus'}`,
+    `vollbild   ${document.documentElement.classList.contains('hat-luecke') ? 'an' : 'aus'}`,
     `innen      ${innerWidth} x ${innerHeight}`,
     `schirm     ${screen.width} x ${screen.height}  dpr ${devicePixelRatio}`,
     `sicht      ${vv ? `${Math.round(vv.width)} x ${Math.round(vv.height)}  oben ${Math.round(vv.offsetTop)}` : '-'}`,

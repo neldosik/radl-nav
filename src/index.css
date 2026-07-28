@@ -3237,24 +3237,24 @@ button {
 
 
 
-/* ── Ausgleich der iOS-Lücke ── */
-/* Siehe luecke.ts: `--fehlt` steht nur im Startbildschirm-Modus und nur dort,
-   wo die Seite kürzer ist als der Bildschirm. Ohne die Klasse ändert sich
-   nichts — auf jedem anderen Gerät greift keine dieser Regeln.
+/* ── Volle Bildschirmhöhe im Startbildschirm-Modus ── */
+/* Siehe luecke.ts: die Klasse steht nur bei einer abgelegten App. Dort gibt
+   es keine ein- und ausfahrende Bedienleiste, also ist `lvh` das richtige
+   Maß — und im Gegensatz zu einem gemessenen Aufschlag bleibt es stabil,
+   auch wenn das Gerät die Seitenhöhe daraufhin ändert.
 
-   Zwei Eingriffe. Die Seite wird um die fehlende Höhe länger, damit sie bis
-   zur Bildschirmkante reicht. Und die Reiterleiste gibt ihre feste
-   Verankerung auf: fest verankert richtet sie sich nach dem Sichtfeld und
-   säße wieder zu hoch, im Fluss dagegen nach dem Rahmen der App. Sie ist
-   ohnehin dessen letztes Kind, der Platzhalter darunter entfällt deshalb. */
+   Dazu gibt die Reiterleiste ihre feste Verankerung auf: fest verankert
+   richtet sie sich nach dem Sichtfeld und säße zu hoch, im Fluss dagegen
+   nach dem Rahmen der App und damit an der Bildschirmkante. Sie ist ohnehin
+   dessen letztes Kind, der Platzhalter darunter entfällt deshalb. */
 .hat-luecke,
 .hat-luecke body,
 .hat-luecke #root {
-  height: calc(100dvh + var(--fehlt, 0px));
+  height: 100lvh;
 }
 
 .hat-luecke .app {
-  height: calc(100dvh + var(--fehlt, 0px));
+  height: 100lvh;
 }
 
 .hat-luecke .tabbar {
