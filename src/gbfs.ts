@@ -136,6 +136,11 @@ export function parseStations(
       // Ohne Typ-Feed ist die Aufteilung geraten — die Oberfläche soll das
       // wissen und nicht »alles gratis« versprechen.
       typesUnknown: !hasTypeData(types),
+      // Nicht auswertbar: am 28.07.2026 meldeten 782 von 784 Stationen im
+      // Feed `num_docks_available: 0` und gleichzeitig `is_returning: true`.
+      // Die MyRadl-Stationen sind virtuelle Flächen ohne Ständer — eine
+      // Warnung „Station voll" auf dieser Zahl träfe fast überall zu und wäre
+      // fast überall falsch. Das Feld bleibt nur der Vollständigkeit halber.
       docks: st?.num_docks_available ?? null,
       maxChargePercent: maxBat,
       rangeKm: maxRange,

@@ -10,6 +10,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import './index.css'
 import App from './App.tsx'
 import { vollbildBeobachten } from './luecke'
+import { fahrtLaeuft } from './miete'
 import { istNativ } from './geolocation'
 
 /**
@@ -81,6 +82,11 @@ if (inHuelle() && 'serviceWorker' in navigator) {
   let neuGeladen = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (neuGeladen || !navigator.serviceWorker.controller) return
+    // Nicht mitten in der Fahrt. Der Neustart setzte den Los-Modus zurück,
+    // und mit ihm die Uhr der laufenden Ausleihe — ausgerechnet die
+    // Bequemlichkeit, dass ein Deployment sofort ankommt, kostete dann Geld.
+    // Beim nächsten Start ist der neue Stand ohnehin da.
+    if (fahrtLaeuft()) return
     neuGeladen = true
     window.location.reload()
   })

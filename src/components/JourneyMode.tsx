@@ -18,6 +18,7 @@ import {
   WalkIcon,
 } from '../icons'
 import { fetchTripStatus, stationBestand } from '../api'
+import { fahrtMelden, mieteBeenden, mieteBeginnFuer, mieteMerken } from '../miete'
 import type { TripStatus } from '../api'
 import { abseitsSchwelle, haversine, planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
@@ -187,11 +188,29 @@ export default function JourneyMode({
 
   // Erst auf Druck. Vorher zeigt die Uhr nichts an, und es wird auch nicht
   // gewarnt — eine Frist, die vor dem Losfahren anfängt, warnt zu früh.
+  /**
+   * Eine Ausleihe aus einem früheren Leben der Seite wieder aufnehmen.
+   *
+   * Der Beginn lag bisher nur in diesem `ref`. Ein Neuladen — nach einem
+   * Deployment lädt die Seite sich selbst neu, und iOS wirft die Webansicht
+   * bei Speicherdruck weg — setzte ihn auf null, und die Uhr begann von vorn.
+   * Die 30 Freiminuten schienen dann noch vollständig da zu sein, obwohl sie
+   * fast abgelaufen waren; ab der 31. Minute kostet das Geld.
+   */
+  if (isBikeLeg && !bikeStarts.current.has(legIndex)) {
+    const wieder = mieteBeginnFuer(b?.startStation?.id)
+    if (wieder != null) bikeStarts.current.set(legIndex, wieder)
+  }
+
   const bikeStartedAt = isBikeLeg ? (bikeStarts.current.get(legIndex) ?? null) : null
   void radTick
   const radGenommen = (rueckdatierenMs = 0) => {
     if (!bikeStarts.current.has(legIndex)) {
-      bikeStarts.current.set(legIndex, Date.now() - rueckdatierenMs)
+      const seit = Date.now() - rueckdatierenMs
+      bikeStarts.current.set(legIndex, seit)
+      // Nur klassische Räder haben Freiminuten; beim E-Bike zählt die Uhr das
+      // Geld, und auch das soll ein Neuladen nicht verschlucken.
+      if (b?.startStation?.id) mieteMerken(b.startStation.id, seit)
       setRadTick(x => x + 1)
     }
   }
@@ -326,6 +345,21 @@ export default function JourneyMode({
   }, [userPos, abholId, arrived])
 
   const bestandKnapp = bestand != null && bestand.bikes <= BESTAND_KNAPP
+
+  /**
+   * Solange eine Fahrt läuft, darf sich die Seite nicht selbst neu laden —
+   * ein Deployment mitten unterwegs würde sonst die Anzeige zurücksetzen.
+   */
+  useEffect(() => {
+    fahrtMelden(true)
+    return () => fahrtMelden(false)
+  }, [])
+
+  // Radetappe vorbei: die Ausleihe ist zurückgegeben, die gemerkte Uhr weg.
+  useEffect(() => {
+    if (!isBikeLeg && bikeStarts.current.size > 0) mieteBeenden()
+    if (arrived) mieteBeenden()
+  }, [isBikeLeg, arrived])
 
   const [abgekommen, setAbgekommen] = useState(false)
   useEffect(() => {
