@@ -65,6 +65,54 @@ export interface Kompass {
   stop: () => void
 }
 
+export interface Rohwerte {
+  /** iOS: bereits rechtweisend. */
+  webkitCompassHeading?: number | null
+  webkitCompassAccuracy?: number | null
+  /** Drehung um die Hochachse, gegen den Uhrzeigersinn ab Norden. */
+  alpha?: number | null
+  /** Ist `alpha` am Erdmagnetfeld ausgerichtet? */
+  absolut: boolean
+  /** `screen.orientation.angle` — Drehung des Inhalts gegen das Gerät. */
+  schirmwinkel: number
+}
+
+/**
+ * Blickrichtung aus den Rohwerten eines Lageereignisses.
+ *
+ * Warum der Schirmwinkel **addiert** wird — hergeleitet an einem Beispiel:
+ * Das Telefon liegt hochkant, Oberkante nach Norden. Dreht man es um 90° im
+ * Uhrzeigersinn, zeigt die Geräteoberkante nach Osten (90). Der Inhalt bleibt
+ * für den Betrachter aufrecht, seine Oberkante zeigt also weiter nach Norden
+ * (0), und das Betriebssystem meldet `screen.orientation.angle` 270. Gesucht
+ * ist die Richtung, in die der *Inhalt* zeigt, denn in dessen Koordinaten wird
+ * die Karte gezeichnet: (90 + 270) mod 360 = 0. Ebenso in der anderen
+ * Querlage (270 + 90) und über Kopf (180 + 180).
+ *
+ * Gibt `null` zurück, wenn sich aus dem Ereignis keine Himmelsrichtung ableiten
+ * lässt — ein `alpha` ohne Ausrichtung am Erdmagnetfeld hat auf manchen Geräten
+ * eine willkürliche Nullrichtung und wäre als Kompass wertlos.
+ */
+export function kursAusEreignis(r: Rohwerte): { grad: number; unsicherheit: number | null } | null {
+  let roh: number | null = null
+  let unsicherheit: number | null = null
+
+  const ios = r.webkitCompassHeading
+  if (typeof ios === 'number' && Number.isFinite(ios)) {
+    roh = ios
+    const g = r.webkitCompassAccuracy
+    // Negativ heißt bei Apple „nicht kalibriert", nicht „null Grad Fehler".
+    unsicherheit = typeof g === 'number' && g >= 0 ? g : null
+  } else if (r.absolut && typeof r.alpha === 'number' && Number.isFinite(r.alpha)) {
+    // `alpha` zählt gegen den Uhrzeigersinn, ein Kompass mit ihm.
+    roh = 360 - r.alpha
+  }
+  if (roh == null) return null
+
+  const w = Number.isFinite(r.schirmwinkel) ? r.schirmwinkel : 0
+  return { grad: (((roh + w) % 360) + 360) % 360, unsicherheit }
+}
+
 /**
  * Blickrichtung verfolgen. `onKurs` bekommt Grad im Uhrzeigersinn ab Norden.
  *
@@ -79,23 +127,14 @@ export function kompassStarten(onKurs: (grad: number, unsicherheit: number | nul
   let absolutGesehen = false
 
   const auswerten = (e: KompassEreignis, absolut: boolean) => {
-    let roh: number | null = null
-    let unsicher: number | null = null
-
-    if (typeof e.webkitCompassHeading === 'number' && Number.isFinite(e.webkitCompassHeading)) {
-      roh = e.webkitCompassHeading
-      const g = e.webkitCompassAccuracy
-      unsicher = typeof g === 'number' && g >= 0 ? g : null
-    } else if (absolut && typeof e.alpha === 'number' && Number.isFinite(e.alpha)) {
-      // `alpha` zählt gegen den Uhrzeigersinn ab Norden, ein Kompass mit ihm.
-      roh = 360 - e.alpha
-    }
-    if (roh == null) return
-
-    // Der Winkel gilt für die Geräteoberkante. Liegt das Telefon quer, ist der
-    // Bildschirm dagegen verdreht — ohne diesen Ausgleich zeigt die Karte im
-    // Querformat 90 Grad daneben.
-    onKurs((roh + schirmwinkel() + 360) % 360, unsicher)
+    const k = kursAusEreignis({
+      webkitCompassHeading: e.webkitCompassHeading,
+      webkitCompassAccuracy: e.webkitCompassAccuracy,
+      alpha: e.alpha,
+      absolut,
+      schirmwinkel: schirmwinkel(),
+    })
+    if (k) onKurs(k.grad, k.unsicherheit)
   }
 
   const aufAbsolut = (e: Event) => {

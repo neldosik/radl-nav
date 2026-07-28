@@ -17,7 +17,7 @@ import {
   TurnIcon,
   WalkIcon,
 } from '../icons'
-import { fetchTripStatus } from '../api'
+import { fetchTripStatus, stationBestand } from '../api'
 import type { TripStatus } from '../api'
 import { abseitsSchwelle, haversine, planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
@@ -32,6 +32,14 @@ import type { Language } from '../i18n'
 /** So viele Messungen hintereinander, bevor der Hinweis kommt. Der Abstand
  *  selbst richtet sich nach der Genauigkeit — siehe `abseitsSchwelle`. */
 const OFF_ROUTE_FIXES = 3
+/** Ab dieser Entfernung zur Abholstation wird der Bestand neu abgefragt. Ein
+ *  paar Minuten Fußweg reichen, damit Räder weg sind — die Zahl aus der
+ *  Planung ist dann eine Behauptung. */
+const BESTAND_AB_M = 600
+/** Nicht öfter als das, auch wenn man langsam näher kommt. */
+const BESTAND_TAKT_MS = 45_000
+/** Ab wann gewarnt wird: bei einem letzten Rad ist die Fahrt ein Glücksspiel. */
+const BESTAND_KNAPP = 1
 /** Wie oft der Stand der laufenden ÖPNV-Fahrt nachgefragt wird. Häufiger
  *  lohnt nicht: die Rückmeldungen der Betreiber kommen selten schneller. */
 const LIVE_POLL_MS = 60_000
@@ -271,6 +279,54 @@ export default function JourneyMode({
   // Neuberechnung samt GBFS-Abruf.
   //
   // Jetzt zählt nur, was auch wirklich eine neue Messung ist.
+  /**
+   * Radbestand der nächsten Abholstation, unterwegs nachgefragt.
+   *
+   * Die Zahl aus der Planung altert: bis man die Station erreicht, sind ein
+   * paar Minuten vergangen, und Räder werden genau in dieser Zeit genommen.
+   * Bisher erfuhr man das erst vor Ort.
+   */
+  const [bestand, setBestand] = useState<{ bikes: number; ebikes: number } | null>(null)
+  const bestandAt = useRef(0)
+
+  /** Nächste Station, an der noch ein Rad zu holen ist. */
+  const abholStation = (() => {
+    for (let i = legIndex; i < legs.length; i++) {
+      if (legKind(legs[i]) !== 'bike') continue
+      const bi = view.bikeLegs.get(i)
+      if (!bi?.startStation) return null
+      // Schon losgefahren: der Bestand ist dann nicht mehr unsere Sorge.
+      if (i === legIndex && bikeStarts.current.get(i)) return null
+      return bi.startStation
+    }
+    return null
+  })()
+  const abholId = abholStation?.id ?? null
+
+  useEffect(() => {
+    setBestand(null)
+    bestandAt.current = 0
+  }, [abholId])
+
+  useEffect(() => {
+    if (!abholStation || !userPos || arrived) return
+    // Erst in der Nähe fragen. Aus zehn Kilometern Entfernung sagt die Zahl
+    // nichts, kostet aber Mobilfunk.
+    if (haversine(userPos, abholStation) > BESTAND_AB_M) return
+    if (Date.now() - bestandAt.current < BESTAND_TAKT_MS) return
+    bestandAt.current = Date.now()
+    let lebt = true
+    stationBestand(abholStation.id)
+      .then(r => lebt && r && setBestand(r))
+      .catch(() => {})
+    return () => {
+      lebt = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPos, abholId, arrived])
+
+  const bestandKnapp = bestand != null && bestand.bikes <= BESTAND_KNAPP
+
   const [abgekommen, setAbgekommen] = useState(false)
   useEffect(() => {
     if (projektion == null) return
@@ -518,6 +574,14 @@ export default function JourneyMode({
 
       {/* Schwebende Kopfkarte: wohin es gerade geht + Entfernung */}
       <div className="j-poster">
+        {bestand && !abgekommen && (
+          <div className={`j-bestand${bestandKnapp ? ' knapp' : ''}`}>
+            {bestandKnapp
+              ? t(bestand.bikes === 0 ? 'jmKeineRaeder' : 'jmRadKnapp', lang)
+              : dict[lang].jmRaederDa(bestand.bikes)}
+          </div>
+        )}
+
         {naechsteAbbiegung && !abgekommen && (
           <div className={`j-turn${naechsteAbbiegung.inM <= 25 ? ' now' : ''}`}>
             <TurnIcon kind={naechsteAbbiegung.kind} size={26} />

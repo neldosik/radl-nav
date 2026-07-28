@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { electricTypeIds, parseFreeBikes, parseStations } from './gbfs'
+import { bestandAusStatus, electricTypeIds, parseFreeBikes, parseStations } from './gbfs'
 import type { GbfsFreeBike, GbfsStationInfo, GbfsStationStatus, GbfsVehicleType } from './gbfs'
 
 const TYPES: GbfsVehicleType[] = [
@@ -124,5 +124,48 @@ describe('parseStations · Mietlinks', () => {
   it('bleibt ohne rental_uris undefined statt zu werfen', () => {
     const status: GbfsStationStatus[] = [{ station_id: 's1', num_bikes_available: 4 }]
     expect(parseStations(INFO, status, TYPES)[0].rentalUris).toBeUndefined()
+  })
+})
+
+describe('bestandAusStatus — Radzahl einer einzelnen Station', () => {
+  const types = [
+    { vehicle_type_id: 'bike', propulsion_type: 'human' },
+    { vehicle_type_id: 'ebike', propulsion_type: 'electric_assist' },
+  ]
+  const status = [
+    {
+      station_id: 'A',
+      num_bikes_available: 5,
+      vehicle_types_available: [
+        { vehicle_type_id: 'bike', count: 3 },
+        { vehicle_type_id: 'ebike', count: 2 },
+      ],
+    },
+    { station_id: 'B', num_bikes_available: 0, vehicle_types_available: [] },
+  ]
+
+  it('trennt klassische Räder von E-Bikes', () => {
+    expect(bestandAusStatus(status as never, types as never, 'A')).toEqual({ bikes: 3, ebikes: 2 })
+  })
+
+  it('meldet eine leere Station als leer, nicht als unbekannt', () => {
+    expect(bestandAusStatus(status as never, types as never, 'B')).toEqual({ bikes: 0, ebikes: 0 })
+  })
+
+  it('gibt null für eine unbekannte Station', () => {
+    expect(bestandAusStatus(status as never, types as never, 'gibtsnicht')).toBeNull()
+  })
+
+  it('zählt ohne Typdaten alles als klassisch — wie parseStations auch', () => {
+    expect(bestandAusStatus(status as never, [], 'A')).toEqual({ bikes: 5, ebikes: 0 })
+    expect(bestandAusStatus(status as never, null, 'A')).toEqual({ bikes: 5, ebikes: 0 })
+  })
+
+  it('lässt die Radzahl nie unter null rutschen', () => {
+    // Widersprüchlicher Feed: mehr E-Bikes aufgezählt als Räder gemeldet.
+    const kaputt = [
+      { station_id: 'C', num_bikes_available: 1, vehicle_types_available: [{ vehicle_type_id: 'ebike', count: 4 }] },
+    ]
+    expect(bestandAusStatus(kaputt as never, types as never, 'C')?.bikes).toBe(0)
   })
 })

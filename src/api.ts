@@ -1,5 +1,5 @@
 import { currentPosition } from './geolocation'
-import { parseFreeBikes, parseStations } from './gbfs'
+import { bestandAusStatus, parseFreeBikes, parseStations } from './gbfs'
 import type { GbfsFreeBike, GbfsStationInfo, GbfsStationStatus, GbfsVehicleType } from './gbfs'
 import type { FreeBike, GeocodeMatch, LatLon, PlanResponse, Station } from './types'
 
@@ -362,6 +362,30 @@ export async function loadFreeBikes(): Promise<FreeBike[]> {
     feedList<GbfsFreeBike>(fb, 'bikes'),
     feedList<GbfsVehicleType>(types, 'vehicle_types'),
   )
+}
+
+/**
+ * Radbestand einer Station frisch abfragen.
+ *
+ * Unterwegs veraltet die Zahl aus der Routenplanung: bis man die Station
+ * erreicht, können die Räder weg sein. `loadStations` holt dafür vier Feeds
+ * und alle 778 Stationen — hier reichen zwei, und `vehicle_types` ändert sich
+ * praktisch nie und liegt ohnehin im Puffer.
+ */
+export async function stationBestand(stationId: string): Promise<{ bikes: number; ebikes: number } | null> {
+  try {
+    const [status, types] = (await Promise.all([gbfs('station_status'), gbfs('vehicle_types')])) as [
+      FeedData,
+      FeedData,
+    ]
+    return bestandAusStatus(
+      feedList<GbfsStationStatus>(status, 'stations'),
+      feedList<GbfsVehicleType>(types, 'vehicle_types'),
+      stationId,
+    )
+  } catch {
+    return null
+  }
 }
 
 const STATIONS_CACHE_KEY = 'radl.stations_cache'

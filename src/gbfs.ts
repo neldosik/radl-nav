@@ -182,3 +182,30 @@ export function parseFreeBikes(
       }
     })
 }
+
+/**
+ * Radbestand einer einzelnen Station aus dem Status-Feed.
+ *
+ * Für den Fall, dass unterwegs nur eine Station interessiert. `parseStations`
+ * braucht vier Feeds und liefert alle 778 zurück — für eine wiederkehrende
+ * Abfrage während der Fahrt ist das zu viel Mobilfunk. Name und Lage stehen
+ * ohnehin schon in der Route, gebraucht wird nur die Zahl.
+ */
+export function bestandAusStatus(
+  status: GbfsStationStatus[] | null | undefined,
+  types: GbfsVehicleType[] | null | undefined,
+  stationId: string,
+): { bikes: number; ebikes: number } | null {
+  const st = (status ?? []).find(s => s.station_id === stationId)
+  if (!st) return null
+  const electric = electricTypeIds(types)
+  let ebikes = 0
+  for (const v of st.vehicle_types_available ?? []) {
+    if (electric.has(v.vehicle_type_id)) ebikes += v.count
+  }
+  const total = st.num_bikes_available ?? 0
+  // Ohne Typdaten lässt sich nicht aufteilen; dann gilt alles als klassisch,
+  // wie es `parseStations` auch tut.
+  if (!hasTypeData(types)) return { bikes: total, ebikes: 0 }
+  return { bikes: Math.max(0, total - ebikes), ebikes }
+}

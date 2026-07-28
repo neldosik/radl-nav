@@ -3377,3 +3377,23 @@ button {
 .hat-luecke .app.with-tabs {
   padding-bottom: 0;
 }
+
+/* Radbestand der nächsten Abholstation, unterwegs nachgefragt. Ruhig, solange
+   genug da ist — die Warnfarbe bleibt dem Fall vorbehalten, in dem die Fahrt
+   ohne Rad endet. */
+.j-bestand {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 13px;
+  text-align: center;
+}
+
+.j-bestand.knapp {
+  border-color: var(--warn);
+  color: var(--warn);
+  font-weight: 600;
+}
