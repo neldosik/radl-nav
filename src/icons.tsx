@@ -214,6 +214,14 @@ export const TurnIcon = ({ kind, size = 22 }: { kind: string; size?: number }) =
   return <TurnArrow size={size} d={d} flip={links} />
 }
 
+/** Kompassnadel — Karte genordet oder in Fahrtrichtung. */
+export const CompassIcon = ({ size = 18 }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M15.5 8.5l-2 5-5 2 2-5z" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export const LogoMark = ({ size = 26 }: P) => (
   <svg {...base(size)}>
     <circle cx="18.5" cy="17.5" r="3.5" />

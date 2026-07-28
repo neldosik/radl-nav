@@ -106,6 +106,8 @@ export interface BikeLegInfo {
   tooLong: boolean // länger als Freiminuten-Fenster (inkl. Umweg zur Station)
   electric: boolean // E-Bike — immer kostenpflichtig
   freeFloating: boolean // Rad steht frei
+  /** Rad war beim Planen schon ausgeliehen (Neuberechnung unterwegs). */
+  ownBike: boolean
   /** MOTIS wollte das Rad frei abstellen (returnConstraint NONE) — wir haben
    *  das Etappenende auf `endStation` umgebogen, sonst 20 € Strafe. */
   returnSnapped: boolean

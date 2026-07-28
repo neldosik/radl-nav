@@ -126,6 +126,37 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
 
   for (let i = 0; i < it.legs.length; i++) {
     const leg = it.legs[i]
+
+    // Eigenes Rad: entsteht beim Neuberechnen unterwegs, wenn das Rad schon
+    // ausgeliehen ist. Keine Ausleihe, keine Anbieterprüfung — aber die
+    // Rückgabe muss trotzdem an einer Station enden.
+    if (leg.mode === 'BIKE') {
+      const endStation = nearestStation(leg.to, stations, RETURN_SNAP_RADIUS_M)
+      const detourM = endStation ? Math.round(haversine(leg.to, endStation)) : 0
+      const detourSec = Math.round(detourM / BIKE_SPEED_MS)
+      if (leg.duration + detourSec > maxBikeSec) return null
+      hasBike = true
+      const info: BikeLegInfo = {
+        startStation: null,
+        endStation,
+        tooLong: leg.duration + detourSec > FREE_LIMIT_SEC,
+        electric: false,
+        freeFloating: false,
+        ownBike: true,
+        returnSnapped: !!endStation && detourM > 0,
+        returnDetourM: detourM,
+        returnDetourSec: detourSec,
+        noReturnStation: !endStation && stations.length > 0,
+        swapStation: null,
+        nearby: [],
+      }
+      if (info.tooLong) warnLong = true
+      if (info.noReturnStation) warnReturn = true
+      extraSec += detourSec
+      bikeLegs.set(i, info)
+      continue
+    }
+
     if (leg.mode !== 'RENTAL') continue
 
     // Nur MyRadl: Dott (Scooter UND Räder) ist kostenpflichtig — Route verwerfen.
@@ -165,6 +196,7 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
       tooLong: !electric && rideSec > FREE_LIMIT_SEC,
       electric,
       freeFloating,
+      ownBike: false,
       returnSnapped,
       returnDetourM,
       returnDetourSec,
@@ -220,6 +252,8 @@ export interface SearchOpts extends Omit<BuildOpts, 'stations' | 'supply'> {
   time?: PlanOpts
   signal?: AbortSignal
   maxResults?: number
+  /** Das Rad ist bereits ausgeliehen — keine neue Ausleihe einplanen. */
+  ownBike?: boolean
 }
 
 /**
@@ -231,14 +265,14 @@ export async function searchRoutes(
   to: LatLon,
   opts: SearchOpts,
 ): Promise<ItineraryView[]> {
-  const { stations, supply, maxBikeSec, classicOnly, time = {}, signal, maxResults = 7 } = opts
+  const { stations, supply, maxBikeSec, classicOnly, time = {}, signal, maxResults = 7, ownBike = false } = opts
   const build = (its: Itinerary[]) =>
     its
       .map(it => buildView(it, { stations, supply, maxBikeSec, classicOnly }))
       .filter((v): v is ItineraryView => v !== null)
       .filter(isUseful)
 
-  const res = await plan(from, to, { classicOnly, ...time }, signal)
+  const res = await plan(from, to, { classicOnly, ownBike, ...time }, signal)
   const list = build([...(res.direct ?? []), ...res.itineraries])
 
   if (list.length < 2) {

@@ -21,6 +21,8 @@ export interface UserPos extends LatLon {
   accuracy?: number
   /** Geschwindigkeit in m/s — vom Gerät oder aus zwei Messungen gerechnet. */
   speed?: number
+  /** Blickrichtung in Grad, falls das Gerät sie liefert. */
+  heading?: number
   /** Wann der Fix eintraf — damit die Oberfläche eine eingefrorene Anzeige
    *  als solche kennzeichnen kann. */
   at: number
@@ -93,7 +95,7 @@ export function useJourney(view: ItineraryView | null): Journey {
         // und lässt die Karte springen.
         if (acc != null && acc > MAX_ACCURACY_M) return
         const gemessen = f.speed != null && f.speed >= 0 ? f.speed : null
-        const next: UserPos = { lat: f.lat, lon: f.lon, accuracy: acc, at: f.at }
+        const next: UserPos = { lat: f.lat, lon: f.lon, accuracy: acc, at: f.at, heading: f.heading }
         // Nur die Koordinaten entscheiden über „hat sich bewegt"; der
         // Zeitstempel wird immer mitgeführt, sonst altert die Anzeige im Stand.
         setUserPos(prev => {

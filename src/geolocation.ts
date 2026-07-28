@@ -63,6 +63,66 @@ export interface Watch {
 }
 
 /**
+ * Eine Zusage mit eigener Frist versehen.
+ *
+ * Die `timeout`-Angabe der Ortung wird auf der Android-Seite nicht
+ * durchgesetzt: bleibt der Ortungsanbieter stumm, kehrt die Zusage weder
+ * zurück noch wirft sie. Ohne eigene Frist wartet die App ewig — und weil kein
+ * Fehler entsteht, bleibt auch das Diagnosefeld leer.
+ */
+function mitFrist<T>(p: Promise<T>, ms: number, was: string): Promise<T> {
+  return new Promise<T>((ok, ab) => {
+    const id = setTimeout(() => ab(new Error(`${was}: keine Antwort binnen ${Math.round(ms / 1000)} s`)), ms)
+    p.then(
+      w => {
+        clearTimeout(id)
+        ok(w)
+      },
+      e => {
+        clearTimeout(id)
+        ab(e)
+      },
+    )
+  })
+}
+
+/**
+ * Ersten Fix aus einer laufenden Verfolgung nehmen und wieder abmelden.
+ *
+ * Auf Android geht `watchPosition` einen anderen Weg durch den Ortungsanbieter
+ * als die einmalige Abfrage und liefert häufig noch eine Messung, wo jene
+ * hängen bleibt.
+ */
+function ersterFixAusWatch(ms: number): Promise<{ lat: number; lon: number }> {
+  return new Promise((ok, ab) => {
+    let fertig = false
+    const w = watchPosition(
+      f => {
+        if (fertig) return
+        fertig = true
+        w.stop()
+        clearTimeout(id)
+        ok({ lat: f.lat, lon: f.lon })
+      },
+      grund => {
+        if (fertig) return
+        fertig = true
+        w.stop()
+        clearTimeout(id)
+        ab(new Error(grund))
+      },
+      { highAccuracy: false, minIntervalMs: 500 },
+    )
+    const id = setTimeout(() => {
+      if (fertig) return
+      fertig = true
+      w.stop()
+      ab(new Error(`keine Antwort binnen ${Math.round(ms / 1000)} s`))
+    }, ms)
+  })
+}
+
+/**
  * Standort verfolgen. Ruft `onFix` bei jeder Messung, `onError` bei Ausfall.
  *
  * Die Rückgabe steht sofort — die native Anmeldung läuft asynchron nach und
@@ -102,6 +162,17 @@ export function watchPosition(
 
   let watchId: string | null = null
   let beendet = false
+  let kamSchonEinFix = false
+  /**
+   * Wachhund: bleibt der Anbieter stumm, meldet sich das Plugin weder mit
+   * einer Messung noch mit einem Fehler. Die Navigation stand dann ohne
+   * Position da und zeigte nichts an, was darauf hingewiesen hätte.
+   */
+  const wachhund = setTimeout(() => {
+    if (beendet || kamSchonEinFix) return
+    merkeFehler('keine Messung binnen 25 s — Ortung am Gerät aus?')
+    onError('lost')
+  }, 25000)
 
   ;(async () => {
     try {
@@ -113,7 +184,10 @@ export function watchPosition(
       // ohne dass je ein Dialog erschien. `watchPosition` fragt selbst nach,
       // wenn nötig; dieser Aufruf holt den Dialog nur früher.
       try {
-        const erlaubnis = await Geolocation.requestPermissions()
+        // Mit Frist: hängt der Dialog oder antwortet die Hülle nicht, stand
+        // die Anmeldung vorher endlos hier fest und die Karte bekam nie eine
+        // Position — ohne jede Meldung.
+        const erlaubnis = await mitFrist(Geolocation.requestPermissions(), 30000, 'requestPermissions')
         if (erlaubnis.location === 'denied' && erlaubnis.coarseLocation === 'denied') {
           merkeFehler('Berechtigung abgelehnt')
           onError('denied')
@@ -130,6 +204,8 @@ export function watchPosition(
           onError('lost')
           return
         }
+        kamSchonEinFix = true
+        clearTimeout(wachhund)
         onFix({
           lat: pos.coords.latitude,
           lon: pos.coords.longitude,
@@ -169,6 +245,7 @@ export function watchPosition(
   return {
     stop: () => {
       beendet = true
+      clearTimeout(wachhund)
       if (!watchId) return
       const id = watchId
       watchId = null
@@ -198,21 +275,60 @@ export function watchPosition(
 export async function currentPosition(): Promise<{ lat: number; lon: number }> {
   if (istNativ()) {
     const Geolocation = await nativesPlugin()
+
+    // Erst nachsehen, ob überhaupt gefragt werden darf. Ohne das ist ein
+    // Hänger von einer Absage nicht zu unterscheiden.
+    try {
+      const stand = await mitFrist(Geolocation.checkPermissions(), 4000, 'checkPermissions')
+      if (stand.location === 'denied' && stand.coarseLocation === 'denied') {
+        try {
+          const gefragt = await mitFrist(Geolocation.requestPermissions(), 30000, 'requestPermissions')
+          if (gefragt.location === 'denied' && gefragt.coarseLocation === 'denied') {
+            merkeFehler('Berechtigung abgelehnt')
+            throw new Error('Standort nicht freigegeben')
+          }
+        } catch (e) {
+          merkeFehler(`requestPermissions: ${(e as Error)?.message ?? e}`)
+        }
+      }
+    } catch (e) {
+      merkeFehler(`checkPermissions: ${(e as Error)?.message ?? e}`)
+    }
+
     const versuche = [
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 120000 },
+      { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 },
     ]
     let letzte: unknown
     for (const opts of versuche) {
       try {
-        const pos = await Geolocation.getCurrentPosition(opts)
+        // Eigene Frist: die `timeout`-Angabe wird auf der Android-Seite des
+        // Plugins nicht durchgesetzt. Kommt vom Ortungsanbieter keine
+        // Messung — Ortung am Gerät aus, Play-Dienste ohne Fix, Gerät im
+        // Gebäude —, kehrt die Zusage nie zurück und wirft auch nichts. Genau
+        // das war auf dem Telefon zu sehen: 35 Sekunden Stille, danach ein
+        // leeres Fehlerfeld.
+        const pos = await mitFrist(
+          Geolocation.getCurrentPosition(opts),
+          opts.timeout + 3000,
+          `getCurrentPosition(genau=${opts.enableHighAccuracy})`,
+        )
         return { lat: pos.coords.latitude, lon: pos.coords.longitude }
       } catch (e) {
         letzte = e
         merkeFehler(`getCurrentPosition(genau=${opts.enableHighAccuracy}): ${(e as Error)?.message ?? e}`)
       }
     }
-    throw letzte
+
+    // Letzter Ausweg: eine laufende Verfolgung liefert auf Android oft eine
+    // Messung, wo die einmalige Abfrage hängen bleibt — sie nimmt einen
+    // anderen Weg durch den Anbieter. Den ersten Fix nehmen und wieder abmelden.
+    try {
+      return await ersterFixAusWatch(12000)
+    } catch (e) {
+      merkeFehler(`watch-Ausweg: ${(e as Error)?.message ?? e}`)
+    }
+    throw letzte ?? new Error('keine Messung')
   }
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))

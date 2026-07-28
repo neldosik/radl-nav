@@ -202,3 +202,38 @@ export function remainingShare(path: LatLon[], pos: LatLon): number | null {
 export function distanceToPath(path: LatLon[], pos: LatLon): number | null {
   return projectOnPath(path, pos)?.dist ?? null
 }
+
+/**
+ * Kurs von `a` nach `b` in Grad, 0 = Norden, im Uhrzeigersinn.
+ *
+ * Für die Karte, die sich in Fahrtrichtung dreht: der Standortanbieter liefert
+ * eine Blickrichtung nur, solange man sich bewegt — und im Web meist gar
+ * keine. Aus zwei aufeinanderfolgenden Messungen lässt sie sich berechnen.
+ */
+export function bearing(a: LatLon, b: LatLon): number {
+  const rad = Math.PI / 180
+  const φ1 = a.lat * rad
+  const φ2 = b.lat * rad
+  const Δλ = (b.lon - a.lon) * rad
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return (Math.atan2(y, x) / rad + 360) % 360
+}
+
+/** Kürzester Winkel zwischen zwei Kursen, −180…180 (positiv = nach rechts). */
+export function bearingDelta(von: number, nach: number): number {
+  return ((((nach - von) % 360) + 540) % 360) - 180
+}
+
+/**
+ * Kurs sanft nachziehen.
+ *
+ * Ein roher Kurs aus GPS zappelt: schon zwei Meter Rauschen im Stand drehen
+ * die Karte um 90°. Deshalb nur einen Teil des Weges gehen — und über die
+ * 0°/360°-Naht hinweg richtig, sonst dreht die Karte bei Nordkurs einmal
+ * komplett im Kreis.
+ */
+export function smoothBearing(alt: number | null, neu: number, anteil = 0.25): number {
+  if (alt == null) return neu
+  return (alt + bearingDelta(alt, neu) * anteil + 360) % 360
+}

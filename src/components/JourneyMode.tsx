@@ -4,6 +4,7 @@ import type { ItineraryView, Leg } from '../types'
 import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
 import {
   BikeIcon,
+  CompassIcon,
   ChevronLeft,
   ChevronRight,
   ClockIcon,
@@ -76,6 +77,9 @@ interface Props {
   /** Kamera folgt dem Standort? */
   follow?: boolean
   onToggleFollow?: () => void
+  /** Karte dreht sich in Fahrtrichtung */
+  headUp?: boolean
+  onToggleHeadUp?: () => void
   children?: ReactNode // Karte
 }
 
@@ -124,6 +128,8 @@ export default function JourneyMode({
   onExit,
   follow = true,
   onToggleFollow,
+  headUp = false,
+  onToggleHeadUp,
   onReroute,
   rerouting = false,
   children,
@@ -451,10 +457,23 @@ export default function JourneyMode({
       )}
 
       {/* Folgen-Knopf wie in Kartendiensten: aus, sobald man selbst schiebt */}
+      {/* Karte genordet oder in Fahrtrichtung — wie in Kartendiensten üblich */}
+      {onToggleHeadUp && (
+        <button
+          className={`j-follow j-headup${headUp ? ' on' : ''}`}
+          onClick={onToggleHeadUp}
+          aria-pressed={headUp}
+          title={t(headUp ? 'jmHeadUp' : 'jmNorthUp', lang)}
+        >
+          <CompassIcon size={20} />
+        </button>
+      )}
+
       {onToggleFollow && (
         <button
           className={`j-follow${follow ? ' on' : ''}`}
           onClick={onToggleFollow}
+          aria-pressed={follow}
           title={t(follow ? 'jmFollowing' : 'jmRecenter', lang)}
         >
           <TargetIcon size={20} />

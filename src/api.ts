@@ -215,6 +215,15 @@ const MYRADL_PROVIDER = 'de-MyRadlMunich'
 
 export interface PlanOpts {
   walkOnly?: boolean
+  /**
+   * Das Rad ist schon ausgeliehen.
+   *
+   * Beim Neuberechnen unterwegs darf MOTIS keine neue Ausleihe einplanen —
+   * sonst schickt es einen, der bereits auf dem Rad sitzt, erst zu Fuß zur
+   * nächsten Station. Mit `BIKE` statt `RENTAL` fährt die Route ab dem
+   * Standort auf dem vorhandenen Rad weiter.
+   */
+  ownBike?: boolean
   classicOnly?: boolean // nur normale Räder (HUMAN), ohne Elektro
   time?: Date // Abfahrts- oder Ankunftszeit
   arriveBy?: boolean // true = time als gewünschte Ankunft interpretiert
@@ -228,7 +237,16 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal
     u.searchParams.set('time', opts.time.toISOString())
     if (opts.arriveBy) u.searchParams.set('arriveBy', 'true')
   }
-  if (opts.walkOnly) {
+  if (opts.ownBike) {
+    // Eigenes Rad: fahren, aber nicht ausleihen. Die Rückgabestation hängt
+    // `routing.ts` an — MOTIS kennt die MyRadl-Regel nicht.
+    u.searchParams.set('preTransitModes', 'BIKE,WALK')
+    u.searchParams.set('postTransitModes', 'WALK')
+    u.searchParams.set('directModes', 'BIKE,WALK')
+    u.searchParams.set('maxPreTransitTime', '1800')
+    u.searchParams.set('maxDirectTime', '2700')
+    u.searchParams.set('numItineraries', '5')
+  } else if (opts.walkOnly) {
     // Sicherheitsanfrage: reiner ÖPNV ohne Verleih
     u.searchParams.set('preTransitModes', 'WALK')
     u.searchParams.set('postTransitModes', 'WALK')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clusterFreeBikes, haversine, nearbyStations, nearestStation, planPickup, distanceToPath, projectOnPath, remainingShare } from './geo'
+import { bearing, bearingDelta, clusterFreeBikes, distanceToPath, haversine, nearbyStations, nearestStation, planPickup, projectOnPath, remainingShare, smoothBearing } from './geo'
 import type { FreeBike, LatLon, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes: number, ebikes = 0): Station => ({
@@ -221,5 +221,58 @@ describe('projectOnPath · Kartenabgleich', () => {
     expect(vorne.point.lat).toBeCloseTo(48.10, 4)
     const hinten = projectOnPath(path, { lat: 48.20, lon: 11.5 })!
     expect(hinten.point.lat).toBeCloseTo(48.13, 4)
+  })
+})
+
+describe('bearing — Kurs für die drehende Karte', () => {
+  const M = { lat: 48.137, lon: 11.575 }
+
+  it('zeigt nach Norden, Osten, Süden, Westen', () => {
+    expect(bearing(M, { lat: M.lat + 0.01, lon: M.lon })).toBeCloseTo(0, 0)
+    expect(bearing(M, { lat: M.lat, lon: M.lon + 0.01 })).toBeCloseTo(90, 0)
+    expect(bearing(M, { lat: M.lat - 0.01, lon: M.lon })).toBeCloseTo(180, 0)
+    expect(bearing(M, { lat: M.lat, lon: M.lon - 0.01 })).toBeCloseTo(270, 0)
+  })
+
+  it('bleibt im Bereich 0…360', () => {
+    const b = bearing({ lat: 48.2, lon: 11.6 }, { lat: 48.1, lon: 11.5 })
+    expect(b).toBeGreaterThanOrEqual(0)
+    expect(b).toBeLessThan(360)
+  })
+})
+
+describe('bearingDelta — kürzester Weg zwischen zwei Kursen', () => {
+  it('nimmt die kurze Seite über die Naht bei 0°', () => {
+    // Von 350° nach 10° sind es 20° nach rechts, nicht 340° nach links
+    expect(bearingDelta(350, 10)).toBe(20)
+    expect(bearingDelta(10, 350)).toBe(-20)
+  })
+
+  it('rechnet innerhalb des Bereichs normal', () => {
+    expect(bearingDelta(90, 120)).toBe(30)
+    expect(bearingDelta(120, 90)).toBe(-30)
+  })
+})
+
+describe('smoothBearing — Karte darf nicht zappeln', () => {
+  it('übernimmt den ersten Kurs unverändert', () => {
+    expect(smoothBearing(null, 42)).toBe(42)
+  })
+
+  it('geht nur einen Teil des Weges', () => {
+    // Von 0° zu 100° mit Anteil 0.25 => 25°
+    expect(smoothBearing(0, 100, 0.25)).toBeCloseTo(25, 5)
+  })
+
+  it('dreht über die Naht nicht einmal im Kreis', () => {
+    // Von 350° zu 10°: kurzer Weg nach rechts, Ergebnis knapp hinter 350°
+    const r = smoothBearing(350, 10, 0.5)
+    expect(r).toBeCloseTo(0, 5)
+  })
+
+  it('bleibt im Bereich 0…360', () => {
+    const r = smoothBearing(5, 300, 0.5)
+    expect(r).toBeGreaterThanOrEqual(0)
+    expect(r).toBeLessThan(360)
   })
 })

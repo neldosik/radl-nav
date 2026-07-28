@@ -2009,12 +2009,36 @@ button {
 }
 
 .mk-user {
+  position: relative;
   width: 20px;
   height: 20px;
   border-radius: 50%;
   background: var(--accent);
   border: 3px solid #fff;
   box-shadow: 0 0 0 10px rgba(31, 122, 111, 0.16);
+}
+
+/* Fahrtrichtung: ein Keil über dem Punkt. Erscheint erst, wenn ein Kurs
+   bekannt ist — im Stand gibt es keinen, und ein zufällig zeigender Pfeil
+   wäre schlechter als keiner. Auf gedrehter Karte steht er immer oben. */
+.mk-user-pfeil {
+  display: none;
+}
+
+.mk-user.hat-kurs .mk-user-pfeil {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 12px solid var(--accent);
+  transform: translate(-50%, -50%) rotate(var(--kurs, 0deg)) translateY(-17px);
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff);
+  transition: transform 0.3s ease-out;
 }
 
 /* ── Los-Modus ── */
@@ -2481,6 +2505,11 @@ button {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+/* Der Kompass sitzt über dem Folgen-Knopf. */
+.j-headup {
+  bottom: calc(var(--j-panel-h, 210px) + 70px);
 }
 
 .j-follow.on {

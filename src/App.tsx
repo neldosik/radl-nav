@@ -81,6 +81,9 @@ export default function App() {
   const [tab, setTab] = useState<'route' | 'bikes' | 'trips'>('route')
   /** Los-Modus: Karte folgt dem Standort, bis man selbst schiebt */
   const [followMe, setFollowMe] = useState(true)
+  /** Karte in Fahrtrichtung drehen (wie in Kartendiensten). Gemerkt, damit die
+   *  Einstellung die nächste Fahrt überdauert. */
+  const [headUp, setHeadUp] = useState(() => localStorage.getItem('radl.headup') === 'true')
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   /** Gerätewerte einblenden — hilft bei Layoutfehlern, die nur auf einem Gerät auftreten. */
   const [showDiag, setShowDiag] = useState(false)
@@ -220,7 +223,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedView, from?.lat, from?.lon])
 
-  async function search(f: Place | null = from, tPl: Place | null = to): Promise<ItineraryView[] | null> {
+  async function search(
+    f: Place | null = from,
+    tPl: Place | null = to,
+    suchOpts: { ownBike?: boolean } = {},
+  ): Promise<ItineraryView[] | null> {
     if (!f || !tPl) return null
     searchCtrl.current?.abort()
     const ctrl = new AbortController()
@@ -240,6 +247,7 @@ export default function App() {
       const list = await searchRoutes(f, tPl, {
         stations,
         supply,
+        ownBike: suchOpts.ownBike,
         maxBikeSec: maxBike * 60,
         classicOnly: bikeType === 'classic',
         time: timeOpts,
@@ -290,8 +298,11 @@ export default function App() {
     setRerouteLaeuft(true)
     const hier = { name: t('myLocation', lang), lat: userPos.lat, lon: userPos.lon }
     setFrom(hier)
+    // Sitzt der Nutzer gerade auf einem Rad, darf die neue Route ihn nicht
+    // erst zu Fuß zur nächsten Station schicken — er hat das Rad ja schon.
+    const aufDemRad = journeyLeg != null && !!selectedView?.bikeLegs.get(journeyLeg)
     try {
-      const liste = await search(hier, to)
+      const liste = await search(hier, to, { ownBike: aufDemRad })
       if (liste && liste.length) {
         // Auf der neuen besten Route weiterfahren: Fahrzeit läuft weiter,
         // die automatische Etappenschaltung bleibt scharf.
@@ -397,6 +408,13 @@ export default function App() {
           rerouting={rerouteLaeuft}
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
+          headUp={headUp}
+          onToggleHeadUp={() =>
+            setHeadUp(h => {
+              localStorage.setItem('radl.headup', String(!h))
+              return !h
+            })
+          }
         >
           <MapGuard lang={lang}>
             <Suspense fallback={<div className="map" />}>
@@ -408,6 +426,7 @@ export default function App() {
                 theme={themeMode}
                 cycleLayer={cycleLayer}
                 follow={followMe}
+                headUp={headUp}
                 onUserPan={() => setFollowMe(false)}
               />
             </Suspense>

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { legKind } from '../format'
 import { legPath } from '../routing'
-import { haversine, planPickup, projectOnPath } from '../geo'
+import { bearing, haversine, planPickup, projectOnPath, smoothBearing } from '../geo'
 import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
@@ -31,17 +31,23 @@ function legColor(leg: Leg, theme: ThemeMode): string {
 const CAM_MIN_MOVE_M = 12
 const CAM_MIN_INTERVAL_MS = 900
 const CAM_JUMP_M = 300
+/** Ab so vielen Metern taugen zwei Messungen als Richtungsgeber. */
+const KURS_MIN_MOVE_M = 8
+/** Wie stark ein neuer Kurs durchschlägt — kleiner heißt ruhiger. */
+const KURS_ANTEIL = 0.3
 
 interface Props {
   view: ItineraryView | null
   activeLeg?: number | null
-  userPos?: { lat: number; lon: number; accuracy?: number } | null
+  userPos?: { lat: number; lon: number; accuracy?: number; heading?: number; speed?: number } | null
   bikesNeeded?: number
   theme?: ThemeMode
   /** Radwege-Ebene einblenden */
   cycleLayer?: boolean
   /** Kamera folgt dem Standort (Los-Modus) */
   follow?: boolean
+  /** Karte in Fahrtrichtung drehen statt genordet lassen */
+  headUp?: boolean
   /** Nutzer hat die Karte selbst verschoben — Folgen aussetzen */
   onUserPan?: () => void
 }
@@ -54,6 +60,7 @@ export default function MapView({
   theme = 'light',
   cycleLayer = false,
   follow = true,
+  headUp = false,
   onUserPan,
 }: Props) {
   const div = useRef<HTMLDivElement>(null)
@@ -64,6 +71,12 @@ export default function MapView({
   const prevCamPosRef = useRef<{ lat: number; lon: number } | null>(null)
   /** Zeitpunkt der letzten Kamerafahrt — bremst die Nachführung. */
   const camAtRef = useRef(0)
+  /** Zuletzt gezeigter Kurs — von dort wird sanft weitergedreht. */
+  const kursRef = useRef<number | null>(null)
+  /** Letzte Position, aus der ein Kurs abgeleitet wurde. */
+  const kursVonRef = useRef<{ lat: number; lon: number } | null>(null)
+  const headUpRef = useRef(false)
+  headUpRef.current = headUp
   const ready = useRef(false)
   const viewRef = useRef<ItineraryView | null>(null)
   const activeLegRef = useRef<number | null>(null)
@@ -253,18 +266,60 @@ export default function MapView({
 
     prevCamPosRef.current = pos
     camAtRef.current = Date.now()
+    // Kurs nur mitgeben, wenn die Karte sich drehen soll und einer bekannt ist.
+    const kurs = headUpRef.current ? kursRef.current : null
     if (dist > CAM_JUMP_M) {
-      m.jumpTo({ center: [pos.lon, pos.lat] })
+      m.jumpTo({ center: [pos.lon, pos.lat], ...(kurs != null ? { bearing: kurs } : {}) })
       return
     }
     m.easeTo({
       center: [pos.lon, pos.lat],
+      ...(kurs != null ? { bearing: kurs } : {}),
       // Länger als der GPS-Takt (~1 s) wäre Dauerabbruch; etwas kürzer läuft
       // die Fahrt sauber aus, bevor der nächste Fix kommt.
       duration: 800,
       easing: t => t * (2 - t),
       essential: true,
     })
+  }
+
+  /**
+   * Fahrtrichtung bestimmen.
+   *
+   * Der Standortanbieter liefert `heading` nur, solange man sich bewegt, und
+   * im Web meist gar nicht. Fehlt sie, wird sie aus zwei Messungen berechnet —
+   * aber erst ab einem Stück Weg, sonst dreht das GPS-Rauschen im Stand die
+   * Karte im Kreis. Das Ergebnis wird nachgezogen statt gesetzt.
+   */
+  function kursAktualisieren(pos: { lat: number; lon: number; heading?: number; speed?: number }) {
+    const inBewegung = (pos.speed ?? 0) >= 0.8
+    let roh: number | null = null
+
+    if (pos.heading != null && Number.isFinite(pos.heading) && inBewegung) {
+      roh = pos.heading
+    } else {
+      const von = kursVonRef.current
+      if (!von) {
+        // Erster Fix: nur merken. Ohne diese Zeile bleibt der Bezugspunkt für
+        // immer leer und es entsteht nie ein Kurs.
+        kursVonRef.current = { lat: pos.lat, lon: pos.lon }
+        return
+      }
+      if (haversine(von, pos) < KURS_MIN_MOVE_M) return
+      roh = bearing(von, pos)
+    }
+
+    if (roh == null) return
+    kursVonRef.current = { lat: pos.lat, lon: pos.lon }
+    kursRef.current = smoothBearing(kursRef.current, roh, KURS_ANTEIL)
+    // Der Pfeil zeigt den Kurs auf einer genordeten Karte; dreht die Karte
+    // selbst mit, zeigt er immer nach oben.
+    const el = userMarker.current?.getElement()
+    if (el) {
+      const zeigt = headUpRef.current ? 0 : kursRef.current
+      el.style.setProperty('--kurs', `${zeigt}deg`)
+      el.classList.add('hat-kurs')
+    }
   }
 
   useEffect(() => {
@@ -290,17 +345,25 @@ export default function MapView({
       userMarker.current?.remove()
       userMarker.current = null
       prevCamPosRef.current = null
+      kursRef.current = null
+      kursVonRef.current = null
       return
     }
     if (!userMarker.current) {
       const el = document.createElement('div')
       el.className = 'mk-user'
+      // Der Pfeil steckt im Marker und wird per CSS-Variable gedreht.
+      el.innerHTML = '<span class="mk-user-pfeil"></span>'
       userMarker.current = new maplibregl.Marker({ element: el })
         .setLngLat([gezogen!.lon, gezogen!.lat])
         .addTo(m)
     } else {
       userMarker.current.setLngLat([gezogen!.lon, gezogen!.lat])
     }
+    // Richtung aus dem *rohen* Fix, nicht aus dem auf die Linie gezogenen:
+    // das Ziehen verschiebt den Punkt quer zur Fahrt und würde den Kurs
+    // verfälschen.
+    kursAktualisieren(userPos)
     // Los-Modus: Kamera folgt dem Benutzer — außer er schaut sich gerade
     // selbst auf der Karte um (dann übernimmt der Folgen-Knopf).
     if (activeLegRef.current != null && followRef.current) followUser(gezogen!)
@@ -322,6 +385,19 @@ export default function MapView({
     if (pos) followUser(pos, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [follow])
+
+  // Umschalten zwischen „genordet" und „in Fahrtrichtung": sofort drehen,
+  // nicht erst beim nächsten GPS-Fix.
+  useEffect(() => {
+    const m = map.current
+    if (!m || !ready.current) return
+    const ziel = headUp ? (kursRef.current ?? m.getBearing()) : 0
+    m.easeTo({ bearing: ziel, duration: 400, essential: true })
+    // Der Pfeil zeigt auf gedrehter Karte immer nach oben.
+    const el = userMarker.current?.getElement()
+    if (el) el.style.setProperty('--kurs', headUp ? '0deg' : `${kursRef.current ?? 0}deg`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headUp])
 
   return <div ref={div} className="map" />
 }
