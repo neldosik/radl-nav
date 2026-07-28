@@ -86,6 +86,8 @@ interface Props {
   follow?: boolean
   onToggleFollow?: () => void
   /** Karte dreht sich in Fahrtrichtung */
+  /** Rechnet die Anzeige mit ÖPNV-Abo (30 Freiminuten) oder ohne? */
+  hatAbo?: boolean
   headUp?: boolean
   onToggleHeadUp?: () => void
   children?: ReactNode // Karte
@@ -136,6 +138,7 @@ export default function JourneyMode({
   onExit,
   follow = true,
   onToggleFollow,
+  hatAbo = true,
   headUp = false,
   onToggleHeadUp,
   onReroute,
@@ -455,7 +458,7 @@ export default function JourneyMode({
   if (arrived) {
     // Echte Etappendauern und -längen statt pauschal 15 Min je Radetappe;
     // Pedelec zählt weniger Kalorien und kostet auch mit Abo Geld.
-    const stats = viewStats(view)
+    const stats = viewStats(view, undefined, hatAbo)
 
     return (
       <div className="journey">

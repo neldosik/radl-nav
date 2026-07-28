@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { co2Label, euro, legCostCent, legKcal, rideLegsOf, rideStats } from './stats'
+import { CLASSIC_RATE_CENT, EBIKE_RATE_CENT, co2Label, euro, legCostCent, legCostCentFromSec, legKcal, rideLegsOf, rideStats } from './stats'
 import type { BikeLegInfo, ItineraryView, Leg } from './types'
 
 describe('legKcal — Pedelec zählt weniger', () => {
@@ -152,5 +152,35 @@ describe('Formatierung', () => {
   it('wechselt bei CO₂ ab einem Kilo die Einheit', () => {
     expect(co2Label(380)).toBe('380 g')
     expect(co2Label(1240)).toBe('1,2 kg')
+  })
+})
+
+describe('Freiminuten hängen am ÖPNV-Abo', () => {
+  it('rechnet mit Abo die ersten 30 Minuten frei', () => {
+    expect(legCostCent(30, false, true)).toBe(0)
+    expect(legCostCent(31, false, true)).toBe(CLASSIC_RATE_CENT)
+  })
+
+  it('rechnet ohne Abo ab der ersten Minute', () => {
+    // Vorher bekam jeder die Freiminuten angerechnet — wer ohne
+    // Deutschlandticket fuhr, las „0 €" auf einer Fahrt, die Geld kostete.
+    expect(legCostCent(5, false, false)).toBe(CLASSIC_RATE_CENT)
+    expect(legCostCent(31, false, false)).toBe(2 * CLASSIC_RATE_CENT)
+  })
+
+  it('lässt das E-Bike unberührt — dort gab es nie Freiminuten', () => {
+    expect(legCostCent(10, true, true)).toBe(EBIKE_RATE_CENT)
+    expect(legCostCent(10, true, false)).toBe(EBIKE_RATE_CENT)
+  })
+
+  it('gibt ohne Abo nie weniger aus als mit', () => {
+    for (const m of [0, 1, 15, 29, 30, 31, 60, 200]) {
+      expect(legCostCent(m, false, false)).toBeGreaterThanOrEqual(legCostCent(m, false, true))
+    }
+  })
+
+  it('bleibt bei der Sekundenfassung gleich', () => {
+    expect(legCostCentFromSec(29 * 60, false, true)).toBe(0)
+    expect(legCostCentFromSec(29 * 60, false, false)).toBe(CLASSIC_RATE_CENT)
   })
 })

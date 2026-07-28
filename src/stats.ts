@@ -34,6 +34,23 @@ export const DAY_CAP_CENT = 900
 /** Freiminuten je Ausleihe auf dem Standardrad (nur mit ÖPNV-Abo). */
 export const FREE_MINUTES = 30
 
+/**
+ * Hat der Nutzer ein ÖPNV-Abo?
+ *
+ * Die 30 Freiminuten hängen daran — ohne Abo gibt es keine. Bisher rechnete
+ * die App sie **jedem** an: wer ohne Deutschlandticket unterwegs war, sah
+ * „0 €" auf einer Fahrt, die ihn Geld kostete. Das ist keine Ungenauigkeit in
+ * der Darstellung, sondern eine falsche Aussage über Geld.
+ *
+ * Ohne Abo wird ab der ersten Minute nach dem gleichen Satz gerechnet. Die
+ * Bedingungen nennen für diesen Fall keinen eigenen Tarif; die Annahme
+ * schätzt also eher zu hoch als zu niedrig — die unbedenkliche Richtung, wenn
+ * eine Zahl auf dem Bildschirm eine Zusage ist.
+ */
+export function freiminuten(abo: boolean): number {
+  return abo ? FREE_MINUTES : 0
+}
+
 export interface RideLeg {
   /** Gerundete Minuten — für die Anzeige. */
   minutes: number
@@ -54,7 +71,7 @@ export interface RideStats {
   kcal: number
   /** Gegenüber der gleichen Strecke mit dem Auto gespartes CO₂ in Gramm. */
   co2Grams: number
-  /** Leihkosten in Cent, mit Abo gerechnet. */
+  /** Leihkosten in Cent — je nach Abo mit oder ohne Freiminuten. */
   costCent: number
 }
 
@@ -69,25 +86,25 @@ export function legKcal(minutes: number, electric: boolean, weightKg = DEFAULT_W
  * Standardrad: erste 30 Minuten frei, danach 1 € je angefangene halbe Stunde.
  * E-Bike: von der ersten Minute an 1,50 € je angefangene halbe Stunde.
  */
-export function legCostCent(minutes: number, electric: boolean): number {
+export function legCostCent(minutes: number, electric: boolean, abo = true): number {
   if (minutes <= 0) return 0
   if (electric) return Math.ceil(minutes / 30) * EBIKE_RATE_CENT
-  const paid = Math.max(0, minutes - FREE_MINUTES)
+  const paid = Math.max(0, minutes - freiminuten(abo))
   return Math.ceil(paid / 30) * CLASSIC_RATE_CENT
 }
 
 /** Wie `legCostCent`, aber aus Sekunden — ohne die Rundung, die eine
  *  Gebührenstufe verschlucken kann. */
-export function legCostCentFromSec(seconds: number, electric: boolean): number {
+export function legCostCentFromSec(seconds: number, electric: boolean, abo = true): number {
   if (seconds <= 0) return 0
   const min = seconds / 60
   if (electric) return Math.ceil(min / 30) * EBIKE_RATE_CENT
-  const paid = Math.max(0, min - FREE_MINUTES)
+  const paid = Math.max(0, min - freiminuten(abo))
   return Math.ceil(paid / 30) * CLASSIC_RATE_CENT
 }
 
 /** Summe über alle Radetappen; Kosten auf die Tageskappe begrenzt. */
-export function rideStats(legs: RideLeg[], weightKg = DEFAULT_WEIGHT_KG): RideStats {
+export function rideStats(legs: RideLeg[], weightKg = DEFAULT_WEIGHT_KG, abo = true): RideStats {
   let bikeMinutes = 0
   let electricMinutes = 0
   let bikeKm = 0
@@ -98,7 +115,7 @@ export function rideStats(legs: RideLeg[], weightKg = DEFAULT_WEIGHT_KG): RideSt
     if (l.electric) electricMinutes += l.minutes
     bikeKm += l.km
     kcal += legKcal(l.minutes, l.electric, weightKg)
-    costCent += legCostCentFromSec(l.seconds ?? l.minutes * 60, l.electric)
+    costCent += legCostCentFromSec(l.seconds ?? l.minutes * 60, l.electric, abo)
   }
   return {
     bikeMinutes,
@@ -132,8 +149,8 @@ export function rideLegsOf(view: ItineraryView): RideLeg[] {
 }
 
 /** Kennzahlen direkt aus einer Route. */
-export function viewStats(view: ItineraryView, weightKg = DEFAULT_WEIGHT_KG): RideStats {
-  return rideStats(rideLegsOf(view), weightKg)
+export function viewStats(view: ItineraryView, weightKg = DEFAULT_WEIGHT_KG, abo = true): RideStats {
+  return rideStats(rideLegsOf(view), weightKg, abo)
 }
 
 /** „1,50 €" / „0 €" — deutsche Schreibweise. */

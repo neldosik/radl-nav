@@ -84,6 +84,12 @@ export default function App() {
   const [followMe, setFollowMe] = useState(true)
   /** Karte in Fahrtrichtung drehen (wie in Kartendiensten). Gemerkt, damit die
    *  Einstellung die nächste Fahrt überdauert. */
+  /**
+   * Die 30 Freiminuten hängen am ÖPNV-Abo. Voreinstellung „hat eins": das
+   * Deutschlandticket ist der Anlass dieser App, und wer keins hat, stellt es
+   * einmal um. Falsch herum wäre schlimmer — dann läse jeder zu hohe Preise.
+   */
+  const [hatAbo, setHatAbo] = useState(() => localStorage.getItem('radl.abo') !== 'false')
   const [headUp, setHeadUp] = useState(() => localStorage.getItem('radl.headup') === 'true')
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   /** Gerätewerte einblenden — hilft bei Layoutfehlern, die nur auf einem Gerät auftreten. */
@@ -379,7 +385,7 @@ export default function App() {
           onArrive={() => {
             if (from && to) {
               // echte Radminuten und -kilometer aus den Etappen, nicht geschätzt
-              const stats = viewStats(journeyView)
+              const stats = viewStats(journeyView, undefined, hatAbo)
               // Die einzelnen Ausleihen mitgeben: der Preis hängt an ihnen,
               // nicht an der Fahrtsumme.
               const etappen = rideLegsOf(journeyView).map(l => ({
@@ -415,6 +421,7 @@ export default function App() {
           rerouting={rerouteLaeuft}
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
+          hatAbo={hatAbo}
           headUp={headUp}
           onToggleHeadUp={() => {
             // iOS gibt den Magnetfeldsensor nur auf ausdrückliche Nachfrage
@@ -551,6 +558,17 @@ export default function App() {
               </button>
               <button className="header-menu-item" onClick={toggleCycleLayer}>
                 {cycleLayer ? t('cycleLayerOff', lang) : t('cycleLayerOn', lang)}
+              </button>
+              <button
+                className="header-menu-item"
+                onClick={() =>
+                  setHatAbo(a => {
+                    localStorage.setItem('radl.abo', String(!a))
+                    return !a
+                  })
+                }
+              >
+                {t(hatAbo ? 'aboAn' : 'aboAus', lang)}
               </button>
               <button className="header-menu-item" onClick={() => setShowDiag(true)}>
                 Diagnose
