@@ -275,7 +275,10 @@ export async function searchRoutes(
   const res = await plan(from, to, { classicOnly, ownBike, ...time }, signal)
   const list = build([...(res.direct ?? []), ...res.itineraries])
 
-  if (list.length < 2) {
+  // Beim eigenen Rad keine reine Fuß-Nachladung: sie bringt ausschließlich
+  // Vorschläge, die das Rad stehen lassen würden. Bleibt die Suche leer,
+  // meldet die Oberfläche das lieber, als in eine Strafgebühr zu locken.
+  if (list.length < 2 && !ownBike) {
     // Zusatzsuche ist Kür: schlägt sie fehl (HTTP-Fehler, Zeitüberschreitung),
     // behalten wir die bereits gefundene Route. Vorher riss die Ausnahme die
     // ganze Suche mit — der Nutzer sah „keine Verbindung", obwohl eine
@@ -292,10 +295,19 @@ export async function searchRoutes(
     }
   }
 
+  // Sitzt der Nutzer schon auf einem Rad, sind Routen ohne Radetappe keine
+  // Alternative, sondern eine Falle: sie sagen sinngemäß „lass das Rad hier
+  // stehen" — und außerhalb einer Station kostet das 20 €. Gemessen an einer
+  // echten Neuberechnung lieferte MOTIS sieben Vorschläge, fünf davon mit Rad;
+  // die schnellste war ein Fußweg zur S-Bahn, und genau die stand oben.
+  // Deshalb zuerst die Routen, auf denen das Rad weiterfährt.
+  const radZuerst = (v: ItineraryView) => (ownBike && !v.hasBike ? 1 : 0)
+
   // Routen ohne erreichbare Rückgabestation nach hinten — sie kosten 20 € Strafe.
   return list
     .sort(
       (a, b) =>
+        radZuerst(a) - radZuerst(b) ||
         Number(a.warnReturn) - Number(b.warnReturn) ||
         +new Date(viewEndTime(a)) - +new Date(viewEndTime(b)),
     )
