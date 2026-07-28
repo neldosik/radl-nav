@@ -70,8 +70,15 @@
   --r-pill: 20px;
   --r-sheet: 22px;
 
-  /* Höhe der fest stehenden Reiterleiste: 6 + 56 + 10 + 1px Linie */
-  --tabbar-h: calc(73px + env(safe-area-inset-bottom, 0px));
+  /* Unterer Rand der Reiterleiste — an genau einer Stelle.
+     Vorher stand die Formel zweimal im Blatt: `.tabbar` nahm
+     `max(10px, inset - 8px)`, die Höhenvariable rechnete aber mit
+     `10px + inset`. Auf einem Gerät mit 24 px Sicherheitsabstand ergab das
+     97 px reservierte Höhe gegenüber 79 px tatsächlicher Leiste — die 18 px
+     Unterschied standen als leerer Streifen unter „Räder" und „Fahrten". */
+  --tabbar-pb: max(10px, calc(env(safe-area-inset-bottom, 0px) - 8px));
+  /* Höhe der fest stehenden Reiterleiste: 6 oben + 56 Knöpfe + 1 Linie + unten */
+  --tabbar-h: calc(63px + var(--tabbar-pb));
 
   /* Quer liegt die Kamera-Aussparung seitlich. `viewport-fit=cover` in der
      index.html schiebt die Seite bewusst darunter — ohne diese beiden Werte
@@ -1297,8 +1304,7 @@ button {
      Strich selbst ist rund 5 Punkte hoch und endet etwa 8 Punkte über der
      Kante, die Beschriftungen bleiben damit gut ein Dutzend Punkte darüber.
      Mehr wäre auf Kosten der Treffsicherheit. */
-  padding: 6px max(12px, var(--sar)) max(10px, calc(env(safe-area-inset-bottom, 0px) - 8px))
-    max(12px, var(--sal));
+  padding: 6px max(12px, var(--sar)) var(--tabbar-pb) max(12px, var(--sal));
 }
 
 .tab {
