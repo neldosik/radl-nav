@@ -27,6 +27,7 @@ import { co2Label, euro, viewStats } from '../stats'
 import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
 import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
+import { abbiegeSatz, schweigen, sprechen } from '../sprache'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 
@@ -281,6 +282,7 @@ export default function JourneyMode({
   const abbiegungen = useMemo(() => turnsFromPath(linie), [linie])
   const projektion = userPos && !posVeraltet && linie.length ? projectOnPath(linie, userPos) : null
   const naechsteAbbiegung = projektion ? nextTurn(abbiegungen, projektion.along) : null
+
   // Restzeit der laufenden Etappe. Ohne brauchbaren Standort bleibt es bei der
   // Gesamtdauer — eine geratene Restzeit wäre schlechter als gar keine.
   const restMin =
@@ -372,6 +374,38 @@ export default function JourneyMode({
     setAbgekommen(abseitsZaehler.current >= OFF_ROUTE_FIXES)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPos])
+
+  /**
+   * Abbiegungen ansagen.
+   *
+   * Zweimal je Abbiegung: einmal auf Zuruf mit Entfernung, damit man sich
+   * einordnen kann, und einmal unmittelbar davor. Gemerkt wird, was schon
+   * gesagt wurde — sonst spräche jede Standortmeldung denselben Satz erneut,
+   * und das im Sekundentakt.
+   *
+   * Am selben Schalter wie der Warnton: wer die Töne abstellt, will keine
+   * Stimme. Ein zweiter Schalter wäre eine Einstellung mehr für dieselbe
+   * Frage.
+   */
+  const gesagt = useRef<string>('')
+  useEffect(() => {
+    if (!soundEnabled || arrived || abgekommen) return
+    const a = naechsteAbbiegung
+    if (!a) return
+    const stufe = a.inM <= 30 ? 'jetzt' : a.inM <= 150 ? 'gleich' : null
+    if (!stufe) return
+    const marke = `${legIndex}:${a.index}:${stufe}`
+    if (gesagt.current === marke) return
+    gesagt.current = marke
+    sprechen(abbiegeSatz(a.kind, a.inM, lang), lang)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [naechsteAbbiegung?.index, naechsteAbbiegung?.inM, soundEnabled, arrived, abgekommen])
+
+  // Ton aus, Ansicht verlassen oder angekommen: sofort still.
+  useEffect(() => {
+    if (!soundEnabled) schweigen()
+  }, [soundEnabled])
+  useEffect(() => () => schweigen(), [])
 
   // Beim Etappenwechsel und nach der Ankunft von vorn
   useEffect(() => {
