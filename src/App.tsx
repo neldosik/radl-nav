@@ -12,6 +12,7 @@ const MapPicker = lazy(() => import('./components/MapPicker'))
 const BikeMap = lazy(() => import('./components/BikeMap'))
 const History = lazy(() => import('./components/History'))
 const Diag = lazy(() => import('./components/Diag'))
+const Onboarding = lazy(() => import('./components/Onboarding'))
 import { addTrip } from './history'
 import { ApiError, fetchWeatherAt, getGeolocation, loadFreeBikes, loadStations, reverseGeocode } from './api'
 import type { WeatherAtTime } from './api'
@@ -22,6 +23,7 @@ import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
 import { useBackGuard } from './hooks/useBackGuard'
 import { kompassFreigeben } from './kompass'
+import { einfuehrungGesehen } from './onboarding'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
@@ -92,6 +94,8 @@ export default function App() {
    * einmal um. Falsch herum wäre schlimmer — dann läse jeder zu hohe Preise.
    */
   const [hatAbo, setHatAbo] = useState(() => localStorage.getItem('radl.abo') !== 'false')
+  /** Beim allerersten Start: erklären, bevor irgendein Systemdialog aufspringt. */
+  const [zeigeEinfuehrung, setZeigeEinfuehrung] = useState(() => !einfuehrungGesehen())
   const [headUp, setHeadUp] = useState(() => localStorage.getItem('radl.headup') === 'true')
   const [showHeaderMenu, setShowHeaderMenu] = useState(false)
   /** Gerätewerte einblenden — hilft bei Layoutfehlern, die nur auf einem Gerät auftreten. */
@@ -865,6 +869,19 @@ export default function App() {
       </section>
 
       {tabBar}
+
+      {zeigeEinfuehrung && (
+        <Suspense fallback={null}>
+          <Onboarding
+            lang={lang}
+            onAbo={hat => {
+              localStorage.setItem('radl.abo', String(hat))
+              setHatAbo(hat)
+            }}
+            onClose={() => setZeigeEinfuehrung(false)}
+          />
+        </Suspense>
+      )}
 
       {showDiag && (
         <Suspense fallback={null}>
