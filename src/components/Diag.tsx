@@ -50,6 +50,7 @@ function zeilen(): string[] {
     `inset l/r  ${messe('env(safe-area-inset-left, 0px)')} / ${messe('env(safe-area-inset-right, 0px)')}`,
     `huelle     ${istNativ() ? 'nativ' : 'web'}  plugins: ${plugins()}`,
     `ortfehler  ${ortungsFehler() || '-'}`,
+    `sw         ${navigator.serviceWorker?.controller ? 'steuert die Seite' : 'frei'}`,
   ]
 }
 

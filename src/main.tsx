@@ -10,8 +10,34 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import './index.css'
 import App from './App.tsx'
 import { vollbildBeobachten } from './luecke'
+import { istNativ } from './geolocation'
 
-if ('serviceWorker' in navigator) {
+/**
+ * In der Android-Hülle darf kein Service Worker laufen.
+ *
+ * Capacitor reicht die Seite über einen eigenen lokalen Server aus und setzt
+ * dabei die Brücke zur Hülle in das HTML ein — daher kommt `window.Capacitor`
+ * und damit jedes Plugin. Ein Service Worker legt sich vor genau diese
+ * Auslieferung: ab dem zweiten Start beantwortet er den Seitenaufruf aus
+ * seinem Puffer, und in dieser gepufferten Fassung fehlt die eingesetzte
+ * Brücke.
+ *
+ * Die Folge sah aus wie ein Rechteproblem: `istNativ()` meldete falsch, die
+ * App nahm den Browserweg, das Ortungs-Plugin wurde nie angesprochen und es
+ * erschien auch kein Dialog — obwohl die Berechtigung am Gerät längst erteilt
+ * war. Nutzen bringt der Puffer hier ohnehin keinen, die Dateien liegen im
+ * APK.
+ *
+ * Ein früher registrierter Worker überlebt die Aktualisierung der App,
+ * deshalb wird er hier auch aktiv abgemeldet und sein Puffer geleert.
+ */
+if (istNativ() && 'serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then(regs => Promise.all(regs.map(r => r.unregister())))
+    .then(() => caches?.keys().then(namen => Promise.all(namen.map(n => caches.delete(n)))))
+    .catch(() => {})
+} else if ('serviceWorker' in navigator) {
   /**
    * Ein neuer Service Worker übernimmt zwar sofort (skipWaiting + claim), die
    * bereits geladene Seite läuft aber weiter mit dem alten JavaScript. Auf dem
