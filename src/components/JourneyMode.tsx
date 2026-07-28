@@ -19,7 +19,7 @@ import {
 } from '../icons'
 import { fetchTripStatus } from '../api'
 import type { TripStatus } from '../api'
-import { haversine, planPickup, projectOnPath } from '../geo'
+import { abseitsSchwelle, haversine, planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
 import { FREE_LIMIT_SEC, legPath } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
@@ -29,10 +29,8 @@ import { playWarningSound } from '../audio'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 
-/** Ab wie vielen Metern neben der Linie gilt man als abgekommen. In engen
- *  Straßen streut GPS leicht um 20-30 m, deshalb nicht knapper. */
-const OFF_ROUTE_M = 90
-/** So viele Messungen hintereinander, bevor der Hinweis kommt. */
+/** So viele Messungen hintereinander, bevor der Hinweis kommt. Der Abstand
+ *  selbst richtet sich nach der Genauigkeit — siehe `abseitsSchwelle`. */
 const OFF_ROUTE_FIXES = 3
 /** Wie oft der Stand der laufenden ÖPNV-Fahrt nachgefragt wird. Häufiger
  *  lohnt nicht: die Rückmeldungen der Betreiber kommen selten schneller. */
@@ -52,7 +50,7 @@ interface Props {
   legIndex: number
   distToEnd: number | null
   /** Aktueller Standort — für die Restzeit der laufenden Etappe. */
-  userPos?: { lat: number; lon: number; speed?: number } | null
+  userPos?: { lat: number; lon: number; speed?: number; accuracy?: number } | null
   /** Kein Standort: Freigabe fehlt oder Signal weg. */
   gpsError?: 'denied' | 'lost' | null
   /** Letzter Fix ist alt — die Entfernung stimmt nicht mehr. */
@@ -276,7 +274,8 @@ export default function JourneyMode({
   const [abgekommen, setAbgekommen] = useState(false)
   useEffect(() => {
     if (projektion == null) return
-    abseitsZaehler.current = projektion.dist > OFF_ROUTE_M ? abseitsZaehler.current + 1 : 0
+    const schwelle = abseitsSchwelle(userPos?.accuracy)
+    abseitsZaehler.current = projektion.dist > schwelle ? abseitsZaehler.current + 1 : 0
     setAbgekommen(abseitsZaehler.current >= OFF_ROUTE_FIXES)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPos])

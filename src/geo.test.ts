@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bearing, bearingDelta, clusterFreeBikes, distanceToPath, haversine, nachziehAnteil, nachziehen, nearbyStations, nearestStation, planPickup, projectOnPath, remainingShare, smoothBearing } from './geo'
+import { abseitsSchwelle, bearing, bearingDelta, clusterFreeBikes, distanceToPath, haversine, nachziehAnteil, nachziehen, nearbyStations, nearestStation, planPickup, projectOnPath, remainingShare, smoothBearing } from './geo'
 import type { FreeBike, LatLon, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes: number, ebikes = 0): Station => ({
@@ -315,5 +315,36 @@ describe('nachziehAnteil / nachziehen — gleitende Standortanzeige', () => {
   it('holt bei unsinnigen Werten sofort auf, statt stehen zu bleiben', () => {
     expect(nachziehAnteil(0, 400)).toBe(1)
     expect(nachziehAnteil(16, 0)).toBe(1)
+  })
+})
+
+describe('abseitsSchwelle — wann gilt man als abgekommen', () => {
+  it('reagiert bei guter Messung deutlich früher als die alten festen 90 m', () => {
+    // 18 km/h sind 5 m/s: 90 m waren achtzehn Sekunden Fahrt in die falsche
+    // Richtung, 35 m sind sieben.
+    expect(abseitsSchwelle(5)).toBe(35)
+    expect(abseitsSchwelle(10)).toBe(35)
+  })
+
+  it('wird bei unsicherer Messung großzügiger, statt grundlos auszulösen', () => {
+    expect(abseitsSchwelle(30)).toBe(75)
+    expect(abseitsSchwelle(60)).toBe(90)
+  })
+
+  it('bleibt in vernünftigen Grenzen', () => {
+    for (const g of [0, -5, NaN, Infinity, undefined, 1e9]) {
+      const s = abseitsSchwelle(g as number)
+      expect(s).toBeGreaterThanOrEqual(35)
+      expect(s).toBeLessThanOrEqual(90)
+    }
+  })
+
+  it('wächst monoton mit der Unsicherheit', () => {
+    let vorher = 0
+    for (let g = 1; g <= 100; g++) {
+      const s = abseitsSchwelle(g)
+      expect(s).toBeGreaterThanOrEqual(vorher)
+      vorher = s
+    }
   })
 })

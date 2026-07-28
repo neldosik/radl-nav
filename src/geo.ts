@@ -270,3 +270,21 @@ export function nachziehen(von: LatLon, nach: LatLon, anteil: number): LatLon {
     lon: von.lon + (nach.lon - von.lon) * anteil,
   }
 }
+
+/**
+ * Ab welchem Abstand zur Linie man als abgekommen gilt.
+ *
+ * Fest gewählt lässt sich das nicht gut treffen. Ein Wert, der eng bebaute
+ * Straßen mit 20–30 m Streuung übersteht, ist auf freier Strecke viel zu
+ * großzügig: bei 90 m fährt man mit 18 km/h achtzehn Sekunden in die falsche
+ * Richtung, bevor überhaupt gezählt wird. Umgekehrt löst ein enger Wert dort
+ * ständig grundlos aus, und jede Fehlauslösung kostet eine Neuberechnung.
+ *
+ * Das Gerät nennt zu jeder Messung ihre Unsicherheit — daran lässt sich der
+ * Abstand bemessen. Der Faktor 2,5 liegt weit außerhalb dessen, was Streuung
+ * allein erklären kann; die Grenzen fangen unbrauchbare Angaben ab.
+ */
+export function abseitsSchwelle(accuracy?: number): number {
+  const g = accuracy != null && Number.isFinite(accuracy) && accuracy > 0 ? accuracy : 25
+  return Math.min(90, Math.max(35, 2.5 * g))
+}
