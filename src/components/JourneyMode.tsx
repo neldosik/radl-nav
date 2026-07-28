@@ -261,9 +261,31 @@ export default function JourneyMode({
 
   // Abseits der Route? Erst nach mehreren Messungen hintereinander, sonst
   // löst ein einzelner GPS-Ausreißer zwischen Häusern schon aus.
-  const abseits = projektion != null && projektion.dist > OFF_ROUTE_M
-  if (projektion != null) abseitsZaehler.current = abseits ? abseitsZaehler.current + 1 : 0
-  const abgekommen = !arrived && abseitsZaehler.current >= OFF_ROUTE_FIXES
+  //
+  // Der Zähler hing früher im Rumpf der Komponente und zählte damit *Renders*
+  // statt Messungen. Im Los-Modus rendert die Ansicht rund zweimal je Sekunde
+  // (Sekundentakt der Uhr plus jeder Fix), die Schwelle von drei „Messungen"
+  // war nach anderthalb Sekunden erreicht — von einem einzigen Ausreißer.
+  // Verschärfend: Fixes mit einer Genauigkeit schlechter als 100 m verwirft
+  // `useJourney` ganz. Genau in enger Bebauung fallen sie weg, der Standort
+  // bleibt auf dem Ausreißer stehen, und die Uhr zählt weiter hoch — ein
+  // Zurücksetzen war gar nicht mehr möglich. Jede Fehlauslösung kostet eine
+  // Neuberechnung samt GBFS-Abruf.
+  //
+  // Jetzt zählt nur, was auch wirklich eine neue Messung ist.
+  const [abgekommen, setAbgekommen] = useState(false)
+  useEffect(() => {
+    if (projektion == null) return
+    abseitsZaehler.current = projektion.dist > OFF_ROUTE_M ? abseitsZaehler.current + 1 : 0
+    setAbgekommen(abseitsZaehler.current >= OFF_ROUTE_FIXES)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPos])
+
+  // Beim Etappenwechsel und nach der Ankunft von vorn
+  useEffect(() => {
+    abseitsZaehler.current = 0
+    setAbgekommen(false)
+  }, [legIndex])
 
   const richtungsWort = (kind: string): string =>
     kind === 'left'
@@ -285,12 +307,12 @@ export default function JourneyMode({
   // in die Sperrfrist, kam sonst nie wieder einer — der Zustand „abgekommen"
   // ändert sich ja nicht mehr, und der Effekt lief nur bei Wechsel.
   useEffect(() => {
-    if (!abgekommen || !onReroute || rerouting) return
+    if (!abgekommen || arrived || !onReroute || rerouting) return
     onReroute()
     const id = window.setInterval(() => onReroute(), REROUTE_RETRY_MS)
     return () => window.clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [abgekommen, rerouting])
+  }, [abgekommen, arrived, rerouting])
 
   useEffect(() => {
     const panel = panelRef.current

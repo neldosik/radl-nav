@@ -5,12 +5,18 @@
 // Getrennt gezählt — eine neue Hülle soll nicht die gesammelten Kacheln
 // wegwerfen, die unterwegs mühsam zusammengekommen sind.
 const TILE_CACHE = 'radl-map-tiles-v3'
-const SHELL_CACHE = 'radl-shell-v5'
+const SHELL_CACHE = 'radl-shell-v6'
 // Ohne Obergrenze wächst der Kachelpuffer unbegrenzt, bei jeder Fahrt kommen welche dazu.
 const MAX_TILES = 600
 /** Auch die Hülle bekommt eine Grenze: über viele Deployments hinweg sammeln
- *  sich sonst die gehashten Dateien aller alten Stände an. */
-const MAX_SHELL = 60
+ *  sich sonst die gehashten Dateien aller alten Stände an.
+ *
+ *  Der Wert muss deutlich über einem vollständigen Stand liegen. Ein Build
+ *  umfasst rund 30 Dateien (25 aus dem Manifest, dazu Schriften, Symbol,
+ *  Manifest und das Dokument); bei 60 verdrängte schon der zweite Stand den
+ *  ersten — und weil zuerst der älteste Eintrag fliegt, traf es bevorzugt den
+ *  großen Kartenbrocken, der als erstes gepuffert wurde. */
+const MAX_SHELL = 150
 /** Wie lange auf das Netz gewartet wird, bevor die gepufferte Hülle gewinnt.
  *  Ohne Frist hing ein schwaches Netz bis zum Browser-Standard (~1 Minute) —
  *  in der Zeit sah der Nutzer eine weiße Seite, obwohl die Hülle im Puffer lag. */
@@ -26,7 +32,15 @@ const NAV_TIMEOUT_MS = 3000
  * steigt, stand vor einer weißen Seite.
  *
  * Die Namen der gebündelten Dateien enthalten einen Hash und stehen deshalb
- * nicht fest — wir lesen sie aus dem HTML und die Schriften aus dem CSS.
+ * nicht fest. Der Build schreibt sie in `precache-manifest.json` — dort stehen
+ * auch die *nachgeladenen* Teile.
+ *
+ * Vorher wurde die Liste aus dem HTML gelesen. Dort tauchen aber nur der
+ * Einstieg und seine Geschwister auf; der Kartenbrocken mit rund 1 MB nicht.
+ * Der landete erst im Puffer, wenn ihn jemand angefordert hatte — und weil er
+ * nach jedem Deployment einen neuen Namen trägt, war der alte wertlos. Wer
+ * zuhause aktualisierte und unterwegs ohne Netz auf „Räder" tippte, sah statt
+ * der Karte einen Hinweis. Genau der Fall, für den vorgesorgt werden sollte.
  */
 async function precacheShell() {
   const cache = await caches.open(SHELL_CACHE)
@@ -34,11 +48,24 @@ async function precacheShell() {
   if (!res.ok) return
   await cache.put('index.html', res.clone())
 
-  const html = await res.text()
-  const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
-    .map(m => m[1])
-    .filter(u => /\.(js|css)$/.test(u))
-    .map(u => new URL(u, self.registration.scope).href)
+  let refs = []
+  try {
+    const mRes = await fetch('./precache-manifest.json', { cache: 'reload' })
+    if (mRes.ok) {
+      const namen = await mRes.json()
+      refs = namen.map(n => new URL(n, self.registration.scope).href)
+    }
+  } catch {
+    // Kein Manifest (alter Build): unten wird aus dem HTML gelesen
+  }
+
+  if (!refs.length) {
+    const html = await res.text()
+    refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+      .map(m => m[1])
+      .filter(u => /\.(js|css)$/.test(u))
+      .map(u => new URL(u, self.registration.scope).href)
+  }
 
   // Schriften stehen nur im Stylesheet, nicht im HTML
   const fonts = []

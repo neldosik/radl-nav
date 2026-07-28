@@ -293,13 +293,26 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal
  *  `vehicle_types` — also 1,7 MB doppelt pro Suche. Der Feed hat laut GBFS
  *  ohnehin ttl 60, häufiger als alle 30 s lohnt kein neuer Abruf. */
 const FEED_TTL_MS = 30_000
+
+/**
+ * Feeds, die sich praktisch nie ändern, dürfen viel länger liegen bleiben.
+ *
+ * `station_information` beschreibt Name und Koordinaten der rund 780
+ * Stationen, `vehicle_types` die Fahrzeugklassen — beides ändert sich, wenn
+ * der Betreiber eine Station baut, nicht im Minutentakt. Sie liefen trotzdem
+ * im selben 30-Sekunden-Takt wie der Live-Bestand und wurden bei jeder Suche,
+ * jedem Reiterwechsel und jeder Neuberechnung erneut geholt und geparst.
+ */
+const STATISCHE_FEEDS = new Set(['station_information', 'vehicle_types', 'system_information'])
+const STATIC_TTL_MS = 60 * 60_000
 const feedCache = new Map<string, { at: number; value: unknown }>()
 const feedInFlight = new Map<string, Promise<unknown>>()
 
 /** Holt einen GBFS-Feed; bei Fehler null statt Exception. */
 async function gbfs(feed: string): Promise<unknown> {
   const cached = feedCache.get(feed)
-  if (cached && Date.now() - cached.at < FEED_TTL_MS) return cached.value
+  const ttl = STATISCHE_FEEDS.has(feed) ? STATIC_TTL_MS : FEED_TTL_MS
+  if (cached && Date.now() - cached.at < ttl) return cached.value
 
   const running = feedInFlight.get(feed)
   if (running) return running

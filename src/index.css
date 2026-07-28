@@ -1836,7 +1836,7 @@ button {
 
 .bm-locate {
   position: absolute;
-  right: 14px;
+  right: max(14px, var(--sar));
   bottom: 18px;
   width: 48px;
   height: 48px;
@@ -2062,11 +2062,14 @@ button {
   inset: 0;
 }
 
-/* Schwebende Kopfkarte */
+/* Schwebende Kopfkarte.
+   Seitlich mit Sicherheitsabstand: im Querformat liegt die Kameraaussparung
+   an der Seite, und `viewport-fit=cover` schiebt die Seite bewusst darunter.
+   Mit festen 16 px verschwand die Ecke der Karte unter der Aussparung. */
 .j-poster {
   position: absolute;
-  left: 16px;
-  right: 16px;
+  left: max(16px, var(--sal));
+  right: max(16px, var(--sar));
   top: calc(14px + env(safe-area-inset-top, 0px));
   z-index: 10;
   display: flex;
@@ -2495,7 +2498,7 @@ button {
 /* Standort-Folgen wie in Kartendiensten */
 .j-follow {
   position: absolute;
-  right: 14px;
+  right: max(14px, var(--sar));
   /* Knapp über dem unteren Blatt statt mittig im Bild — dort verdeckte er
      die Karte genau dort, wo man hinschaut. */
   bottom: calc(var(--j-panel-h, 210px) + 14px);

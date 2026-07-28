@@ -110,3 +110,33 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+/**
+ * Kartenteil im Leerlauf vorladen.
+ *
+ * maplibre-gl liegt in einem eigenen Brocken von rund 270 kB gzip, den erst
+ * der Griff zur Karte anfordert — beim Tippen auf „Räder" oder auf ein
+ * Ergebnis. Auf mobilem Netz stehen dann mehrere Sekunden „Berechne …" auf
+ * dem Schirm, an einer Kreuzung, wo jemand wissen will, wo das nächste Rad
+ * steht. Holen wir ihn still, sobald der Startbildschirm steht, ist er in der
+ * Regel längst da, wenn der Finger ankommt.
+ *
+ * Nicht bei eingeschaltetem Datensparmodus und nicht auf langsamer
+ * Verbindung — dort wäre ein Vorrat auf Verdacht das falsche Geschenk.
+ */
+function karteVorladen() {
+  const netz = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+  if (netz?.saveData) return
+  if (netz?.effectiveType && /2g/.test(netz.effectiveType)) return
+  const holen = () => {
+    import('./components/MapView').catch(() => {})
+  }
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, o?: { timeout?: number }) => void
+  }
+  if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(holen, { timeout: 4000 })
+  else w.setTimeout(holen, 2500)
+}
+
+if (document.readyState === 'complete') karteVorladen()
+else window.addEventListener('load', karteVorladen)
