@@ -21,6 +21,7 @@ import { rideLegsOf, viewStats } from './stats'
 import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
 import { useBackGuard } from './hooks/useBackGuard'
+import { kompassFreigeben } from './kompass'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
@@ -409,12 +410,18 @@ export default function App() {
           follow={followMe}
           onToggleFollow={() => setFollowMe(f => !f)}
           headUp={headUp}
-          onToggleHeadUp={() =>
+          onToggleHeadUp={() => {
+            // iOS gibt den Magnetfeldsensor nur auf ausdrückliche Nachfrage
+            // frei, und die Nachfrage nimmt es nur aus einer Bedienhandlung
+            // heraus an — hier, beim Druck auf „in Fahrtrichtung". Von der
+            // Antwort hängt nichts ab: ohne Sensor dreht die Karte weiter nach
+            // dem Kurs über Grund, nur eben nicht mehr im Stand.
+            void kompassFreigeben()
             setHeadUp(h => {
               localStorage.setItem('radl.headup', String(!h))
               return !h
             })
-          }
+          }}
         >
           <MapGuard lang={lang}>
             <Suspense fallback={<div className="map" />}>

@@ -247,3 +247,26 @@ export function smoothBearing(alt: number | null, neu: number, anteil = 0.25): n
   if (alt == null) return neu
   return (alt + bearingDelta(alt, neu) * anteil + 360) % 360
 }
+
+/**
+ * Anteil, um den ein Rückstand in `dt` Millisekunden abgebaut wird.
+ *
+ * Exponentiell und damit unabhängig von der Bildrate: zwei Schritte à 8 ms
+ * bringen dasselbe wie einer à 16 ms. Ein fester Anteil je Bild täte das nicht
+ * — auf einem schnellen Gerät liefe die Nachführung dann sichtbar flotter als
+ * auf einem langsamen.
+ *
+ * `tau` ist die Zeit, in der rund zwei Drittel des Rückstands verschwinden.
+ */
+export function nachziehAnteil(dt: number, tau: number): number {
+  if (!(dt > 0) || !(tau > 0)) return 1
+  return 1 - Math.exp(-dt / tau)
+}
+
+/** Punkt ein Stück in Richtung Ziel rücken. */
+export function nachziehen(von: LatLon, nach: LatLon, anteil: number): LatLon {
+  return {
+    lat: von.lat + (nach.lat - von.lat) * anteil,
+    lon: von.lon + (nach.lon - von.lon) * anteil,
+  }
+}

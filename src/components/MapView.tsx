@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { legKind } from '../format'
 import { legPath } from '../routing'
-import { bearing, haversine, planPickup, projectOnPath, smoothBearing } from '../geo'
+import { bearing, bearingDelta, haversine, nachziehAnteil, nachziehen, planPickup, projectOnPath, smoothBearing } from '../geo'
+import { kompassStarten } from '../kompass'
 import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
@@ -28,9 +29,25 @@ function legColor(leg: Leg, theme: ThemeMode): string {
  * Jetzt: Totband, höchstens eine Kamerafahrt zur Zeit, harter Sprung bei
  * großen Abständen (Tunnelausfahrt, erster Fix).
  */
-const CAM_MIN_MOVE_M = 12
-const CAM_MIN_INTERVAL_MS = 900
 const CAM_JUMP_M = 300
+
+/**
+ * Zwischenschritte zwischen zwei Messungen.
+ *
+ * Der Standort kommt etwa im Sekundentakt. Wer ihn direkt setzt, versetzt den
+ * Punkt einmal je Sekunde um mehrere Meter — das war das gemeldete Springen.
+ * Kartendienste zeigen stattdessen eine *nachlaufende* Position, die sich Bild
+ * für Bild auf die zuletzt gemessene zubewegt; dadurch gleitet der Punkt.
+ *
+ * Die Zeitkonstante ist die Dauer, in der rund zwei Drittel des Rückstands
+ * abgebaut werden. Deutlich kürzer als der Messtakt wirkt wieder ruckelig,
+ * deutlich länger läuft der Punkt der Wirklichkeit hinterher.
+ */
+const POS_TAU_MS = 420
+const KURS_TAU_MS = 500
+/** Unter diesem Rest gilt die Nachführung als angekommen und pausiert. */
+const RUHE_M = 0.3
+const RUHE_GRAD = 0.3
 /** Ab so vielen Metern taugen zwei Messungen als Richtungsgeber. */
 const KURS_MIN_MOVE_M = 8
 /** Wie stark ein neuer Kurs durchschlägt — kleiner heißt ruhiger. */
@@ -69,8 +86,17 @@ export default function MapView({
   const userMarker = useRef<maplibregl.Marker | null>(null)
   const userPosRef = useRef<{ lat: number; lon: number } | null>(null)
   const prevCamPosRef = useRef<{ lat: number; lon: number } | null>(null)
-  /** Zeitpunkt der letzten Kamerafahrt — bremst die Nachführung. */
-  const camAtRef = useRef(0)
+  /** Zuletzt gemessene Position — dorthin läuft die Anzeige. */
+  const zielPosRef = useRef<{ lat: number; lon: number } | null>(null)
+  /** Gerade angezeigte Position — sie gleitet dem Ziel nach. */
+  const zeigePosRef = useRef<{ lat: number; lon: number } | null>(null)
+  const zeigeKursRef = useRef<number | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const rafZeitRef = useRef(0)
+  /** Blickrichtung aus dem Magnetfeldsensor, falls das Gerät sie liefert. */
+  const sensorKursRef = useRef<number | null>(null)
+  /** Geschwindigkeit der letzten Messung — entscheidet Kurs oder Sensor. */
+  const tempoRef = useRef(0)
   /** Zuletzt gezeigter Kurs — von dort wird sanft weitergedreht. */
   const kursRef = useRef<number | null>(null)
   /** Letzte Position, aus der ein Kurs abgeleitet wurde. */
@@ -163,7 +189,6 @@ export default function MapView({
       const zoom = m.getZoom() < 15 ? 16.5 : m.getZoom()
       m.easeTo({ center, zoom, duration: 500, essential: true })
       prevCamPosRef.current = userPosRef.current ?? { lat: leg.from.lat, lon: leg.from.lon }
-      camAtRef.current = Date.now()
     } else {
       // Übersicht der Route. Die Vorschaukarte ist nur ~150 px hoch — mit großem
       // Rand bliebe fast nichts übrig und die Karte zoomte auf ganz München heraus.
@@ -216,7 +241,8 @@ export default function MapView({
       map.current = null
       ready.current = false
       prevCamPosRef.current = null
-      camAtRef.current = 0
+      zeigePosRef.current = null
+      zielPosRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -245,42 +271,108 @@ export default function MapView({
   }, [view, activeLeg])
 
   /**
-   * Kamera auf den Standort ziehen. `force` überspringt Totband und Taktbremse
-   * — gebraucht, wenn der Nutzer „Zentrieren" drückt und sofort etwas sehen will.
+   * Pfeil im Standortpunkt ausrichten.
+   *
+   * Gezeigt wird die Blickrichtung *abzüglich* der Kartendrehung. Auf der
+   * genordeten Karte ist das die Himmelsrichtung, auf der mitdrehenden steht
+   * der Pfeil dadurch von selbst aufrecht — ohne Sonderfall für beide Modi.
+   *
+   * Vorrang hat der Sensor: nur er ändert sich, wenn man das Telefon in der
+   * Hand dreht, ohne zu fahren.
    */
-  function followUser(pos: { lat: number; lon: number }, force = false) {
+  function pfeilDrehen() {
+    const el = userMarker.current?.getElement()
+    if (!el) return
+    const kopf = sensorKursRef.current ?? kursRef.current
+    if (kopf == null) return
+    const karte = map.current?.getBearing() ?? 0
+    el.style.setProperty('--kurs', `${(((kopf - karte) % 360) + 360) % 360}deg`)
+    el.classList.add('hat-kurs')
+  }
+
+  /** Welche Richtung die Karte oben zeigen soll. */
+  function zielKurs(): number | null {
+    // In Fahrt führt der Kurs über Grund: er ist ruhiger und lässt sich von
+    // Metall am Lenker nicht stören. Im Stand gibt es ihn nicht — dann zählt
+    // der Sensor, und nur so wirkt sich das Drehen des Telefons aus.
+    const faehrt = tempoRef.current >= 1.5
+    if (faehrt && kursRef.current != null) return kursRef.current
+    return sensorKursRef.current ?? kursRef.current
+  }
+
+  /**
+   * Ein Bild der Nachführung: Anzeigeposition und Kartendrehung rücken ein
+   * Stück auf ihre Ziele zu.
+   *
+   * Die Schleife hält sich selbst an, sobald nichts mehr nachzuziehen ist, und
+   * wird von der nächsten Messung wieder angestoßen — ein Dauerlauf über die
+   * ganze Fahrt wäre unnötiger Stromverbrauch.
+   */
+  function schritt(jetzt: number) {
+    rafRef.current = null
     const m = map.current
     if (!m) return
-    const prev = prevCamPosRef.current
-    const dist = prev ? haversine(prev, pos) : Infinity
-    const since = Date.now() - camAtRef.current
+    const dt = Math.min(120, jetzt - rafZeitRef.current || 16)
+    rafZeitRef.current = jetzt
 
-    if (!force) {
-      // Im Stand rauscht GPS um einige Meter — darauf die Kamera zu bewegen
-      // sah aus wie ein Wackeln der ganzen Karte.
-      if (dist < CAM_MIN_MOVE_M) return
-      // Eine laufende Kamerafahrt nicht mit der nächsten abwürgen. Nur ein
-      // echter Sprung (Tunnel, verlorener Fix) darf sofort durch.
-      if (since < CAM_MIN_INTERVAL_MS && dist < CAM_JUMP_M) return
+    let weiter = false
+
+    const ziel = zielPosRef.current
+    let zeige = zeigePosRef.current
+    if (ziel) {
+      if (!zeige || haversine(zeige, ziel) > CAM_JUMP_M) {
+        // Erster Fix oder echter Sprung (Tunnelausfahrt): nicht hingleiten.
+        zeige = { ...ziel }
+      } else {
+        zeige = nachziehen(zeige, ziel, nachziehAnteil(dt, POS_TAU_MS))
+        if (haversine(zeige, ziel) > RUHE_M) weiter = true
+        else zeige = { ...ziel }
+      }
+      zeigePosRef.current = zeige
+      userMarker.current?.setLngLat([zeige.lon, zeige.lat])
+      if (activeLegRef.current != null && followRef.current) m.setCenter([zeige.lon, zeige.lat])
     }
 
+    if (headUpRef.current) {
+      const kz = zielKurs()
+      if (kz != null) {
+        const alt = zeigeKursRef.current
+        const neu = smoothBearing(alt, kz, nachziehAnteil(dt, KURS_TAU_MS))
+        zeigeKursRef.current = neu
+        m.setBearing(neu)
+        pfeilDrehen()
+        if (alt == null || Math.abs(bearingDelta(neu, kz)) > RUHE_GRAD) weiter = true
+      }
+    }
+
+    if (weiter) rafRef.current = requestAnimationFrame(schritt)
+  }
+
+  /** Nachführung anstoßen, falls sie gerade ruht. */
+  function nachfuehren() {
+    if (rafRef.current != null) return
+    rafZeitRef.current = performance.now()
+    rafRef.current = requestAnimationFrame(schritt)
+  }
+
+  /**
+   * „Zentrieren" gedrückt: ohne Umweg hin. Die gleitende Nachführung wäre hier
+   * falsch — wer den Knopf drückt, will sofort etwas sehen.
+   */
+  function followUser(pos: { lat: number; lon: number }) {
+    const m = map.current
+    if (!m) return
     prevCamPosRef.current = pos
-    camAtRef.current = Date.now()
-    // Kurs nur mitgeben, wenn die Karte sich drehen soll und einer bekannt ist.
-    const kurs = headUpRef.current ? kursRef.current : null
-    if (dist > CAM_JUMP_M) {
-      m.jumpTo({ center: [pos.lon, pos.lat], ...(kurs != null ? { bearing: kurs } : {}) })
-      return
-    }
+    zeigePosRef.current = { ...pos }
+    userMarker.current?.setLngLat([pos.lon, pos.lat])
+    const kurs = headUpRef.current ? zielKurs() : null
     m.easeTo({
       center: [pos.lon, pos.lat],
       ...(kurs != null ? { bearing: kurs } : {}),
-      // Länger als der GPS-Takt (~1 s) wäre Dauerabbruch; etwas kürzer läuft
-      // die Fahrt sauber aus, bevor der nächste Fix kommt.
-      duration: 800,
-      easing: t => t * (2 - t),
+      duration: 400,
       essential: true,
     })
+    if (kurs != null) zeigeKursRef.current = kurs
   }
 
   /**
@@ -312,14 +404,10 @@ export default function MapView({
     if (roh == null) return
     kursVonRef.current = { lat: pos.lat, lon: pos.lon }
     kursRef.current = smoothBearing(kursRef.current, roh, KURS_ANTEIL)
+    tempoRef.current = pos.speed ?? 0
     // Der Pfeil zeigt den Kurs auf einer genordeten Karte; dreht die Karte
     // selbst mit, zeigt er immer nach oben.
-    const el = userMarker.current?.getElement()
-    if (el) {
-      const zeigt = headUpRef.current ? 0 : kursRef.current
-      el.style.setProperty('--kurs', `${zeigt}deg`)
-      el.classList.add('hat-kurs')
-    }
+    pfeilDrehen()
   }
 
   useEffect(() => {
@@ -345,8 +433,12 @@ export default function MapView({
       userMarker.current?.remove()
       userMarker.current = null
       prevCamPosRef.current = null
+      zielPosRef.current = null
+      zeigePosRef.current = null
       kursRef.current = null
       kursVonRef.current = null
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
       return
     }
     if (!userMarker.current) {
@@ -357,18 +449,41 @@ export default function MapView({
       userMarker.current = new maplibregl.Marker({ element: el })
         .setLngLat([gezogen!.lon, gezogen!.lat])
         .addTo(m)
-    } else {
-      userMarker.current.setLngLat([gezogen!.lon, gezogen!.lat])
+      zeigePosRef.current = { lat: gezogen!.lat, lon: gezogen!.lon }
     }
+    // Nicht direkt setzen: die Schleife zieht den Punkt dorthin nach.
+    zielPosRef.current = { lat: gezogen!.lat, lon: gezogen!.lon }
     // Richtung aus dem *rohen* Fix, nicht aus dem auf die Linie gezogenen:
     // das Ziehen verschiebt den Punkt quer zur Fahrt und würde den Kurs
     // verfälschen.
     kursAktualisieren(userPos)
     // Los-Modus: Kamera folgt dem Benutzer — außer er schaut sich gerade
     // selbst auf der Karte um (dann übernimmt der Folgen-Knopf).
-    if (activeLegRef.current != null && followRef.current) followUser(gezogen!)
+    nachfuehren()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPos])
+
+  /**
+   * Magnetfeldsensor anmelden.
+   *
+   * Ohne ihn bewegt sich nichts, solange man steht: der Kurs über Grund
+   * entsteht erst aus zurückgelegtem Weg. Die Freigabe holt auf iOS der
+   * Knopf für „in Fahrtrichtung" — von dort aus ist es eine Bedienhandlung,
+   * und nur so nimmt iOS die Anfrage überhaupt an.
+   */
+  useEffect(() => {
+    const k = kompassStarten(grad => {
+      sensorKursRef.current = grad
+      pfeilDrehen()
+      if (headUpRef.current) nachfuehren()
+    })
+    return () => {
+      k.stop()
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Radwege an/aus, ohne den Kartenstil neu zu laden
   useEffect(() => {
@@ -382,7 +497,7 @@ export default function MapView({
   useEffect(() => {
     if (!follow || activeLegRef.current == null) return
     const pos = userPosRef.current
-    if (pos) followUser(pos, true)
+    if (pos) followUser(pos)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [follow])
 
@@ -391,11 +506,11 @@ export default function MapView({
   useEffect(() => {
     const m = map.current
     if (!m || !ready.current) return
-    const ziel = headUp ? (kursRef.current ?? m.getBearing()) : 0
+    const ziel = headUp ? (zielKurs() ?? m.getBearing()) : 0
+    zeigeKursRef.current = headUp ? ziel : null
     m.easeTo({ bearing: ziel, duration: 400, essential: true })
-    // Der Pfeil zeigt auf gedrehter Karte immer nach oben.
-    const el = userMarker.current?.getElement()
-    if (el) el.style.setProperty('--kurs', headUp ? '0deg' : `${kursRef.current ?? 0}deg`)
+    m.once('moveend', pfeilDrehen)
+    pfeilDrehen()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [headUp])
 

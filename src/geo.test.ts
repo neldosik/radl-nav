@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bearing, bearingDelta, clusterFreeBikes, distanceToPath, haversine, nearbyStations, nearestStation, planPickup, projectOnPath, remainingShare, smoothBearing } from './geo'
+import { bearing, bearingDelta, clusterFreeBikes, distanceToPath, haversine, nachziehAnteil, nachziehen, nearbyStations, nearestStation, planPickup, projectOnPath, remainingShare, smoothBearing } from './geo'
 import type { FreeBike, LatLon, Station } from './types'
 
 const station = (id: string, lat: number, lon: number, bikes: number, ebikes = 0): Station => ({
@@ -274,5 +274,46 @@ describe('smoothBearing — Karte darf nicht zappeln', () => {
     const r = smoothBearing(5, 300, 0.5)
     expect(r).toBeGreaterThanOrEqual(0)
     expect(r).toBeLessThan(360)
+  })
+})
+
+describe('nachziehAnteil / nachziehen — gleitende Standortanzeige', () => {
+  it('ist unabhängig von der Bildrate', () => {
+    const ziel = { lat: 48.14, lon: 11.58 }
+    // Zwei kurze Bilder gegen ein langes: derselbe Weg muss herauskommen,
+    // sonst liefe die Nachführung auf schnellen Geräten sichtbar flotter.
+    let a = { lat: 48.13, lon: 11.57 }
+    a = nachziehen(a, ziel, nachziehAnteil(8, 400))
+    a = nachziehen(a, ziel, nachziehAnteil(8, 400))
+    const b = nachziehen({ lat: 48.13, lon: 11.57 }, ziel, nachziehAnteil(16, 400))
+    expect(haversine(a, b)).toBeLessThan(0.5)
+  })
+
+  it('läuft nie über das Ziel hinaus und ist vor der nächsten Messung da', () => {
+    // Ein Schritt, wie ihn eine Sekunde Radfahren macht — rund fünf Meter.
+    const ziel = { lat: 48.14, lon: 11.58 }
+    let p = { lat: 48.13996, lon: 11.58 }
+    const start = haversine(p, ziel)
+    expect(start).toBeGreaterThan(3)
+    let vorher = start
+    // Ein Sekundentakt bei 60 Bildern je Sekunde.
+    for (let i = 0; i < 60; i++) {
+      p = nachziehen(p, ziel, nachziehAnteil(16, 400))
+      const jetzt = haversine(p, ziel)
+      expect(jetzt).toBeLessThanOrEqual(vorher + 1e-9)
+      vorher = jetzt
+    }
+    // Bis die nächste Messung eintrifft, ist der Rückstand praktisch weg —
+    // sonst schleppte die Anzeige einen wachsenden Verzug mit sich.
+    expect(vorher).toBeLessThan(start * 0.12)
+  })
+
+  it('baut in einer Zeitkonstanten rund zwei Drittel ab', () => {
+    expect(nachziehAnteil(400, 400)).toBeCloseTo(0.632, 2)
+  })
+
+  it('holt bei unsinnigen Werten sofort auf, statt stehen zu bleiben', () => {
+    expect(nachziehAnteil(0, 400)).toBe(1)
+    expect(nachziehAnteil(16, 0)).toBe(1)
   })
 })
