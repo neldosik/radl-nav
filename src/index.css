@@ -1286,7 +1286,13 @@ button {
   display: flex;
   background: var(--card);
   border-top: 1px solid var(--line);
-  padding: 6px max(12px, var(--sar)) calc(10px + env(safe-area-inset-bottom, 0px))
+  /* Unten kein Zuschlag auf den Sicherheitsabstand: die 34 Punkte des
+     Homezeichens sind bereits Rand genug, addierte man die 10 dazu, stünden
+     die Symbole sichtbar zu hoch in einer sonst leeren Leiste. Tiefer als der
+     Sicherheitsabstand geht nicht — dort zeichnet iOS seinen Strich und
+     nimmt die Berührung für die eigene Geste ab. Wo es kein Homezeichen gibt,
+     bleiben es die alten 10. */
+  padding: 6px max(12px, var(--sar)) max(10px, env(safe-area-inset-bottom, 0px))
     max(12px, var(--sal));
 }
 
