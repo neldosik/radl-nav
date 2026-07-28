@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { currentPosition, istNativ, ortungsFehler } from '../geolocation'
+import { berechtigungsStand, currentPosition, istNativ, ortungsFehler, ortungsProtokoll } from '../geolocation'
 
 /**
  * Messwerte des Geräts, damit Layoutfehler nicht aus Bildschirmfotos geraten
@@ -24,7 +24,7 @@ function messe(wert: string): number {
   return Math.round(h * 100) / 100
 }
 
-function zeilen(): string[] {
+function zeilen(rechte: string): string[] {
   const vv = window.visualViewport
   const app = document.querySelector('.app')?.getBoundingClientRect()
   const bar = document.querySelector('.tabbar')?.getBoundingClientRect()
@@ -50,6 +50,7 @@ function zeilen(): string[] {
     `inset l/r  ${messe('env(safe-area-inset-left, 0px)')} / ${messe('env(safe-area-inset-right, 0px)')}`,
     `huelle     ${istNativ() ? 'nativ' : 'web'}  plugins: ${plugins()}`,
     `ortfehler  ${ortungsFehler() || '-'}`,
+    `ortrechte  ${rechte}`,
     `sw         ${navigator.serviceWorker?.controller ? 'steuert die Seite' : 'frei'}`,
   ]
 }
@@ -65,6 +66,7 @@ function plugins(): string {
 export default function Diag({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState<string[]>([])
   const [ort, setOrt] = useState('noch nicht geprüft')
+  const [rechte, setRechte] = useState('wird geprüft …')
 
   /**
    * Einmal wirklich orten — der Text sagt dann, woran es hängt.
@@ -85,11 +87,16 @@ export default function Diag({ onClose }: { onClose: () => void }) {
     )
     try {
       const p = (await Promise.race([currentPosition(), frist])) as { lat: number; lon: number }
-      setOrt(`${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} nach ${Date.now() - start} ms`)
+      setOrt(`${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} nach ${Date.now() - start} ms
+
+${ortungsProtokoll().join('\n')}`)
     } catch (e) {
+      // Das ganze Protokoll, nicht nur der letzte Eintrag: bleibt ein Schritt
+      // hängen, steht er als letzter da — und genau der ist der Schuldige.
       setOrt(`Fehler nach ${Date.now() - start} ms:
 ${(e as Error)?.message ?? e}
-${ortungsFehler()}`)
+
+${ortungsProtokoll().join('\n') || '(kein einziger Schritt begonnen)'}`)
     } finally {
       laeuft = false
       window.clearInterval(ticker)
@@ -100,7 +107,19 @@ ${ortungsFehler()}`)
     // Der Effekt läuft nach dem Einhängen ins Dokument, die Rechtecke stehen
     // also schon. Kein `requestAnimationFrame`: das wartet auf ein Bild, und
     // in manchen eingebetteten Ansichten kommt nie eines.
-    setText(zeilen())
+    setText(zeilen(rechte))
+  }, [rechte])
+
+  // Der Stand der Berechtigung ist die erste Frage bei jedem Ortungsproblem —
+  // ohne ihn ist eine Absage von einem Hänger nicht zu unterscheiden.
+  useEffect(() => {
+    let lebt = true
+    berechtigungsStand()
+      .then(r => lebt && setRechte(r))
+      .catch(e => lebt && setRechte(`Fehler: ${(e as Error)?.message ?? e}`))
+    return () => {
+      lebt = false
+    }
   }, [])
 
   return (

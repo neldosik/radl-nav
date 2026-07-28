@@ -26,24 +26,60 @@ export interface Fix {
 type Fehler = 'denied' | 'lost'
 
 /**
- * Letzter Fehlertext der Ortung — die Diagnose zeigt ihn an.
+ * Protokoll der Ortungsversuche — die Diagnose zeigt es an.
  *
- * Ohne das blieb von jedem Fehlschlag nur „lost" übrig. Auf einem fremden
- * Gerät ist damit nicht zu unterscheiden, ob die Berechtigung fehlt, die
- * Ortungsdienste aus sind oder das Plugin gar nicht erst geladen hat.
+ * Vorher stand hier nur der *letzte Fehlertext*. Wenn ein Aufruf aber gar
+ * nicht zurückkommt, wird auch nie ein Fehler geschrieben: auf dem Gerät blieb
+ * das Feld leer, und aus „leer" ließ sich nicht ablesen, ob die Berechtigung
+ * fehlt, die Ortungsdienste aus sind oder der Anbieter einfach schweigt.
+ *
+ * Jetzt wird jeder Schritt festgehalten, bevor er beginnt. Bleibt einer hängen,
+ * steht er als letzter im Protokoll — und genau der ist dann der Schuldige.
  */
-let letzterFehler = ''
+const protokoll: string[] = []
+
+function notiere(text: string): void {
+  const zeit = new Date().toLocaleTimeString('de-DE', { hour12: false })
+  protokoll.push(`${zeit} ${text}`)
+  // Nur die jüngsten Einträge behalten, sonst wächst es über eine Fahrt hinweg.
+  if (protokoll.length > 12) protokoll.shift()
+}
 
 function merkeFehler(text: string): void {
-  letzterFehler = text
+  notiere(text)
 }
 
 export function ortungsFehler(): string {
-  return letzterFehler
+  return protokoll.length ? protokoll[protokoll.length - 1] : ''
+}
+
+/** Vollständiges Protokoll für die Diagnose. */
+export function ortungsProtokoll(): string[] {
+  return [...protokoll]
+}
+
+/** Stand der Ortungsberechtigung — für die Diagnose. */
+export async function berechtigungsStand(): Promise<string> {
+  if (!istNativ()) {
+    try {
+      const st = await navigator.permissions?.query({ name: 'geolocation' as PermissionName })
+      return `web ${st?.state ?? 'unbekannt'}`
+    } catch {
+      return 'web unbekannt'
+    }
+  }
+  try {
+    const Geolocation = await nativesPlugin()
+    const st = await mitFrist(Geolocation.checkPermissions(), 5000, 'checkPermissions')
+    return `location=${st.location} coarse=${st.coarseLocation}`
+  } catch (e) {
+    return `Abfrage fehlgeschlagen: ${(e as Error)?.message ?? e}`
+  }
 }
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean
+  Plugins?: Record<string, unknown>
 }
 
 /** Läuft die App in der nativen Hülle? */
@@ -52,9 +88,30 @@ export function istNativ(): boolean {
   return !!cap?.isNativePlatform?.()
 }
 
-/** Modul der Hülle nachladen; im Web wird es nie angefasst. */
-async function nativesPlugin() {
-  const mod = await import('@capacitor/geolocation')
+type GeoPlugin = typeof import('@capacitor/geolocation')['Geolocation']
+
+/**
+ * Zugang zum Ortungs-Plugin.
+ *
+ * **Zuerst das, was schon im Fenster hängt.** Die Hülle registriert ihre
+ * Plugins unter `Capacitor.Plugins`, bevor die Seite überhaupt lädt — die
+ * Diagnose listet „Geolocation" ja auch auf. Der npm-Import derselben Sache
+ * ist dagegen ein eigener nachzuladender Brocken (`esm-*.js`), und genau der
+ * war der Hänger: `await nativesPlugin()` steht vor allen Fristen, also wurde
+ * bei einem stockenden Nachladen nie ein Fehler geschrieben. Auf dem Gerät sah
+ * man deshalb 35 Sekunden Stille und ein leeres Fehlerfeld.
+ *
+ * Der Import bleibt als zweiter Weg — mit Frist, damit auch er sich meldet.
+ */
+async function nativesPlugin(): Promise<GeoPlugin> {
+  const ausFenster = (window as { Capacitor?: CapacitorGlobal }).Capacitor?.Plugins?.Geolocation
+  if (ausFenster) {
+    notiere('Plugin aus Capacitor.Plugins')
+    return ausFenster as GeoPlugin
+  }
+  notiere('Plugin wird nachgeladen …')
+  const mod = await mitFrist(import('@capacitor/geolocation'), 8000, 'import(@capacitor/geolocation)')
+  notiere('Plugin nachgeladen')
   return mod.Geolocation
 }
 
@@ -161,6 +218,7 @@ export function watchPosition(
   }
 
   let watchId: string | null = null
+  let webWatchId: number | null = null
   let beendet = false
   let kamSchonEinFix = false
   /**
@@ -176,7 +234,37 @@ export function watchPosition(
 
   ;(async () => {
     try {
-      const Geolocation = await nativesPlugin()
+      // Auch hier mit Frist: bleibt das Plugin aus, fällt die Verfolgung auf
+      // den Browserweg zurück, statt still gar nichts zu tun.
+      let Geolocation: GeoPlugin
+      try {
+        Geolocation = await mitFrist(nativesPlugin(), 10000, 'Plugin holen')
+      } catch (e) {
+        merkeFehler(`Plugin nicht erreichbar: ${(e as Error)?.message ?? e}`)
+        if (beendet || !navigator.geolocation) {
+          onError('lost')
+          return
+        }
+        notiere('verfolge über die Browser-Ortung')
+        const webId = navigator.geolocation.watchPosition(
+          pos =>
+            onFix({
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              accuracy: pos.coords.accuracy ?? undefined,
+              heading: pos.coords.heading ?? undefined,
+              speed: pos.coords.speed ?? undefined,
+              at: Date.now(),
+            }),
+          err => {
+            merkeFehler(`web ${err.code}: ${err.message}`)
+            onError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost')
+          },
+          { enableHighAccuracy: highAccuracy, maximumAge: 0, timeout: 15000 },
+        )
+        webWatchId = webId
+        return
+      }
       // Das vorgeschaltete Fragen darf den Rest nicht aufhalten. Die
       // Android-Seite des Plugins schickt `requestPermissions` durch eine
       // Prüfung der Ortungsdienste und weist es ab, sobald die am Gerät aus
@@ -246,6 +334,11 @@ export function watchPosition(
     stop: () => {
       beendet = true
       clearTimeout(wachhund)
+      // Beim Ausweichen auf die Browser-Ortung hängt die Verfolgung dort
+      if (webWatchId != null) {
+        navigator.geolocation.clearWatch(webWatchId)
+        webWatchId = null
+      }
       if (!watchId) return
       const id = watchId
       watchId = null
@@ -274,7 +367,16 @@ export function watchPosition(
  */
 export async function currentPosition(): Promise<{ lat: number; lon: number }> {
   if (istNativ()) {
-    const Geolocation = await nativesPlugin()
+    notiere('Ortung startet (nativ)')
+    let Geolocation: GeoPlugin
+    try {
+      Geolocation = await mitFrist(nativesPlugin(), 10000, 'Plugin holen')
+    } catch (e) {
+      merkeFehler(`Plugin nicht erreichbar: ${(e as Error)?.message ?? e}`)
+      // Ohne Plugin bleibt der Browserweg — in der WebView klappt der oft.
+      notiere('weiche auf die Browser-Ortung aus')
+      return webPosition()
+    }
 
     // Erst nachsehen, ob überhaupt gefragt werden darf. Ohne das ist ein
     // Hänger von einer Absage nicht zu unterscheiden.
@@ -328,17 +430,36 @@ export async function currentPosition(): Promise<{ lat: number; lon: number }> {
     } catch (e) {
       merkeFehler(`watch-Ausweg: ${(e as Error)?.message ?? e}`)
     }
+    // Auch nativ noch der Browserweg: in der WebView führt er auf denselben
+    // Anbieter, nimmt aber einen anderen Weg durch die Hülle.
+    try {
+      notiere('nativ erfolglos — versuche die Browser-Ortung')
+      return await webPosition()
+    } catch (e) {
+      merkeFehler(`Browser-Ortung: ${(e as Error)?.message ?? e}`)
+    }
     throw letzte ?? new Error('keine Messung')
   }
+  return webPosition()
+}
+
+/** Ortung über die Browser-Schnittstelle. */
+function webPosition(): Promise<{ lat: number; lon: number }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))
+    const frist = setTimeout(() => reject(new Error('web: keine Antwort in 12 s')), 12000)
     navigator.geolocation.getCurrentPosition(
-      p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      p => {
+        clearTimeout(frist)
+        notiere('Browser-Ortung erfolgreich')
+        resolve({ lat: p.coords.latitude, lon: p.coords.longitude })
+      },
       err => {
+        clearTimeout(frist)
         merkeFehler(`web ${err.code}: ${err.message}`)
         reject(err)
       },
-      { enableHighAccuracy: true, timeout: 8000 },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     )
   })
 }
