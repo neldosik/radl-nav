@@ -57,7 +57,9 @@ export default function App() {
   })
   const [maxBike, setMaxBike] = useState(() => {
     const saved = Number(localStorage.getItem('radl.maxbike'))
-    return [10, 15, 20, 30, 9999].includes(saved) ? saved : 20
+    // 30 wie die Freiminuten. Mit 20 blendete die Voreinstellung Routen aus,
+    // die vollständig kostenlos gewesen wären — das Gegenteil des Zwecks.
+    return [10, 15, 20, 30, 9999].includes(saved) ? saved : 30
   })
   const [bikeType, setBikeType] = useState<'classic' | 'any'>(() =>
     localStorage.getItem('radl.biketype') === 'any' ? 'any' : 'classic',

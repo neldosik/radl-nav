@@ -57,6 +57,16 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- POST_NOTIFICATIONS entfernt: die App sendet keine Benachrichtigungen -->
+    <!-- Die App sendet sehr wohl welche: `notify.ts` plant die Erinnerungen an
+         die Rückgabe des Rades. Ohne diese Berechtigung zeigt Android ab 13
+         gar nichts an — die Erinnerung an die ablaufenden Freiminuten kam also
+         nie, und genau die ist die, die Geld spart. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Die Erinnerung muss auf die Minute kommen, nicht wenn das System
+         gerade Lust hat: eine um zehn Minuten verspätete Warnung vor dem Ende
+         der Freiminuten ist wertlos. USE_EXACT_ALARM gilt ab Android 14 und
+         braucht keine Nutzerfreigabe, SCHEDULE_EXACT_ALARM deckt 12 und 13. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

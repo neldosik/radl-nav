@@ -5,8 +5,9 @@ const config: CapacitorConfig = {
   appName: 'Radl Navi',
   webDir: 'dist',
   server: {
+    // Kein `cleartext`: die Hülle liefert über https aus, und offenes HTTP
+    // wird von uns nirgends aufgerufen. Die Erlaubnis stand nur da.
     androidScheme: 'https',
-    cleartext: true,
   },
   plugins: {
     StatusBar: {

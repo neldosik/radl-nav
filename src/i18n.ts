@@ -2,9 +2,19 @@ export type Language = 'de' | 'en'
 
 const KEY = 'radl.lang'
 
+/**
+ * Startsprache.
+ *
+ * Ohne eigene Wahl richtet sie sich nach dem Gerät. Vorher stand immer
+ * Deutsch da — für jemanden, dessen Telefon auf Englisch läuft, war die erste
+ * Begegnung mit der App eine fremde Sprache, und der Schalter dafür steckt im
+ * Menü. Deutsch bleibt der Rückfall: die App bedient München.
+ */
 export function loadLanguage(): Language {
   const saved = localStorage.getItem(KEY)
-  return saved === 'en' ? 'en' : 'de'
+  if (saved === 'en' || saved === 'de') return saved
+  const vomGeraet = (navigator.languages?.[0] ?? navigator.language ?? '').toLowerCase()
+  return vomGeraet.startsWith('en') ? 'en' : 'de'
 }
 
 export function saveLanguage(lang: Language) {
@@ -481,7 +491,7 @@ export const dict = {
     // ── Modes of transport ──
     modeWalk: 'on foot',
     modeBike: 'Bike',
-    modeSubway: 'Subway',
+    modeSubway: 'U-Bahn',
     modeTram: 'Tram',
     modeBus: 'Bus',
     modeSuburban: 'S-Bahn',

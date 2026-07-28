@@ -49,9 +49,12 @@ describe('Wörterbücher', () => {
   })
 
   it('übersetzen die Verkehrsmittel wirklich, statt deutsch zu bleiben', () => {
-    // „S-Bahn" ist auch im Englischen der gebräuchliche Name und bleibt.
+    // „S-Bahn" und „U-Bahn" sind auch im Englischen die gebräuchlichen Namen
+    // und bleiben stehen — wie „Autobahn". Auf den Schildern in der Stadt
+    // steht nichts anderes, und „Subway" hieße hier, den Ortsnamen gegen ein
+    // fremdes Wort zu tauschen, das an keiner Haltestelle steht.
     expect(dict.en.modeWalk).not.toBe(dict.de.modeWalk)
-    expect(dict.en.modeSubway).not.toBe(dict.de.modeSubway)
+    expect(dict.en.modeSubway).toBe('U-Bahn')
     expect(dict.en.modeTrain).not.toBe(dict.de.modeTrain)
   })
 
