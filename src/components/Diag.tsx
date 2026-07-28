@@ -66,15 +66,33 @@ export default function Diag({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState<string[]>([])
   const [ort, setOrt] = useState('noch nicht geprüft')
 
-  /** Einmal wirklich orten — der Text sagt dann, woran es hängt. */
+  /**
+   * Einmal wirklich orten — der Text sagt dann, woran es hängt.
+   *
+   * Mit eigener Frist: der erste Versuch blieb auf dem Gerät bei „frage …"
+   * stehen. Ob die Anfrage noch läuft oder hängt, war daran nicht zu
+   * erkennen, und ohne Ergebnis war der Knopf wertlos. Die Frist liegt über
+   * der des Plugins, damit dessen eigene Meldung Vorrang hat.
+   */
   async function ortPruefen() {
-    setOrt('frage …')
     const start = Date.now()
+    let laeuft = true
+    const ticker = window.setInterval(() => {
+      if (laeuft) setOrt(`frage … ${Math.round((Date.now() - start) / 1000)} s`)
+    }, 500)
+    const frist = new Promise<never>((_, ab) =>
+      setTimeout(() => ab(new Error('keine Antwort binnen 35 s')), 35000),
+    )
     try {
-      const p = await currentPosition()
+      const p = (await Promise.race([currentPosition(), frist])) as { lat: number; lon: number }
       setOrt(`${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} nach ${Date.now() - start} ms`)
     } catch (e) {
-      setOrt(`Fehler nach ${Date.now() - start} ms: ${(e as Error)?.message ?? e}`)
+      setOrt(`Fehler nach ${Date.now() - start} ms:
+${(e as Error)?.message ?? e}
+${ortungsFehler()}`)
+    } finally {
+      laeuft = false
+      window.clearInterval(ticker)
     }
   }
 

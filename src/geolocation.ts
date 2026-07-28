@@ -123,24 +123,38 @@ export function watchPosition(
         merkeFehler(`requestPermissions: ${(e as Error)?.message ?? e}`)
       }
       if (beendet) return
-      watchId = await Geolocation.watchPosition(
-        { enableHighAccuracy: highAccuracy, minimumUpdateInterval: minIntervalMs, timeout: 15000 },
-        (pos, err) => {
-          if (err || !pos) {
-            merkeFehler(`watch: ${err?.message ?? 'ohne Position'}`)
-            onError('lost')
-            return
-          }
-          onFix({
-            lat: pos.coords.latitude,
-            lon: pos.coords.longitude,
-            accuracy: pos.coords.accuracy ?? undefined,
-            heading: pos.coords.trueHeading ?? pos.coords.magneticHeading ?? pos.coords.heading ?? undefined,
-            speed: pos.coords.speed ?? undefined,
-            at: pos.timestamp ?? Date.now(),
-          })
-        },
-      )
+      type Rueckruf = Parameters<typeof Geolocation.watchPosition>[1]
+      const rueckruf: Rueckruf = (pos, err) => {
+        if (err || !pos) {
+          merkeFehler(`watch: ${err?.message ?? 'ohne Position'}`)
+          onError('lost')
+          return
+        }
+        onFix({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy: pos.coords.accuracy ?? undefined,
+          heading: pos.coords.trueHeading ?? pos.coords.magneticHeading ?? pos.coords.heading ?? undefined,
+          speed: pos.coords.speed ?? undefined,
+          at: pos.timestamp ?? Date.now(),
+        })
+      }
+
+      const anmelden = (genau: boolean) =>
+        Geolocation.watchPosition(
+          { enableHighAccuracy: genau, minimumUpdateInterval: minIntervalMs, timeout: 15000 },
+          rueckruf,
+        )
+
+      // Zweiter Anlauf ohne hohe Genauigkeit, falls am Gerät nur der ungefähre
+      // Ort freigegeben ist — dieselbe Weiche wie bei der einmaligen Ortung.
+      try {
+        watchId = await anmelden(highAccuracy)
+      } catch (e) {
+        merkeFehler(`watchPosition(genau): ${(e as Error)?.message ?? e}`)
+        if (!highAccuracy) throw e
+        watchId = await anmelden(false)
+      }
       // Zwischen `await` und hier kann bereits gestoppt worden sein
       if (beendet && watchId) {
         const G = await nativesPlugin()
@@ -165,23 +179,49 @@ export function watchPosition(
   }
 }
 
-/** Einmalige Ortung. */
+/**
+ * Einmalige Ortung.
+ *
+ * Nativ in zwei Anläufen, und beide Male mit `maximumAge`. Ohne diesen Wert
+ * steht in der Android-Seite des Plugins die 0 aus der Voreinstellung — dann
+ * zählt keine vorhandene Messung, es muss eine frische her. In geschlossenen
+ * Räumen dauert das lang oder gelingt gar nicht, und der Aufruf lief in die
+ * Frist statt eine zwei Minuten alte Messung zu nehmen, die für „wo bin ich"
+ * völlig ausreicht.
+ *
+ * Der zweite Anlauf ohne hohe Genauigkeit ist für den häufigen Fall, dass am
+ * Gerät nur der ungefähre Ort freigegeben ist: ab Android 12 wählt das Plugin
+ * die Berechtigung nach genau diesem Schalter aus, verlangt mit hoher
+ * Genauigkeit die genaue Freigabe — und bekommt eine Absage, obwohl die
+ * ungefähre erteilt ist und für den Anfang genügt.
+ */
 export async function currentPosition(): Promise<{ lat: number; lon: number }> {
   if (istNativ()) {
-    try {
-      const Geolocation = await nativesPlugin()
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 })
-      return { lat: pos.coords.latitude, lon: pos.coords.longitude }
-    } catch (e) {
-      merkeFehler(`getCurrentPosition: ${(e as Error)?.message ?? e}`)
-      throw e
+    const Geolocation = await nativesPlugin()
+    const versuche = [
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
+    ]
+    let letzte: unknown
+    for (const opts of versuche) {
+      try {
+        const pos = await Geolocation.getCurrentPosition(opts)
+        return { lat: pos.coords.latitude, lon: pos.coords.longitude }
+      } catch (e) {
+        letzte = e
+        merkeFehler(`getCurrentPosition(genau=${opts.enableHighAccuracy}): ${(e as Error)?.message ?? e}`)
+      }
     }
+    throw letzte
   }
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))
     navigator.geolocation.getCurrentPosition(
       p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      reject,
+      err => {
+        merkeFehler(`web ${err.code}: ${err.message}`)
+        reject(err)
+      },
       { enableHighAccuracy: true, timeout: 8000 },
     )
   })

@@ -3225,8 +3225,13 @@ button {
 
 
 
+/* Die Zeile mit den Hüllen-Bausteinen wurde lang genug, um das Feld seitlich
+   zu schieben — auf einem Bildschirmfoto war dann jedes Mal nur ein Ausschnitt
+   zu sehen. Lieber umbrechen als scrollen. */
 .diag-box pre {
   margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .diag-btn {
