@@ -81,15 +81,6 @@ export default function Diag({ onClose }: { onClose: () => void }) {
     // also schon. Kein `requestAnimationFrame`: das wartet auf ein Bild, und
     // in manchen eingebetteten Ansichten kommt nie eines.
     setText(zeilen())
-
-    // Probe für den Streifen unter der Reiterleiste: solange die Diagnose
-    // offen ist, wird das Füllfeld auffällig eingefärbt. Erscheint der
-    // Streifen dann farbig, liegt die Fläche noch in der Webansicht und ist
-    // von uns erreichbar; bleibt er unverändert, gehört sie dem Gerät und
-    // kein Stilmittel kommt dort je an. Ohne diese Unterscheidung lässt sich
-    // aus der Ferne nicht sagen, ob ein Versuch gewirkt hat.
-    document.documentElement.classList.add('diag-probe')
-    return () => document.documentElement.classList.remove('diag-probe')
   }, [])
 
   return (

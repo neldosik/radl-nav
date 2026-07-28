@@ -128,23 +128,6 @@ body,
   overscroll-behavior: none;
 }
 
-/* Auf dem iPhone im Startbildschirm-Modus ist die Seite kürzer als der
-   Bildschirm: gemessen auf einem 13 Pro `dvh` 797 gegen `lvh` 844 bei einem
-   844 hohen Schirm. Die fehlenden 47 px — genau die Höhe der Statusleiste —
-   liegen unten, innerhalb der Webansicht, aber außerhalb des Sichtfelds.
-   Dorthin reicht kein Element mehr; einfärben kann sie nur die Leinwand des
-   Dokuments.
-
-   Ohne eigene Farbe erbt die Leinwand die von `body`, und der Streifen
-   erschien in Papier — unter einer Leiste in Kartenfarbe fiel das als heller
-   Balken auf. Mit der Farbe der Leiste liest er sich als deren Fortsatz bis
-   zur Kante. `body` deckt das ganze Sichtfeld ab, die sichtbare Seite ändert
-   sich dadurch nicht. Unten steht immer Kartenfarbe: mit Reitern die
-   Reiterleiste, im Los-Modus das Bedienfeld. */
-html {
-  background: var(--card);
-}
-
 body {
   margin: 0;
   background: var(--paper);
@@ -3229,22 +3212,7 @@ button {
   white-space: pre;
 }
 
-/* Der Streifen, den iOS unten abzieht — dieselbe Sache wie die Farbe an
-   `html` weiter oben, nur mit einem echten Element statt der Leinwand.
-   `lvh` nennt die volle Bildschirmhöhe, `dvh` die kürzere Seitenhöhe; auf
-   dem gemessenen iPhone sind das 843.98 gegen 797. Die Differenz ist überall
-   sonst 0, dort entsteht also gar nichts. Kennt ein Browser die Einheiten
-   nicht, fällt die Höhenangabe weg und das Feld bleibt leer. */
-.tabbar::after,
-.j-panel::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: calc(100lvh - 100dvh);
-  background: var(--card);
-}
+
 
 .diag-box pre {
   margin: 0;
@@ -3267,8 +3235,4 @@ button {
   color: var(--faint);
 }
 
-/* Siehe Diag.tsx: nur solange die Diagnose offen ist. */
-.diag-probe .tabbar::after,
-.diag-probe .j-panel::after {
-  background: #d1451b;
-}
+
