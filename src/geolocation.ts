@@ -25,6 +25,23 @@ export interface Fix {
 
 type Fehler = 'denied' | 'lost'
 
+/**
+ * Letzter Fehlertext der Ortung — die Diagnose zeigt ihn an.
+ *
+ * Ohne das blieb von jedem Fehlschlag nur „lost" übrig. Auf einem fremden
+ * Gerät ist damit nicht zu unterscheiden, ob die Berechtigung fehlt, die
+ * Ortungsdienste aus sind oder das Plugin gar nicht erst geladen hat.
+ */
+let letzterFehler = ''
+
+function merkeFehler(text: string): void {
+  letzterFehler = text
+}
+
+export function ortungsFehler(): string {
+  return letzterFehler
+}
+
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean
 }
@@ -73,7 +90,10 @@ export function watchPosition(
           speed: p.coords.speed ?? undefined,
           at: Date.now(),
         }),
-      err => onError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost'),
+      err => {
+        merkeFehler(`web ${err.code}: ${err.message}`)
+        onError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost')
+      },
       // maximumAge 0: im Fahrbetrieb ist ein drei Sekunden alter Fix wertlos.
       { enableHighAccuracy: highAccuracy, maximumAge: 0, timeout: 15000 },
     )
@@ -86,16 +106,28 @@ export function watchPosition(
   ;(async () => {
     try {
       const Geolocation = await nativesPlugin()
-      const erlaubnis = await Geolocation.requestPermissions()
-      if (erlaubnis.location === 'denied' && erlaubnis.coarseLocation === 'denied') {
-        onError('denied')
-        return
+      // Das vorgeschaltete Fragen darf den Rest nicht aufhalten. Die
+      // Android-Seite des Plugins schickt `requestPermissions` durch eine
+      // Prüfung der Ortungsdienste und weist es ab, sobald die am Gerät aus
+      // sind — mit `await` ohne eigenen Fang endete hier der ganze Vorgang,
+      // ohne dass je ein Dialog erschien. `watchPosition` fragt selbst nach,
+      // wenn nötig; dieser Aufruf holt den Dialog nur früher.
+      try {
+        const erlaubnis = await Geolocation.requestPermissions()
+        if (erlaubnis.location === 'denied' && erlaubnis.coarseLocation === 'denied') {
+          merkeFehler('Berechtigung abgelehnt')
+          onError('denied')
+          return
+        }
+      } catch (e) {
+        merkeFehler(`requestPermissions: ${(e as Error)?.message ?? e}`)
       }
       if (beendet) return
       watchId = await Geolocation.watchPosition(
         { enableHighAccuracy: highAccuracy, minimumUpdateInterval: minIntervalMs, timeout: 15000 },
         (pos, err) => {
           if (err || !pos) {
+            merkeFehler(`watch: ${err?.message ?? 'ohne Position'}`)
             onError('lost')
             return
           }
@@ -114,7 +146,8 @@ export function watchPosition(
         const G = await nativesPlugin()
         G.clearWatch({ id: watchId }).catch(() => {})
       }
-    } catch {
+    } catch (e) {
+      merkeFehler(`watchPosition: ${(e as Error)?.message ?? e}`)
       onError('lost')
     }
   })()
@@ -135,9 +168,14 @@ export function watchPosition(
 /** Einmalige Ortung. */
 export async function currentPosition(): Promise<{ lat: number; lon: number }> {
   if (istNativ()) {
-    const Geolocation = await nativesPlugin()
-    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 })
-    return { lat: pos.coords.latitude, lon: pos.coords.longitude }
+    try {
+      const Geolocation = await nativesPlugin()
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 })
+      return { lat: pos.coords.latitude, lon: pos.coords.longitude }
+    } catch (e) {
+      merkeFehler(`getCurrentPosition: ${(e as Error)?.message ?? e}`)
+      throw e
+    }
   }
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('geolocation unavailable'))

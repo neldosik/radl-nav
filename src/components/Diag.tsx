@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { currentPosition, istNativ, ortungsFehler } from '../geolocation'
 
 /**
  * Messwerte des Geräts, damit Layoutfehler nicht aus Bildschirmfotos geraten
@@ -46,24 +47,60 @@ function zeilen(): string[] {
     `tabbar     ${bar ? `${Math.round(bar.top)}..${Math.round(bar.bottom)}  h ${Math.round(bar.height)}` : 'keine'}`,
     `inset o/u  ${messe('env(safe-area-inset-top, 0px)')} / ${messe('env(safe-area-inset-bottom, 0px)')}`,
     `inset l/r  ${messe('env(safe-area-inset-left, 0px)')} / ${messe('env(safe-area-inset-right, 0px)')}`,
+    `huelle     ${istNativ() ? 'nativ' : 'web'}  plugins: ${plugins()}`,
+    `ortfehler  ${ortungsFehler() || '-'}`,
   ]
+}
+
+/** Welche Hüllen-Bausteine im Fenster hängen. Fehlt „Geolocation", ist das
+ *  Plugin gar nicht geladen und jede Ortung scheitert schon davor. */
+function plugins(): string {
+  const cap = (window as { Capacitor?: { Plugins?: Record<string, unknown> } }).Capacitor
+  const namen = Object.keys(cap?.Plugins ?? {})
+  return namen.length ? namen.join(',') : 'keine'
 }
 
 export default function Diag({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState<string[]>([])
+  const [ort, setOrt] = useState('noch nicht geprüft')
+
+  /** Einmal wirklich orten — der Text sagt dann, woran es hängt. */
+  async function ortPruefen() {
+    setOrt('frage …')
+    const start = Date.now()
+    try {
+      const p = await currentPosition()
+      setOrt(`${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} nach ${Date.now() - start} ms`)
+    } catch (e) {
+      setOrt(`Fehler nach ${Date.now() - start} ms: ${(e as Error)?.message ?? e}`)
+    }
+  }
 
   useEffect(() => {
     // Der Effekt läuft nach dem Einhängen ins Dokument, die Rechtecke stehen
     // also schon. Kein `requestAnimationFrame`: das wartet auf ein Bild, und
     // in manchen eingebetteten Ansichten kommt nie eines.
     setText(zeilen())
+
+    // Probe für den Streifen unter der Reiterleiste: solange die Diagnose
+    // offen ist, wird das Füllfeld auffällig eingefärbt. Erscheint der
+    // Streifen dann farbig, liegt die Fläche noch in der Webansicht und ist
+    // von uns erreichbar; bleibt er unverändert, gehört sie dem Gerät und
+    // kein Stilmittel kommt dort je an. Ohne diese Unterscheidung lässt sich
+    // aus der Ferne nicht sagen, ob ein Versuch gewirkt hat.
+    document.documentElement.classList.add('diag-probe')
+    return () => document.documentElement.classList.remove('diag-probe')
   }, [])
 
   return (
     <div className="diag" onClick={onClose}>
-      <pre className="diag-box" onClick={e => e.stopPropagation()}>
-        {text.join('\n')}
-      </pre>
+      <div className="diag-box" onClick={e => e.stopPropagation()}>
+        <pre>{text.join('\n')}</pre>
+        <button className="diag-btn" onClick={ortPruefen}>
+          Ortung testen
+        </button>
+        <pre className="diag-ort">{ort}</pre>
+      </div>
     </div>
   )
 }
