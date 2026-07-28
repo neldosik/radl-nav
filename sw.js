@@ -5,12 +5,26 @@
 // Getrennt gezählt — eine neue Hülle soll nicht die gesammelten Kacheln
 // wegwerfen, die unterwegs mühsam zusammengekommen sind.
 const TILE_CACHE = 'radl-map-tiles-v3'
-const SHELL_CACHE = 'radl-shell-v5'
+const SHELL_CACHE = 'radl-shell-v6'
 // Ohne Obergrenze wächst der Kachelpuffer unbegrenzt, bei jeder Fahrt kommen welche dazu.
+//
+// Die Zahl allein sagt wenig: in denselben Puffer laufen Vektorkacheln
+// (20-250 kB je nach Zoom), die kleinen Rasterkacheln der Radwege-Ebene und
+// Stil-, Sprite- und Glyphendateien. Aus 600 Einträgen können so 15 MB oder
+// über 100 MB werden — auf einem vollen Telefon räumt das System den Puffer
+// dann irgendwann komplett ab, und zwar genau dann, wenn er gebraucht würde.
+// Deshalb zusätzlich ein Budget in Bytes.
 const MAX_TILES = 600
+const MAX_TILE_BYTES = 60 * 1024 * 1024
 /** Auch die Hülle bekommt eine Grenze: über viele Deployments hinweg sammeln
- *  sich sonst die gehashten Dateien aller alten Stände an. */
-const MAX_SHELL = 60
+ *  sich sonst die gehashten Dateien aller alten Stände an.
+ *
+ *  Der Wert muss deutlich über einem vollständigen Stand liegen. Ein Build
+ *  umfasst rund 30 Dateien (25 aus dem Manifest, dazu Schriften, Symbol,
+ *  Manifest und das Dokument); bei 60 verdrängte schon der zweite Stand den
+ *  ersten — und weil zuerst der älteste Eintrag fliegt, traf es bevorzugt den
+ *  großen Kartenbrocken, der als erstes gepuffert wurde. */
+const MAX_SHELL = 150
 /** Wie lange auf das Netz gewartet wird, bevor die gepufferte Hülle gewinnt.
  *  Ohne Frist hing ein schwaches Netz bis zum Browser-Standard (~1 Minute) —
  *  in der Zeit sah der Nutzer eine weiße Seite, obwohl die Hülle im Puffer lag. */
@@ -26,7 +40,15 @@ const NAV_TIMEOUT_MS = 3000
  * steigt, stand vor einer weißen Seite.
  *
  * Die Namen der gebündelten Dateien enthalten einen Hash und stehen deshalb
- * nicht fest — wir lesen sie aus dem HTML und die Schriften aus dem CSS.
+ * nicht fest. Der Build schreibt sie in `precache-manifest.json` — dort stehen
+ * auch die *nachgeladenen* Teile.
+ *
+ * Vorher wurde die Liste aus dem HTML gelesen. Dort tauchen aber nur der
+ * Einstieg und seine Geschwister auf; der Kartenbrocken mit rund 1 MB nicht.
+ * Der landete erst im Puffer, wenn ihn jemand angefordert hatte — und weil er
+ * nach jedem Deployment einen neuen Namen trägt, war der alte wertlos. Wer
+ * zuhause aktualisierte und unterwegs ohne Netz auf „Räder" tippte, sah statt
+ * der Karte einen Hinweis. Genau der Fall, für den vorgesorgt werden sollte.
  */
 async function precacheShell() {
   const cache = await caches.open(SHELL_CACHE)
@@ -34,11 +56,24 @@ async function precacheShell() {
   if (!res.ok) return
   await cache.put('index.html', res.clone())
 
-  const html = await res.text()
-  const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
-    .map(m => m[1])
-    .filter(u => /\.(js|css)$/.test(u))
-    .map(u => new URL(u, self.registration.scope).href)
+  let refs = []
+  try {
+    const mRes = await fetch('./precache-manifest.json', { cache: 'reload' })
+    if (mRes.ok) {
+      const namen = await mRes.json()
+      refs = namen.map(n => new URL(n, self.registration.scope).href)
+    }
+  } catch {
+    // Kein Manifest (alter Build): unten wird aus dem HTML gelesen
+  }
+
+  if (!refs.length) {
+    const html = await res.text()
+    refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+      .map(m => m[1])
+      .filter(u => /\.(js|css)$/.test(u))
+      .map(u => new URL(u, self.registration.scope).href)
+  }
 
   // Schriften stehen nur im Stylesheet, nicht im HTML
   const fonts = []
@@ -94,11 +129,48 @@ self.addEventListener('activate', event => {
   )
 })
 
-/** Älteste Einträge wegwerfen, sobald die Grenze überschritten ist. */
-async function trim(cache, max) {
+/**
+ * Älteste Einträge wegwerfen, sobald die Grenze überschritten ist.
+ *
+ * Nicht bei jedem Ablegen: `cache.keys()` baut den kompletten Schlüsselsatz
+ * als Request-Objekte auf — bis zu 600 Stück, nur um die Länge zu vergleichen.
+ * MapLibre fordert bei einem Zoomschritt leicht zwanzig bis vierzig Kacheln
+ * auf einmal an, das wären ebenso viele Durchläufe. Deshalb ein Zähler je
+ * Puffer und ein echter Durchlauf erst alle `PRUEF_INTERVALL` Ablagen. Dass
+ * der Puffer zwischendurch ein paar Einträge über der Grenze liegt, kostet
+ * nichts.
+ */
+const PRUEF_INTERVALL = 40
+const seitLetzterPruefung = new Map()
+
+async function trim(cache, max, name, maxBytes) {
+  const zaehler = (seitLetzterPruefung.get(name) ?? 0) + 1
+  if (zaehler < PRUEF_INTERVALL) {
+    seitLetzterPruefung.set(name, zaehler)
+    return
+  }
+  seitLetzterPruefung.set(name, 0)
   const keys = await cache.keys()
-  if (keys.length <= max) return
-  await Promise.all(keys.slice(0, keys.length - max).map(k => cache.delete(k)))
+  if (keys.length > max) {
+    await Promise.all(keys.slice(0, keys.length - max).map(k => cache.delete(k)))
+    return
+  }
+  if (!maxBytes) return
+  // Bytes zählen: `content-length` steht in den gepufferten Antworten.
+  let summe = 0
+  const groessen = []
+  for (const k of keys) {
+    const r = await cache.match(k)
+    const n = Number(r?.headers?.get('content-length') ?? 0)
+    groessen.push(n)
+    summe += n
+  }
+  if (summe <= maxBytes) return
+  // Von vorn (ältestes zuerst) löschen, bis wieder Platz ist
+  for (let i = 0; i < keys.length && summe > maxBytes; i++) {
+    await cache.delete(keys[i])
+    summe -= groessen[i]
+  }
 }
 
 /** Kachel oder Kartenstil eines fremden Anbieters? */
@@ -135,7 +207,7 @@ async function cacheFirst(request, cacheName, max) {
   const res = await fetch(request)
   if (res && res.status === 200) {
     await cache.put(request, res.clone())
-    if (max) await trim(cache, max)
+    if (max) await trim(cache, max, cacheName)
   }
   return res
 }
@@ -184,7 +256,7 @@ self.addEventListener('fetch', event => {
         const hit = await cache.match(req)
         const frisch = fetch(req)
           .then(res => {
-            if (res && res.status === 200) cache.put(req, res.clone()).then(() => trim(cache, MAX_SHELL))
+            if (res && res.status === 200) cache.put(req, res.clone()).then(() => trim(cache, MAX_SHELL, SHELL_CACHE))
             return res
           })
           .catch(() => null)
@@ -204,7 +276,7 @@ self.addEventListener('fetch', event => {
         // Sofort ausliefern, im Hintergrund auffrischen
         fetch(req)
           .then(res => {
-            if (res && res.status === 200) cache.put(req, res).then(() => trim(cache, MAX_TILES))
+            if (res && res.status === 200) cache.put(req, res).then(() => trim(cache, MAX_TILES, TILE_CACHE, MAX_TILE_BYTES))
           })
           .catch(() => {})
         return cached
@@ -213,7 +285,7 @@ self.addEventListener('fetch', event => {
         const res = await fetch(req)
         if (res && res.status === 200) {
           await cache.put(req, res.clone())
-          await trim(cache, MAX_TILES)
+          await trim(cache, MAX_TILES, TILE_CACHE, MAX_TILE_BYTES)
         }
         return res
       } catch {
