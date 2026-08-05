@@ -87,6 +87,13 @@
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
 
+  /* Schriftfaktor. 1 heißt: exakt die Größen, die hier stehen. Größer wird er
+     nur, wenn das Gerät eine größere Systemschrift meldet oder im Menü eine
+     Stufe gewählt wurde — siehe hooks/useTextScale.ts. Nur Schriftgrößen
+     hängen daran; Abstände, Knopfflächen und Kartenmaße bleibt er außen vor,
+     damit sich die Vermessung der App nicht verschiebt. */
+  --ts: 1;
+
   --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Newsreader', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -140,7 +147,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -202,7 +209,7 @@ button {
 .poster-name {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 21px;
+  font-size: calc(21px * var(--ts));
   letter-spacing: -0.01em;
   color: var(--ink);
   /* „Radl Navi" hat keine Unterlängen, deshalb sitzt die Schrift in Newsreader
@@ -238,6 +245,7 @@ button {
   border: 1px solid var(--line-strong);
   background: transparent;
   font-family: var(--font-mono);
+  /* Fester Wert: „EN" sitzt in einem 36px-Kreis. */
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
@@ -280,7 +288,7 @@ button {
   border-radius: 10px;
   padding: 11px 12px;
   text-align: left;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
@@ -330,7 +338,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   font-weight: 600;
 }
 
@@ -344,7 +352,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   font-weight: 600;
   color: var(--accent);
 }
@@ -420,7 +428,7 @@ button {
   min-width: 0;
   border: 0;
   background: transparent;
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   font-weight: 500;
   color: var(--ink);
   outline: none;
@@ -506,7 +514,7 @@ button {
 }
 
 .d-name {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -530,7 +538,7 @@ button {
 }
 
 .d-area {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
 }
 
@@ -584,12 +592,12 @@ button {
    aus wie „kein Treffer". */
 .drop-error {
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--alert);
 }
 
 .save-title {
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -613,7 +621,7 @@ button {
   border-radius: var(--r-pill);
   background: var(--card);
   border: 1px solid var(--line);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
@@ -681,7 +689,7 @@ button {
 }
 
 .preset-hint {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   color: var(--accent);
   padding: 0 2px;
 }
@@ -714,7 +722,7 @@ button {
 }
 
 .ctl-label {
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -734,7 +742,7 @@ button {
   background: transparent;
   border-radius: 16px;
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
@@ -757,7 +765,7 @@ button {
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   padding: 0 10px;
 }
 
@@ -811,19 +819,19 @@ button {
 .btn-block,
 .arrive-btn,
 .filter-modal-apply {
-  height: 52px;
+  min-height: 52px;
   border: 0;
   border-radius: var(--r-card);
   background: var(--accent);
   color: #fff;
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
-  padding: 0 18px;
+  padding: 8px 18px;
 }
 
 .btn-route-chip:disabled {
@@ -847,7 +855,7 @@ button {
   background: transparent;
   color: var(--accent);
   font-weight: 600;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   cursor: pointer;
 }
 
@@ -887,7 +895,7 @@ button {
   border-radius: 13px;
   background: rgba(255, 253, 248, 0.92);
   color: var(--ink);
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -899,13 +907,13 @@ button {
   right: 10px;
   bottom: 10px;
   z-index: 5;
-  height: 30px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 4px 12px;
   border-radius: 15px;
   background: rgba(255, 253, 248, 0.92);
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
@@ -942,7 +950,7 @@ button {
 
 .res-head {
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: calc(17px * var(--ts));
   color: var(--muted);
   margin-bottom: 12px;
 }
@@ -951,7 +959,7 @@ button {
   padding: 30px 6px;
   text-align: center;
   color: var(--muted);
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
 }
 
 .msg.error {
@@ -1007,12 +1015,12 @@ button {
 }
 
 .route-times {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 500;
 }
 
 .route-tag {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 700;
   color: var(--accent);
 }
@@ -1024,7 +1032,7 @@ button {
 
 .route-tag.alert {
   color: var(--alert);
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 700;
 }
 
@@ -1045,7 +1053,7 @@ button {
   border-radius: 13px;
   background: var(--chip);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 500;
 }
 
@@ -1077,7 +1085,7 @@ button {
 }
 
 .badge-highlight {
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 11px;
@@ -1102,7 +1110,7 @@ button {
 }
 
 .pickup-info {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
   display: inline-flex;
   align-items: center;
@@ -1125,7 +1133,7 @@ button {
 .leg-time {
   width: 44px;
   flex: none;
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--faint);
   padding-top: 5px;
 }
@@ -1138,7 +1146,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   font-weight: 700;
   background: var(--chip);
   color: var(--muted);
@@ -1167,12 +1175,12 @@ button {
 }
 
 .leg-title {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   font-weight: 600;
 }
 
 .leg-sub {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
 }
 
@@ -1190,7 +1198,7 @@ button {
 
 .leg-link {
   color: var(--accent);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 600;
   text-decoration: none;
   display: inline-flex;
@@ -1208,12 +1216,12 @@ button {
 .delay {
   display: inline-flex;
   align-items: center;
-  height: 20px;
-  padding: 0 7px;
+  min-height: 20px;
+  padding: 1px 7px;
   border-radius: 10px;
   background: var(--alert);
   color: #fff;
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   font-weight: 700;
 }
 
@@ -1225,7 +1233,7 @@ button {
 .eco-banner,
 .badges-box,
 .top-route-box {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
 }
 
@@ -1270,7 +1278,7 @@ button {
   border-radius: 14px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 700;
 }
 
@@ -1342,7 +1350,7 @@ button {
   justify-content: center;
   gap: 3px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   font-weight: 500;
   color: var(--muted);
 }
@@ -1364,7 +1372,7 @@ button {
 .trips-title,
 .screen-title {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: calc(26px * var(--ts));
   font-weight: 600;
   /* Unten mehr Luft: die Kacheln stießen ohne Abstand an die Überschrift */
   padding: calc(14px + env(safe-area-inset-top, 0px)) max(20px, var(--sar)) 18px
@@ -1401,7 +1409,7 @@ button {
 }
 
 .hist-cap {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
   margin-top: 2px;
   display: block;
@@ -1429,12 +1437,12 @@ button {
 }
 
 .chart-title {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
 }
 
 .chart-avg {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 700;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -1468,7 +1476,7 @@ button {
 .chart-bar-val {
   flex: none;
   height: 14px;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--ts));
   font-weight: 700;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -1504,7 +1512,7 @@ button {
 }
 
 .chart-bar-day {
-  font-size: 11px;
+  font-size: calc(11px * var(--ts));
   color: var(--muted);
 }
 
@@ -1535,13 +1543,13 @@ button {
 }
 
 .hist-route {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   font-weight: 600;
 }
 
 .hist-meta,
 .hist-when {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
 }
 
@@ -1555,7 +1563,7 @@ button {
 
 /* genaues Datum mit Uhrzeit unter der Kurzform */
 .hist-exact {
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--ts));
   line-height: 1.3;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
@@ -1582,7 +1590,7 @@ button {
 }
 
 .hist-cost {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 700;
   color: var(--accent);
 }
@@ -1633,14 +1641,18 @@ button {
 .pk-head-card {
   flex: 1;
   min-width: 0;
-  height: 56px;
+  /* Feste Höhe hielt die Karte ruhig, schnitt bei größerer Schrift aber nicht
+     ab, sondern ließ den Straßennamen unten herauslaufen — mitten auf die
+     Karte. `min-height` hält dieselbe Ruhe bei Standardgröße (der Inhalt misst
+     dort 42px) und gibt erst nach, wenn er mehr braucht. */
+  min-height: 56px;
   border-radius: 16px;
   background: var(--card);
   box-shadow: var(--shadow-float);
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 16px;
+  padding: 5px 16px;
 }
 
 .pk-head-icon {
@@ -1661,12 +1673,12 @@ button {
 }
 
 .pk-kicker {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
 }
 
 .pk-target {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -1694,7 +1706,7 @@ button {
   align-items: center;
   padding: 0 18px;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: calc(18px * var(--ts));
   font-weight: 600;
 }
 
@@ -1782,7 +1794,7 @@ button {
   border-radius: 17px;
   background: var(--card);
   box-shadow: var(--shadow-lift);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
@@ -1820,7 +1832,7 @@ button {
   background: transparent;
   color: var(--muted);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -1850,7 +1862,7 @@ button {
   border-radius: 16px;
   background: var(--card);
   box-shadow: var(--shadow-lift);
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
@@ -1896,7 +1908,7 @@ button {
 
 .picker-name {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: calc(22px * var(--ts));
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -1908,7 +1920,7 @@ button {
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 14px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
 }
 
@@ -1921,7 +1933,7 @@ button {
   border-radius: 14px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 700;
 }
 
@@ -1959,7 +1971,7 @@ button {
 }
 
 .bm-walk-tag {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
   display: inline-flex;
   align-items: center;
@@ -1967,7 +1979,7 @@ button {
 }
 
 .bm-empty {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
   text-align: center;
   padding: 4px 0 10px;
@@ -1984,7 +1996,7 @@ button {
   background: var(--card);
   border: 1.5px solid var(--ink);
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(36, 33, 28, 0.18);
   cursor: pointer;
@@ -2002,7 +2014,7 @@ button {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   box-shadow: 0 6px 18px rgba(31, 122, 111, 0.4);
 }
 
@@ -2014,6 +2026,7 @@ button {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  /* Wie beim Kopfknopf: die Nadel ist ein fester Kreis auf der Karte. */
   font-size: 10px;
   font-weight: 700;
   color: #fff;
@@ -2113,7 +2126,7 @@ button {
   background: var(--card);
   box-shadow: var(--shadow-lift);
   color: var(--ink);
-  font-size: 17px;
+  font-size: calc(17px * var(--ts));
   font-weight: 700;
 }
 
@@ -2140,14 +2153,18 @@ button {
 .j-head-card {
   flex: 1;
   min-width: 0;
-  height: 56px;
+  /* Feste Höhe hielt die Karte ruhig, schnitt bei größerer Schrift aber nicht
+     ab, sondern ließ den Straßennamen unten herauslaufen — mitten auf die
+     Karte. `min-height` hält dieselbe Ruhe bei Standardgröße (der Inhalt misst
+     dort 42px) und gibt erst nach, wenn er mehr braucht. */
+  min-height: 56px;
   border-radius: 16px;
   background: var(--card);
   box-shadow: var(--shadow-float);
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 16px;
+  padding: 5px 16px;
 }
 
 .j-head-icon {
@@ -2158,7 +2175,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   font-weight: 700;
   background: var(--chip);
   color: var(--muted);
@@ -2180,12 +2197,12 @@ button {
 }
 
 .j-kicker {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
 }
 
 .j-head-target {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -2194,7 +2211,7 @@ button {
 
 .j-dist-badge {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: calc(26px * var(--ts));
   font-weight: 600;
   line-height: 1;
   flex: none;
@@ -2206,7 +2223,7 @@ button {
 
 .j-dist-badge small {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
 }
 
@@ -2235,7 +2252,7 @@ button {
   border-radius: 18px;
   background: rgba(36, 33, 28, 0.86);
   color: #f7f4ec;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 600;
   box-shadow: 0 4px 14px rgba(36, 33, 28, 0.2);
 }
@@ -2264,7 +2281,7 @@ button {
   background: rgba(255, 255, 255, 0.9);
   color: var(--alert);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   font-weight: 700;
   cursor: pointer;
 }
@@ -2283,7 +2300,7 @@ button {
   border-radius: 18px;
   background: var(--card);
   box-shadow: var(--shadow-float);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 600;
   color: var(--ink);
 }
@@ -2344,7 +2361,7 @@ button {
   justify-content: center;
   background: var(--chip);
   color: var(--muted);
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   font-weight: 700;
 }
 
@@ -2366,14 +2383,14 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 26px;
-  padding: 0 10px;
+  min-height: 26px;
+  padding: 2px 10px;
   border: 0;
   border-radius: 13px;
   background: var(--chip);
   color: var(--muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 600;
   cursor: pointer;
 }
@@ -2419,13 +2436,13 @@ button {
 }
 
 .j-legname {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   font-weight: 600;
 }
 
 .j-legsub,
 .j-info {
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -2455,18 +2472,18 @@ button {
   color: var(--muted);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
 }
 
 .j-speed b {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   font-weight: 700;
   color: var(--ink);
 }
 
 .j-timer {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   color: var(--muted);
 }
 
@@ -2521,7 +2538,7 @@ button {
   color: #fff;
   font-family: inherit;
   font-weight: 700;
-  font-size: 19px;
+  font-size: calc(19px * var(--ts));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2565,6 +2582,14 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  /* Rechts unten schweben Kompass und Zentrierknopf: 48px breit, 14px vom
+     Rand. Diese Zeile ist das letzte Kind der Kopfgruppe — wächst die Schrift,
+     wächst die Kopfkarte, und die Zeile rutscht auf die Höhe der beiden
+     Knöpfe. „Rad genommen" stand dann zur Hälfte unter dem Kompass.
+     Die Freihaltung wächst deshalb mit demselben Faktor: bei --ts 1 sind es
+     0px und nichts verschiebt sich, bei der größten Stufe 1.4 die vollen 62px
+     der Knopfspalte. */
+  padding-right: calc((var(--ts) - 1) * 155px);
 }
 
 .j-status-msg {
@@ -2588,7 +2613,7 @@ button {
   box-shadow: var(--shadow-lift);
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -2598,7 +2623,7 @@ button {
   border: 1px solid var(--accent);
   cursor: pointer;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
 }
 
 /* E-Bike-Uhr: Terracotta wie überall, wo etwas Geld kostet — sie zählt keine
@@ -2621,7 +2646,7 @@ button {
 .j-actions-row .btn-block {
   flex: 1;
   height: 48px;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
 }
 
 /* ── Angekommen ── */
@@ -2640,7 +2665,7 @@ button {
 }
 
 .arrive-kicker {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   letter-spacing: 0.14em;
   text-transform: uppercase;
   opacity: 0.75;
@@ -2655,19 +2680,19 @@ button {
 }
 
 .arrive-time small {
-  font-size: 26px;
+  font-size: calc(26px * var(--ts));
   font-family: var(--font-body);
   opacity: 0.8;
 }
 
 .arrive-route {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: calc(24px * var(--ts));
   margin-top: 10px;
 }
 
 .arrive-sub {
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   opacity: 0.8;
 }
 
@@ -2693,15 +2718,18 @@ button {
 }
 
 .arrive-stat span {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   opacity: 0.8;
 }
 
 .arrive-btn {
-  height: 60px;
+  /* Als Untergrenze, damit die Medienabfrage für niedrige Schirme weiter
+     greift — mit `height` hätte sie den flacheren Wert von dort überstimmt und
+     der Ankunftsknopf stünde auf dem Telefon 14px höher als bisher. */
+  min-height: 60px;
   background: #fffdf8;
   color: var(--accent);
-  font-size: 18px;
+  font-size: calc(18px * var(--ts));
 }
 
 /* ── Filter-Blatt ── */
@@ -2730,7 +2758,7 @@ button {
 
 .filter-modal-title {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: calc(22px * var(--ts));
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -2749,12 +2777,12 @@ button {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 20px;
+  font-size: calc(20px * var(--ts));
   cursor: pointer;
 }
 
 .filter-label {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -2780,7 +2808,7 @@ button {
   border-radius: var(--r-card);
   background: var(--warn-soft);
   color: var(--warn);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -2792,7 +2820,7 @@ button {
   border-radius: var(--r-pill);
   background: var(--warn);
   color: var(--card);
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
 }
 
 /* Ersatz für die Karte, wenn das Gerät kein WebGL kann. Füllt denselben Platz,
@@ -2813,12 +2841,12 @@ button {
 
 .map-fallback b {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   color: var(--ink);
 }
 
 .map-fallback span {
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   line-height: 1.45;
   max-width: 30ch;
   color: var(--muted);
@@ -2834,7 +2862,7 @@ button {
 /* Erklärender Nachsatz unter einer Auswahl (z. B. Obergrenze von MyRadl) */
 .filter-hint {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   line-height: 1.4;
   color: var(--faint);
 }
@@ -2845,7 +2873,7 @@ button {
   position: absolute;
   bottom: 3px;
   right: 5px;
-  font-size: 10px;
+  font-size: calc(10px * var(--ts));
   font-weight: 700;
   line-height: 1;
   color: var(--accent);
@@ -2918,7 +2946,7 @@ button {
   width: 20px;
   height: 20px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   font-weight: 700;
   line-height: 20px;
   opacity: 0;
@@ -2942,12 +2970,12 @@ button {
 }
 
 .ft-name {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   font-weight: 700;
 }
 
 .ft-sub {
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   color: var(--muted);
   margin-top: 2px;
 }
@@ -2965,7 +2993,7 @@ button {
   border: 1px solid var(--line-strong);
   font-family: inherit;
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   color: var(--ink);
   cursor: pointer;
 }
@@ -2995,7 +3023,7 @@ button {
   height: 32px;
   padding: 0 12px;
   border-radius: 16px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   font-weight: 600;
   border: 1px solid var(--line);
   background: var(--card);
@@ -3019,7 +3047,7 @@ button {
   border-radius: var(--r-card);
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   font-weight: 600;
   line-height: 1.45;
 }
@@ -3056,7 +3084,7 @@ button {
 .wh-time,
 .wh-temp,
 .wh-precip {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts));
   color: var(--muted);
 }
 
@@ -3071,7 +3099,7 @@ button {
 }
 
 .wh-icon {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts));
   text-align: center;
 }
 
@@ -3081,7 +3109,7 @@ button {
   text-align: center;
   padding: 18px max(20px, var(--sar)) calc(20px + env(safe-area-inset-bottom, 0px))
     max(20px, var(--sal));
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--ts));
   line-height: 1.7;
   color: var(--faint);
 }
@@ -3134,7 +3162,7 @@ button {
 }
 
 .maplibregl-ctrl-attrib {
-  font-size: 9px;
+  font-size: calc(9px * var(--ts));
   border-radius: 8px 0 0 0;
 }
 
@@ -3154,7 +3182,7 @@ button {
   }
 
   .poster-name {
-    font-size: 19px;
+    font-size: calc(19px * var(--ts));
   }
 
   .inputs {
@@ -3182,7 +3210,7 @@ button {
   .btn-block,
   .arrive-btn,
   .filter-modal-apply {
-    height: 46px;
+    min-height: 46px;
   }
 
   .search-summary {
@@ -3227,7 +3255,7 @@ button {
   }
 
   .j-mins {
-    font-size: 24px;
+    font-size: calc(24px * var(--ts));
   }
 
   .j-nav-prev,
@@ -3241,15 +3269,19 @@ button {
     width: 56px;
   }
 
-  /* Kopfkarte flacher, damit oben und unten zusammen weniger Platz nehmen */
-  .j-head-card,
+  /* Kopfkarte flacher, damit oben und unten zusammen weniger Platz nehmen.
+     Als Untergrenze — sonst hebelt diese Zeile die wachsende Karte wieder aus. */
+  .j-head-card {
+    min-height: 46px;
+  }
+
   .j-end {
     height: 46px;
   }
 
   .j-turn {
     padding: 8px 12px;
-    font-size: 15px;
+    font-size: calc(15px * var(--ts));
   }
 
   .app-footer,
@@ -3314,7 +3346,7 @@ button {
   background: var(--card);
   color: var(--ink);
   font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--ts));
   line-height: 1.7;
   white-space: pre;
 }
@@ -3338,7 +3370,7 @@ button {
   border-radius: 10px;
   background: var(--paper);
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
 }
 
 .diag-ort {
@@ -3388,7 +3420,7 @@ button {
   background: var(--card);
   border: 1px solid var(--line);
   color: var(--faint);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts));
   text-align: center;
 }
 
@@ -3434,21 +3466,21 @@ button {
 .ob-title {
   margin: 0 0 10px;
   font-family: var(--font-display, inherit);
-  font-size: 24px;
+  font-size: calc(24px * var(--ts));
   line-height: 1.25;
   color: var(--ink);
 }
 
 .ob-text {
   margin: 0 0 22px;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts));
   line-height: 1.6;
   color: var(--faint);
 }
 
 .ob-frage {
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
   font-weight: 600;
   color: var(--ink);
 }
@@ -3456,9 +3488,10 @@ button {
 .ob-zweit {
   margin-top: 10px;
   width: 100%;
-  height: 46px;
+  min-height: 46px;
+  padding: 6px 12px;
   border: 0;
   background: transparent;
   color: var(--faint);
-  font-size: 14px;
+  font-size: calc(14px * var(--ts));
 }

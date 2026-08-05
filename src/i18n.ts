@@ -55,6 +55,11 @@ export const dict = {
     lightMode: 'Heller Modus',
     darkMode: 'Dunkler Modus',
     langToggle: 'Auf Englisch umschalten',
+    // Drei Stufen im Menü. „System" heißt: der Einstellung des Geräts folgen —
+    // bei unveränderter Einstellung ist das die bisherige Größe.
+    fontScaleSystem: 'Schrift: System',
+    fontScaleLarge: 'Schrift: Groß',
+    fontScaleXLarge: 'Schrift: Sehr groß',
     soundOn: 'Töne an',
     soundOff: 'Töne stumm',
 
@@ -297,6 +302,9 @@ export const dict = {
     lightMode: 'Light mode',
     darkMode: 'Dark mode',
     langToggle: 'Switch to German',
+    fontScaleSystem: 'Text size: system',
+    fontScaleLarge: 'Text size: large',
+    fontScaleXLarge: 'Text size: extra large',
     soundOn: 'Sound on',
     soundOff: 'Mute sound',
 

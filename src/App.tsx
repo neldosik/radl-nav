@@ -21,6 +21,8 @@ import { searchRoutes, viewDuration } from './routing'
 import { rideLegsOf, viewStats } from './stats'
 import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
+import { useTextScale } from './hooks/useTextScale'
+import { leisteMessen } from './leiste'
 import { useBackGuard } from './hooks/useBackGuard'
 import { kompassFreigeben } from './kompass'
 import { einfuehrungGesehen } from './onboarding'
@@ -158,6 +160,7 @@ export default function App() {
   }, [presetHint])
 
   const { theme: themeMode, toggleTheme } = useTheme()
+  const { textScaleMode, cycleTextScale } = useTextScale()
 
   // Zurück führt innerhalb der App zurück, statt sie zu verlassen.
   useBackGuard(tab !== 'route', () => setTab('route'))
@@ -481,9 +484,11 @@ export default function App() {
   const minDuration = views ? Math.min(...views.map(viewDuration)) : Infinity
   const minTransfers = views ? Math.min(...views.map(v => v.it.legs.length)) : Infinity
 
-  // Wiederverwendete Reiterleiste am unteren Rand
+  // Wiederverwendete Reiterleiste am unteren Rand. `leisteMessen` schreibt
+  // ihre tatsächliche Höhe nach `--tabbar-h` — der Platz, den `.app.with-tabs`
+  // unten frei hält, kann damit nicht mehr von der Leiste abweichen.
   const tabBar = (
-    <nav className="tabbar">
+    <nav className="tabbar" ref={leisteMessen}>
       <button className={`tab${tab === 'route' ? ' on' : ''}`} onClick={() => setTab('route')}>
         <SendIcon size={21} />
         {t('tabRoute', lang)}
@@ -558,6 +563,16 @@ export default function App() {
             <div className="header-dropdown" onClick={() => setShowHeaderMenu(false)}>
               <button className="header-menu-item" onClick={toggleTheme}>
                 {themeMode === 'dark' ? t('lightMode', lang) : t('darkMode', lang)}
+              </button>
+              <button className="header-menu-item" onClick={cycleTextScale}>
+                {t(
+                  textScaleMode === 'large'
+                    ? 'fontScaleLarge'
+                    : textScaleMode === 'xlarge'
+                      ? 'fontScaleXLarge'
+                      : 'fontScaleSystem',
+                  lang,
+                )}
               </button>
               <button className="header-menu-item" onClick={toggleSound}>
                 {soundEnabled ? t('soundOn', lang) : t('soundOff', lang)}
