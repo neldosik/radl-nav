@@ -2450,9 +2450,25 @@ button {
   margin-top: 2px;
 }
 
+/**
+ * Der Warnhinweis darf nicht beschnitten werden.
+ *
+ * Nachgemessen im Safari-Motor auf einem iPhone 14 Pro: „Rückgabe nur an
+ * Station: »Donnersbergerbrücke« (+0 m)" braucht 372 px, zur Verfügung stehen
+ * 361. Abgeschnitten wurde also ausgerechnet der Umweg in Metern — die Zahl,
+ * wegen der die Zeile überhaupt dasteht. Zwei Zeilen sind hier billiger als
+ * eine halbe Aussage; das Feld darunter ist ohnehin nicht bündig.
+ *
+ * Nur für `.warn`: die übrigen `.j-info`-Zeilen tragen Beiwerk und dürfen
+ * weiter mit Auslassungspunkten enden, damit das Feld nicht in der Höhe
+ * springt, sobald ein Stationsname lang ist.
+ */
 .j-info.warn {
   color: var(--alert);
   font-weight: 600;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 /* Tempo unten links, spiegelbildlich zum Folgen-Knopf rechts */
