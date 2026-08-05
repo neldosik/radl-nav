@@ -12,6 +12,7 @@ import App from './App.tsx'
 import { vollbildBeobachten } from './luecke'
 import { fahrtLaeuft } from './miete'
 import { istNativ } from './geolocation'
+import { aktualisierungBeobachten } from './aktualisierung'
 
 /**
  * In der Android-Hülle darf kein Service Worker laufen.
@@ -110,6 +111,10 @@ if (inHuelle() && 'serviceWorker' in navigator) {
 }
 
 vollbildBeobachten()
+
+// In der Hülle gibt es keinen Service Worker, der den neuen Stand nachholt —
+// dort übernimmt das der Aktualisierer. Im Browser tut er nichts.
+aktualisierungBeobachten()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

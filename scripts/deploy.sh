@@ -20,6 +20,15 @@ REMOTE="${DEPLOY_REMOTE:-origin}"
 BRANCH="gh-pages"
 WORKTREE=".gh-pages"
 
+# Öffentliche Adresse des Deployments. Steht auch in src/aktualisierung.ts —
+# die Hülle liegt auf ihrem eigenen https://localhost und braucht sie absolut.
+PAGES_URL="https://neldosik.github.io/radl-nav"
+# Ordner für die Pakete, aus denen sich die Android-Hülle selbst aktualisiert.
+BUNDLE_DIR="bundles"
+# So viele alte Pakete bleiben liegen. Wer eine Weile nicht gestartet hat,
+# findet seinen Stand sonst nicht mehr — und wer zurückrollt, braucht ihn auch.
+BUNDLE_KEEP=5
+
 # Aus welchem Stand wurde gebaut? Steht später in der Deploy-Nachricht.
 SOURCE_SHA="$(git rev-parse --short HEAD)"
 SOURCE_SUBJECT="$(git log -1 --pretty=%s)"
@@ -67,7 +76,12 @@ fi
 # ── Inhalt austauschen ─────────────────────────────────────────────────────
 # Alles außer .git löschen: sonst bleiben Dateien alter Builds liegen, deren
 # Namen sich geändert haben (gehashte Assets).
-find "$WORKTREE" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+# `bundles/` und `updates.json` bleiben stehen. Die Pakete, weil ein Gerät,
+# das eine Weile aus war, seines noch holt. Das Manifest, weil es sonst als
+# gelöscht in der Statusabfrage stünde und die Abkürzung „Prod ist schon auf
+# diesem Stand" nie mehr griffe — beides kommt weder aus dist/ noch zurück.
+find "$WORKTREE" -mindepth 1 -maxdepth 1 \
+  ! -name '.git' ! -name "$BUNDLE_DIR" ! -name 'updates.json' -exec rm -rf {} +
 # .git im Worktree ist eine Datei, kein Ordner — sie darf nie überschrieben
 # werden, auch nicht von einem versehentlich in dist/ gelandeten Repo.
 find dist -mindepth 1 -maxdepth 1 ! -name '.git' -exec cp -R {} "$WORKTREE/" \;
@@ -77,11 +91,45 @@ if [ -z "$(git -C "$WORKTREE" status --porcelain)" ]; then
   exit 0
 fi
 
+# ── Paket für die Selbstaktualisierung der Hülle ───────────────────────────
+# Der Webteil ist mit `base: './'` gebaut und läuft deshalb unverändert unter
+# /radl-nav/ wie auch an der Wurzel der WebView. Das Paket ist damit schlicht
+# dasselbe dist/ als Zip.
+#
+# Die Nummer zählt die Commits — monoton und ohne zusätzlichen Zustand. Bei
+# unsauberem Arbeitsverzeichnis kommt die Uhrzeit dazu, sonst trüge ein
+# zweites Deployment desselben Commits dieselbe Nummer und kein Gerät würde
+# es holen.
+VERSION="1.0.$(git rev-list --count HEAD)"
+case "$SOURCE_SHA" in *+dirty) VERSION="$VERSION-$(date +%s)" ;; esac
+
+mkdir -p "$WORKTREE/$BUNDLE_DIR"
+ZIP="$WORKTREE/$BUNDLE_DIR/$VERSION.zip"
+rm -f "$ZIP"
+(cd dist && zip -qr "$OLDPWD/$ZIP" . -x '.git/*')
+
+cat > "$WORKTREE/updates.json" <<JSON
+{
+  "version": "$VERSION",
+  "url": "$PAGES_URL/$BUNDLE_DIR/$VERSION.zip",
+  "commit": "$SOURCE_SHA",
+  "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+JSON
+
+# Alte Pakete abräumen — sonst wächst der Zweig um ~3 MB je Deployment.
+ls -1t "$WORKTREE/$BUNDLE_DIR"/*.zip 2>/dev/null | tail -n +$((BUNDLE_KEEP + 1)) | while read -r alt; do
+  rm -f "$alt"
+done
+
+echo "→ Paket $VERSION ($(du -h "$ZIP" | cut -f1))"
+
 git -C "$WORKTREE" add -A
 git -C "$WORKTREE" commit --quiet -m "deploy: $SOURCE_SHA ($SOURCE_BRANCH) — $SOURCE_SUBJECT"
 git -C "$WORKTREE" push "$REMOTE" "$BRANCH"
 
 echo
 echo "✓ Deployt: $(git -C "$WORKTREE" rev-parse --short HEAD) ← $SOURCE_SHA"
-echo "  https://neldosik.github.io/radl-nav/ (GitHub Pages braucht ~1 Min)"
+echo "  $PAGES_URL/ (GitHub Pages braucht ~1 Min)"
+echo "  Hülle holt sich $VERSION beim nächsten Start"
 echo "  Zurück: npm run deploy:rollback"

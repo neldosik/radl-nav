@@ -62,6 +62,36 @@ und der Rollback des Rollbacks ist derselbe Handgriff.
 Mit `DEPLOY_REMOTE=<remote>` lässt sich ein Deployment gegen ein Testrepository
 fahren, ohne die Produktion anzufassen.
 
+### Die Android-Hülle aktualisiert sich mit
+
+Im Browser holt der Service Worker den neuen Stand. In der Hülle ist er
+bewusst abgeschaltet — er legte sich vor die Auslieferung durch Capacitor und
+schnitt die Brücke zu den Plugins ab, woran die Ortung scheiterte. Der Preis
+war ein Webteil, der auf dem Stand der APK-Erstellung einfror.
+
+`npm run deploy` legt deshalb neben den Deploy zwei weitere Dateien:
+
+```
+updates.json              Stand und Adresse des aktuellen Pakets
+bundles/1.0.<n>.zip       der gebaute Webteil, die letzten fünf
+```
+
+Die Hülle sieht beim Start und beim Zurückkehren zur App nach (höchstens
+stündlich, nicht während einer Fahrt, nicht im Datensparmodus), lädt das Paket
+und setzt es **beim nächsten Start** ein — nie mitten in der Navigation.
+Meldet sich ein neuer Stand nicht binnen 10 Sekunden mit `notifyAppReady()`,
+verwirft ihn das Plugin und startet den vorherigen; ein fehlerhaftes
+Deployment macht das Telefon also nicht unbrauchbar.
+
+Die Nummer zählt Commits (`git rev-list --count HEAD`). Ein Deployment aus
+einem unsauberen Arbeitsverzeichnis bekommt zusätzlich einen Zeitstempel,
+sonst trüge ein zweiter Lauf desselben Commits dieselbe Nummer.
+
+**Eine neue APK braucht es nur noch bei nativen Änderungen** — Plugins,
+Berechtigungen, Capacitor selbst. Alles andere kommt über den Deploy an. Nach
+einer neuen APK gilt zunächst wieder der eingebaute Stand (`resetWhenUpdate`),
+damit kein alter Webteil gegen Plugins läuft, die er nicht kennt.
+
 ## Aufbau
 
 | Datei | Zuständigkeit |
