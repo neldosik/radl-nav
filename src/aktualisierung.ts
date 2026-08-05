@@ -141,6 +141,51 @@ export async function nachAktualisierungSehen(erzwingen = false): Promise<Ergebn
   }
 }
 
+/**
+ * Bericht für die Diagnose: was läuft, was liegt bereit, was sagt der Server.
+ *
+ * Ohne das ist die Selbstaktualisierung auf dem Gerät nicht zu prüfen. „Bei
+ * mir hat sich nichts geändert" hätte drei mögliche Ursachen — das Paket ist
+ * nicht angekommen, es liegt noch und wartet auf den Neustart, oder es läuft
+ * längst und die Änderung war eine andere. Von außen sehen alle drei gleich
+ * aus. Der Knopf erzwingt außerdem eine Prüfung, ohne die Stundenpause und
+ * ohne auf das Zurückkehren zur App zu warten.
+ */
+export async function aktualisierungBericht(): Promise<string> {
+  if (!inHuelle()) {
+    return 'web — hier hält der Service Worker den Stand aktuell, nicht der Aktualisierer.'
+  }
+  const zeilen: string[] = []
+  try {
+    const { CapacitorUpdater } = await import('@capgo/capacitor-updater')
+    const jetzt = await CapacitorUpdater.current()
+    zeilen.push(`läuft      ${jetzt.bundle.version}  (eingebaut ${jetzt.native})`)
+
+    const was = await nachAktualisierungSehen(true)
+    zeilen.push(`prüfung    ${was}`)
+
+    const antwort = await fetch(MANIFEST_URL, { cache: 'no-store' })
+    if (antwort.ok) {
+      const m = (await antwort.json()) as Standmeldung & { commit?: string; built?: string }
+      zeilen.push(`server     ${m.version}  ${m.commit ?? ''} ${m.built ?? ''}`.trimEnd())
+    } else {
+      zeilen.push(`server     nicht erreichbar (${antwort.status})`)
+    }
+
+    const liste = await CapacitorUpdater.list().catch(() => ({ bundles: [] }))
+    const wartend = liste.bundles.filter(b => b.version !== jetzt.bundle.version)
+    zeilen.push(
+      wartend.length
+        ? `wartet     ${wartend.map(b => `${b.version} (${b.status})`).join(', ')} — gilt ab dem nächsten Start`
+        : 'wartet     nichts',
+    )
+  } catch (e) {
+    zeilen.push(`Fehler: ${(e as Error)?.message ?? e}`)
+    zeilen.push('(fehlt das Plugin, stammt diese APK von vor der Selbstaktualisierung)')
+  }
+  return zeilen.join('\n')
+}
+
 /** Beim Start melden und danach beim Zurückkehren zur App nachsehen. */
 export function aktualisierungBeobachten(): void {
   if (!inHuelle()) return

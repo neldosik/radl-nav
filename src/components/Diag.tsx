@@ -7,6 +7,7 @@ import {
   ortungsProtokoll,
   ortungsTakt,
 } from '../geolocation'
+import { aktualisierungBericht } from '../aktualisierung'
 
 /**
  * Messwerte des Geräts, damit Layoutfehler nicht aus Bildschirmfotos geraten
@@ -75,6 +76,23 @@ export default function Diag({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState<string[]>([])
   const [ort, setOrt] = useState('noch nicht geprüft')
   const [rechte, setRechte] = useState('wird geprüft …')
+  const [stand, setStand] = useState('noch nicht geprüft')
+
+  /**
+   * Selbstaktualisierung prüfen — erzwungen, ohne die Stundenpause.
+   *
+   * „Bei mir hat sich nichts geändert" hat drei mögliche Ursachen: das Paket
+   * ist nicht angekommen, es liegt und wartet auf den Neustart, oder es läuft
+   * längst. Von außen sehen alle drei gleich aus.
+   */
+  async function standPruefen() {
+    setStand('prüfe …')
+    try {
+      setStand(await aktualisierungBericht())
+    } catch (e) {
+      setStand(`Fehler: ${(e as Error)?.message ?? e}`)
+    }
+  }
 
   /**
    * Einmal wirklich orten — der Text sagt dann, woran es hängt.
@@ -138,6 +156,10 @@ ${ortungsProtokoll().join('\n') || '(kein einziger Schritt begonnen)'}`)
           Ortung testen
         </button>
         <pre className="diag-ort">{ort}</pre>
+        <button className="diag-btn" onClick={standPruefen}>
+          Aktualisierung prüfen
+        </button>
+        <pre className="diag-ort">{stand}</pre>
       </div>
     </div>
   )
