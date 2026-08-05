@@ -52,8 +52,11 @@ export const dict = {
     tabTrips: 'Fahrten',
     dry: 'trocken',
     dryCap: 'Trocken',
-    lightMode: 'Heller Modus',
-    darkMode: 'Dunkler Modus',
+    // Drei Stufen wie beim Schriftgrad. „System" heißt: der Einstellung des
+    // Geräts folgen, auch wenn sie sich abends von selbst ändert.
+    themeSystem: 'Design: System',
+    themeLight: 'Design: Hell',
+    themeDark: 'Design: Dunkel',
     langToggle: 'Auf Englisch umschalten',
     // Drei Stufen im Menü. „System" heißt: der Einstellung des Geräts folgen —
     // bei unveränderter Einstellung ist das die bisherige Größe.
@@ -299,8 +302,9 @@ export const dict = {
     tabTrips: 'Trips',
     dry: 'dry',
     dryCap: 'Dry',
-    lightMode: 'Light mode',
-    darkMode: 'Dark mode',
+    themeSystem: 'Theme: system',
+    themeLight: 'Theme: light',
+    themeDark: 'Theme: dark',
     langToggle: 'Switch to German',
     fontScaleSystem: 'Text size: system',
     fontScaleLarge: 'Text size: large',

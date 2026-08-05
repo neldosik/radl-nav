@@ -159,7 +159,7 @@ export default function App() {
     return () => window.clearTimeout(id)
   }, [presetHint])
 
-  const { theme: themeMode, toggleTheme } = useTheme()
+  const { theme: themeMode, themeChoice, cycleTheme } = useTheme()
   const { textScaleMode, cycleTextScale } = useTextScale()
 
   // Zurück führt innerhalb der App zurück, statt sie zu verlassen.
@@ -561,8 +561,15 @@ export default function App() {
 
           {showHeaderMenu && (
             <div className="header-dropdown" onClick={() => setShowHeaderMenu(false)}>
-              <button className="header-menu-item" onClick={toggleTheme}>
-                {themeMode === 'dark' ? t('lightMode', lang) : t('darkMode', lang)}
+              <button className="header-menu-item" onClick={cycleTheme}>
+                {t(
+                  themeChoice === 'light'
+                    ? 'themeLight'
+                    : themeChoice === 'dark'
+                      ? 'themeDark'
+                      : 'themeSystem',
+                  lang,
+                )}
               </button>
               <button className="header-menu-item" onClick={cycleTextScale}>
                 {t(
