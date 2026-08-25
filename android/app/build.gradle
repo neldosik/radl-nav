@@ -1,5 +1,22 @@
 apply plugin: 'com.android.application'
 
+/**
+ * Version aus der Anzahl der Commits — dieselbe Zahl, die auch scripts/deploy.sh
+ * für das Web-Paket vergibt. Vorher stand hier fest `1`/`1.0`: zwei APKs waren
+ * damit nicht auseinanderzuhalten, und Play nimmt einen gleichgebliebenen
+ * versionCode gar nicht erst an. Ohne git (ausgepacktes Archiv) bleibt es bei 1.
+ */
+def commitCount = {
+    try {
+        def stdout = new ByteArrayOutputStream()
+        def proc = ['git', 'rev-list', '--count', 'HEAD'].execute(null, rootProject.projectDir)
+        proc.waitForProcessOutput(stdout, new ByteArrayOutputStream())
+        return proc.exitValue() == 0 ? stdout.toString().trim().toInteger() : 1
+    } catch (Exception ignored) {
+        return 1
+    }
+}()
+
 android {
     namespace = "de.radlnavi.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +24,8 @@ android {
         applicationId "de.radlnavi.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode commitCount
+        versionName "1.0.${commitCount}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -198,4 +198,11 @@ describe('whenLabel', () => {
   it('fällt bei älteren Fahrten auf das Datum zurück', () => {
     expect(whenLabel('2026-07-12T09:00:00Z', now)).toMatch(/12\.07/)
   })
+
+  it('spricht Englisch, wenn die Oberfläche auf Englisch steht', () => {
+    const now = Date.parse('2026-07-24T12:00:00Z')
+    expect(whenLabel('2026-07-24T11:59:50Z', now, 'en')).toBe('just now')
+    expect(whenLabel('2026-07-24T06:00:00Z', now, 'en')).toContain('today')
+    expect(whenLabel('2026-07-23T18:00:00Z', now, 'en')).toContain('yesterday')
+  })
 })

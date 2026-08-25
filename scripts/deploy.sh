@@ -15,14 +15,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Ziel-Remote; für Tests überschreibbar: DEPLOY_REMOTE=sandbox npm run deploy
-REMOTE="${DEPLOY_REMOTE:-origin}"
-BRANCH="gh-pages"
-WORKTREE=".gh-pages"
+# shellcheck source=scripts/gemeinsam.sh
+source "$ROOT/scripts/gemeinsam.sh"
 
-# Öffentliche Adresse des Deployments. Steht auch in src/aktualisierung.ts —
-# die Hülle liegt auf ihrem eigenen https://localhost und braucht sie absolut.
-PAGES_URL="https://neldosik.github.io/radl-nav"
+# Erst prüfen, dann anfassen: das Paket entsteht, nachdem der Inhalt des
+# Arbeitsverzeichnisses bereits ausgetauscht wurde.
+braucht git npm zip
 # Ordner für die Pakete, aus denen sich die Android-Hülle selbst aktualisiert.
 BUNDLE_DIR="bundles"
 # So viele alte Pakete bleiben liegen. Wer eine Weile nicht gestartet hat,

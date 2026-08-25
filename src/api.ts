@@ -66,8 +66,13 @@ export async function geocode(text: string, signal?: AbortSignal): Promise<Geoco
 export async function reverseGeocode(lat: number, lon: number, signal?: AbortSignal): Promise<string | null> {
   const u = new URL(`${MOTIS}/v1/reverse-geocode`)
   u.searchParams.set('place', `${lat},${lon}`)
-  const r = await fetch(u, { signal: withTimeout(signal) })
-  if (!r.ok) throw new Error(`reverse HTTP ${r.status}`)
+  let r: Response
+  try {
+    r = await fetch(u, { signal: withTimeout(signal) })
+  } catch (e) {
+    asApiError(e, 'Adresssuche')
+  }
+  if (!r.ok) throw new ApiError(`reverse HTTP ${r.status}`, 'http', r.status)
   const arr = (await r.json()) as GeocodeMatch[]
   return arr?.[0]?.name ?? null
 }

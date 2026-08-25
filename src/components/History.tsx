@@ -12,6 +12,7 @@ import {
 import { BikeIcon, BookmarkIcon, CloseIcon, TrashIcon } from '../icons'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
+import { co2Label } from '../stats'
 
 interface Props {
   lang?: Language
@@ -33,7 +34,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
   const maxMins = Math.max(1, ...chartData.map(c => c.mins))
   // ohne Antippen bleibt sonst kein einziger Wert sichtbar
   const shownDay = pickedDay ?? chartData.reduce((a, b) => (b.mins > a.mins ? b : a)).day
-  const co2Label = s.co2Grams >= 1000 ? `${(s.co2Grams / 1000).toFixed(1)} kg` : `${s.co2Grams} g`
+  const co2 = co2Label(s.co2Grams, lang)
 
   // Abzeichen — jetzt an dem gemessen, was draufsteht. „50 km" prüfte vorher
   // `bikeMinutes >= 120`, also zwei Stunden statt Kilometern.
@@ -81,7 +82,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
             <div className="eco-banner">
               <span><b>{s.calories}</b> {t('jmCalBurned', lang)}</span>
               <span className="eco-dot" />
-              <span><b>{co2Label}</b> {t('jmCo2Saved', lang)}</span>
+              <span><b>{co2}</b> {t('jmCo2Saved', lang)}</span>
             </div>
 
             {favorite && (
@@ -114,7 +115,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
                           style={{ height: `${Math.max(d.mins > 0 ? 15 : 0, hPct)}%` }}
                         />
                       </div>
-                      <span className="chart-bar-day">{d.day}</span>
+                      <span className="chart-bar-day">{dict[lang].histDay(d.day)}</span>
                     </button>
                   )
                 })}
@@ -140,8 +141,8 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
             {trips.map(tRec => (
               <div className="hist-item" key={tRec.id}>
                 <div className="hist-when">
-                  {whenLabel(tRec.at)}
-                  <span className="hist-exact">{exactWhen(tRec.at)}</span>
+                  {whenLabel(tRec.at, Date.now(), lang)}
+                  <span className="hist-exact">{exactWhen(tRec.at, lang)}</span>
                 </div>
                 <div className="hist-main">
                   <div className="hist-route">

@@ -63,6 +63,13 @@ describe('scheduleReturnReminders', () => {
     expect(meldungen[0]).toContain('Balanstraße')
   })
 
+  it('meldet sich in der eingestellten Sprache', async () => {
+    // Der Text stand vorher fest auf Deutsch — auch bei englischer Oberfläche.
+    await scheduleReturnReminders({ secondsLeft: 60, lang: 'en' })
+    await vi.advanceTimersByTimeAsync(60 * 1000)
+    expect(gezeigt).toEqual(['Free minutes are over'])
+  })
+
   it('ersetzt alte Alarme statt sie zu sammeln', async () => {
     // Etappenwechsel hin und her: sonst feuert es mehrfach.
     await scheduleReturnReminders({ secondsLeft: 600 })

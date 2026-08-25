@@ -1,0 +1,21 @@
+# Aktualisierungen gebündelt einmal die Woche — täglich wären es lauter
+# einzelne PRs für dieselbe Bibliotheksfamilie.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      capacitor:
+        patterns:
+          - '@capacitor*'
+          - '@capgo/*'
+      dev:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

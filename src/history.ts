@@ -1,3 +1,5 @@
+import { dict, locale } from './i18n'
+import type { Language } from './i18n'
 import { CAR_CO2_PER_KM, BIKE_CO2_PER_KM, legCostCent, legKcal } from './stats'
 
 /** Abgeschlossene Fahrten — bleiben nur lokal im Browser. */
@@ -178,23 +180,25 @@ export function topRoute(trips: TripRecord[]): string | null {
 }
 
 /** „vor 5 Min", „gestern", „12.07." — kurze Zeitangabe für die Liste. */
-export function whenLabel(iso: string, now = Date.now()): string {
+export function whenLabel(iso: string, now = Date.now(), lang: Language = 'de'): string {
   const d = new Date(iso)
+  const w = dict[lang] ?? dict.de
+  const uhr = () => d.toLocaleTimeString(locale(lang), { hour: '2-digit', minute: '2-digit' })
   const diffMin = Math.round((now - d.getTime()) / 60000)
-  if (diffMin < 1) return 'gerade eben'
-  if (diffMin < 60) return `vor ${diffMin} Min`
+  if (diffMin < 1) return w.histJustNow
+  if (diffMin < 60) return w.histMinutesAgo(diffMin)
   const sameDay = new Date(now).toDateString() === d.toDateString()
-  if (sameDay) return `heute ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+  if (sameDay) return `${w.histToday} ${uhr()}`
   const yesterday = new Date(now - 86400000).toDateString() === d.toDateString()
-  if (yesterday) return `gestern ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+  if (yesterday) return `${w.histYesterday} ${uhr()}`
+  return d.toLocaleDateString(locale(lang), { day: '2-digit', month: '2-digit' })
 }
 
 /** Volles Datum mit Uhrzeit — „12.07.2026, 14:35". */
-export function exactWhen(iso: string): string {
+export function exactWhen(iso: string, lang: Language = 'de'): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString('de-DE', {
+  return d.toLocaleString(locale(lang), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

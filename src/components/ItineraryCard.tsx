@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
+import { bikeWord, hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink, pickupText } from '../format'
 import { BikeIcon, BoltIcon, ExternalIcon, PinIcon, SendIcon, WalkIcon } from '../icons'
 import { planPickup } from '../geo'
 import { decodePolyline } from '../polyline'
@@ -43,16 +43,6 @@ function BikeLegElevation({ leg, lang }: { leg: Leg; lang: Language }) {
       ↗ +{profile.gain}m · ↘ -{profile.loss}m
     </div>
   )
-}
-
-/** «2 an »A« + 1 an »B« (180 m)» — Entfernung erst ab 60 m, davor ist sie Rauschen. */
-export function pickupText(
-  picks: { station: { name: string }; dist: number; take: number }[],
-  lang: Language = 'de',
-) {
-  return picks
-    .map(p => dict[lang].cardPickupAt(p.take, p.station.name, p.dist > 60 ? Math.round(p.dist) : null))
-    .join(' + ')
 }
 
 interface Props {
@@ -194,7 +184,7 @@ export default function ItineraryCard({
         </div>
         <div className="route-body">
           <div className="route-times">
-            {hm(it.startTime)} → {hm(viewEndTime(view))}
+            {hm(it.startTime, lang)} → {hm(viewEndTime(view), lang)}
           </div>
           <div className={`route-tag ${tagKind}`}>{tagText}</div>
         </div>
@@ -234,7 +224,7 @@ export default function ItineraryCard({
             return (
               <div key={i} className={`leg ${k}`}>
                 <div className="leg-time">
-                  {hm(leg.startTime)}–{hm(leg.endTime)}
+                  {hm(leg.startTime, lang)}–{hm(leg.endTime, lang)}
                 </div>
                 <div className="leg-icon">
                   <KindIcon leg={leg} lang={lang} />

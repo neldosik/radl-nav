@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ItineraryView, Leg } from '../types'
-import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink } from '../format'
+import { hm, legDelayMin, legKind, legLabel, lineShort, mins, nextbikeLink, pickupText } from '../format'
 import {
   BikeIcon,
   BoltIcon,
@@ -25,7 +25,6 @@ import { nextTurn, turnsFromPath } from '../turns'
 import { FREE_LIMIT_SEC, legPath } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
 import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
-import { pickupText } from './ItineraryCard'
 import { playWarningSound } from '../audio'
 import { abbiegeSatz, schweigen, sprechen } from '../sprache'
 import { dict, t } from '../i18n'
@@ -246,6 +245,7 @@ export default function JourneyMode({
     scheduleReturnReminders({
       secondsLeft: Math.max(0, FREE_LIMIT_SEC - verstrichen),
       stationName: b?.endStation?.name ?? null,
+      lang,
     })
     return () => {
       cancelReturnReminders()
@@ -266,7 +266,9 @@ export default function JourneyMode({
       if (soundEnabled) playWarningSound()
       if (navigator.vibrate) navigator.vibrate([400, 100, 400])
     }
-  }, [bikeSec, isBikeLeg])
+    // Beide Warnungen hängen an ihrem Ref und feuern genau einmal — der Effekt
+    // darf deshalb ruhig noch einmal laufen, wenn der Ton umgeschaltet wird.
+  }, [bikeSec, isBikeLeg, soundEnabled])
 
   // ── Standort auf die Etappenlinie projizieren ──
   // Muss vor dem Ankunftsscreen stehen: darunter kehrt die Komponente früh
@@ -513,11 +515,11 @@ export default function JourneyMode({
               <span>kcal{view.hasElectric ? ' (E)' : ''}</span>
             </div>
             <div className="arrive-stat">
-              <b>{co2Label(stats.co2Grams)}</b>
+              <b>{co2Label(stats.co2Grams, lang)}</b>
               <span>CO₂</span>
             </div>
             <div className="arrive-stat">
-              <b>{euro(stats.costCent)}</b>
+              <b>{euro(stats.costCent, lang)}</b>
               <span>{t('jmCost', lang)}</span>
             </div>
           </div>
@@ -766,7 +768,7 @@ export default function JourneyMode({
               ) : null}
             </div>
             <div className="j-legsub">
-              {hm(leg.startTime)} · {fromName} → {toName}
+              {hm(leg.startTime, lang)} · {fromName} → {toName}
             </div>
           </div>
         </div>

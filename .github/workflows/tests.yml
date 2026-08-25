@@ -16,13 +16,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci
 
       - name: Typen prüfen
-        run: npx tsc -b
+        run: npm run typecheck
 
       - name: Lint
         run: npm run lint
@@ -32,3 +32,37 @@ jobs:
 
       - name: Produktionsbündel bauen
         run: npm run build
+
+  android:
+    name: Android-Hülle bauen
+    runs-on: ubuntu-latest
+
+    steps:
+      # Volle Historie: versionCode zählt die Commits, bei einem flachen Klon
+      # käme jede APK als Version 1 heraus.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      # Die Hülle bekam Änderungen an Plugins und Gradle-Dateien bisher erst
+      # auf dem Rechner zu sehen, auf dem jemand zufällig eine APK baute.
+      - name: Webteil bauen und übertragen
+        run: |
+          npm run build
+          npx cap sync android
+
+      - name: Debug-APK bauen
+        run: ./gradlew --no-daemon assembleDebug
+        working-directory: android

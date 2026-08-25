@@ -35,10 +35,16 @@ Deutschsprachige Oberfläche mit englischer Umschaltung. Gestaltungsvariablen in
 
 ## Entwicklung
 
+Node 22 — die Version steht in `.nvmrc`, `nvm use` genügt. Unter Node 20
+brechen `lint` und `build` ab: die nativen Teile von oxlint und rolldown gibt
+es für diese Zeile nicht.
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173/
-npm test           # 126 Tests der Rechenlogik (vitest)
+npm test           # 273 Tests der Rechenlogik (vitest)
+npm run typecheck  # tsc -b, dieselbe Prüfung wie in der CI
+npm run lint       # oxlint
 npm run build      # Produktionsbündel nach dist/
 ```
 

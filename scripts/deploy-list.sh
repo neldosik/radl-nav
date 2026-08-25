@@ -5,10 +5,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-if [ ! -e ".gh-pages/.git" ]; then
+# shellcheck source=scripts/gemeinsam.sh
+source "$ROOT/scripts/gemeinsam.sh"
+
+if [ ! -e "$WORKTREE/.git" ]; then
   echo "Kein gh-pages-Arbeitsverzeichnis. Einmal 'npm run deploy' laufen lassen." >&2
   exit 1
 fi
 
-git -C .gh-pages fetch "${DEPLOY_REMOTE:-origin}" gh-pages --quiet
-git -C .gh-pages log --format='%C(auto)%h  %ad  %s' --date=format:'%d.%m. %H:%M' -20 "${DEPLOY_REMOTE:-origin}"/gh-pages
+git -C "$WORKTREE" fetch "$REMOTE" "$BRANCH" --quiet
+git -C "$WORKTREE" log --format='%C(auto)%h  %ad  %s' --date=format:'%d.%m. %H:%M' -20 "$REMOTE/$BRANCH"
