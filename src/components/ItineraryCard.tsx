@@ -255,7 +255,7 @@ export default function ItineraryCard({
                         <div className="bike-warn">{t('cardReturnWarn', lang)}</div>
                       ) : bike.endStation ? (
                         <div className="pickup-info">
-                          <PinIcon size={12} /> {t('cardReturn', lang)}: »{bike.endStation.name}«
+                          <PinIcon size={12} /> {t('cardReturn', lang)}: {dict[lang].quote(bike.endStation.name)}
                           {bike.returnSnapped ? ` (+${bike.returnDetourM} m)` : ''}
                         </div>
                       ) : null}

@@ -220,6 +220,8 @@ export const dict = {
     jmFreeFloating: 'Freistehendes Rad',
     jmSwapAt: (station: string) => `Rad wechseln bei »${station}« — bleibt gratis`,
     jmReturnStation: (station: string, m: number) => `»${station}« (+${m} m)`,
+    /** Anführungszeichen um einen Namen — im Englischen sind es andere. */
+    quote: (text: string) => `»${text}«`,
     jmOnlyXofY: (got: number, need: number, art: string, e: number, c: number) =>
       `Nur ${got} von ${need} ${art} · ${e} E-Bikes, ${c} Standard in der Nähe`,
     jmPickupPlan: (need: number, art: string, plan: string) => `${need} ${art}: ${plan}`,
@@ -476,6 +478,7 @@ export const dict = {
     jmFreeFloating: 'Free-floating bike',
     jmSwapAt: (station: string) => `Swap bikes at “${station}” — stays free`,
     jmReturnStation: (station: string, m: number) => `“${station}” (+${m} m)`,
+    quote: (text: string) => `“${text}”`,
     jmOnlyXofY: (got: number, need: number, art: string, e: number, c: number) =>
       `Only ${got} of ${need} ${art} · ${e} e-bikes, ${c} standard nearby`,
     jmPickupPlan: (need: number, art: string, plan: string) => `${need} ${art}: ${plan}`,

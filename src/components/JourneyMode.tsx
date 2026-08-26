@@ -716,7 +716,7 @@ export default function JourneyMode({
               </div>
             ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
               <div className="timer-banner urgent">
-                <TargetIcon size={14} /> {t('jmExitNext', lang)} »{toName}«
+                <TargetIcon size={14} /> {t('jmExitNext', lang)} {dict[lang].quote(toName)}
               </div>
             ) : null}
           </div>
