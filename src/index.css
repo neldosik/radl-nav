@@ -658,9 +658,13 @@ button {
   font-weight: 600;
 }
 
+/* Auf dem weichen Petrol-Grund reicht `--accent` nicht mehr: der Grund zieht
+   den Untergrund dunkler, der Kontrast fällt auf 4,4:1 und damit unter AA.
+   `--accent-deep` ist dieselbe Farbe, nur eine Stufe tiefer. */
 .quick-preset-chip.smart-commute {
   border-color: var(--accent);
   background: var(--accent-soft);
+  color: var(--accent-deep);
 }
 
 /* „passt gerade": kleiner Punkt statt Blitz-Emoji */
@@ -1096,7 +1100,7 @@ button {
 
 .badge-highlight.fastest {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .badge-highlight.free {
@@ -1277,7 +1281,7 @@ button {
   padding: 0 12px;
   border-radius: 14px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-deep);
   font-size: calc(13px * var(--ts));
   font-weight: 700;
 }
@@ -1415,8 +1419,10 @@ button {
   display: block;
 }
 
+/* Volles Weiß: mit 85 % Deckung sank der Kontrast auf dem Petrol unter AA —
+   die kleine Beschriftung war genau die, die man nachlesen will. */
 .hist-stat.accent .hist-cap {
-  color: rgba(255, 255, 255, 0.85);
+  color: #fff;
 }
 
 /* Wochendiagramm */
@@ -3081,9 +3087,10 @@ button {
   color: var(--accent);
 }
 
+/* Ohne zusätzliche Transparenz: `--faint` liegt knapp über AA, die 0,8 zogen
+   es darunter. Abgeblendet wirkt die Plakette schon durch Farbe und Rahmen. */
 .achieve-badge.locked {
   color: var(--faint);
-  opacity: 0.8;
 }
 
 /* Rat zur Fahrt — Uhrzeit der Vorhersage plus Empfehlung */
@@ -3423,6 +3430,15 @@ button {
   margin-top: 8px;
   white-space: pre-wrap;
   color: var(--faint);
+}
+
+/* Rückmeldung des Kopierknopfs — nimmt keinen Platz weg, solange sie leer ist. */
+.diag-hinweis {
+  margin-top: 6px;
+  min-height: calc(15px * var(--ts));
+  font-size: calc(12px * var(--ts));
+  color: var(--faint);
+  text-align: center;
 }
 
 

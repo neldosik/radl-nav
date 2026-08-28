@@ -529,16 +529,28 @@ export default function App() {
   // ihre tatsächliche Höhe nach `--tabbar-h` — der Platz, den `.app.with-tabs`
   // unten frei hält, kann damit nicht mehr von der Leiste abweichen.
   const tabBar = (
-    <nav className="tabbar" ref={leisteMessen}>
-      <button className={`tab${tab === 'route' ? ' on' : ''}`} onClick={() => setTab('route')}>
+    <nav className="tabbar" ref={leisteMessen} aria-label={t('tabbarLabel', lang)}>
+      <button
+        className={`tab${tab === 'route' ? ' on' : ''}`}
+        aria-current={tab === 'route' ? 'page' : undefined}
+        onClick={() => setTab('route')}
+      >
         <SendIcon size={21} />
         {t('tabRoute', lang)}
       </button>
-      <button className={`tab${tab === 'bikes' ? ' on' : ''}`} onClick={() => setTab('bikes')}>
+      <button
+        className={`tab${tab === 'bikes' ? ' on' : ''}`}
+        aria-current={tab === 'bikes' ? 'page' : undefined}
+        onClick={() => setTab('bikes')}
+      >
         <BikeIcon size={21} />
         {t('tabBikes', lang)}
       </button>
-      <button className={`tab${tab === 'trips' ? ' on' : ''}`} onClick={() => setTab('trips')}>
+      <button
+        className={`tab${tab === 'trips' ? ' on' : ''}`}
+        aria-current={tab === 'trips' ? 'page' : undefined}
+        onClick={() => setTab('trips')}
+      >
         <BookmarkIcon size={21} />
         {t('tabTrips', lang)}
       </button>
@@ -588,12 +600,19 @@ export default function App() {
           <span className="poster-name">Radl Navi</span>
         </div>
         <div className="header-menu-container">
-          <button className="header-menu-btn" onClick={toggleLang} title={t('langToggle', lang)}>
+          <button
+            className="header-menu-btn"
+            onClick={toggleLang}
+            aria-label={t('langToggle', lang)}
+            title={t('langToggle', lang)}
+          >
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
           <button
             className="header-menu-btn"
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+            aria-expanded={showHeaderMenu}
+            aria-haspopup="menu"
             aria-label={t('menuTitle', lang)}
             title={t('menuTitle', lang)}
           >
@@ -679,7 +698,12 @@ export default function App() {
               onSelect={setTo}
               onPickOnMap={() => setPickOnMap('to')}
             />
-            <button className="btn-swap" onClick={swap} title={t('swapPlaces', lang)}>
+            <button
+              className="btn-swap"
+              onClick={swap}
+              aria-label={t('swapPlaces', lang)}
+              title={t('swapPlaces', lang)}
+            >
               <SwapIcon size={16} />
             </button>
           </div>
@@ -732,8 +756,18 @@ export default function App() {
           )}
 
         </div>
-        {presetHint && <div className="preset-hint">{presetHint}</div>}
-        {geoHint && <div className="preset-hint warn">{geoHint}</div>}
+        {/* Beides sind Antworten auf einen Knopfdruck. Ohne Meldebereich sagt
+            ein Vorleseprogramm gar nichts — der Knopf wäre dann wirkungslos. */}
+        {presetHint && (
+          <div className="preset-hint" role="status" aria-live="polite">
+            {presetHint}
+          </div>
+        )}
+        {geoHint && (
+          <div className="preset-hint warn" role="status" aria-live="polite">
+            {geoHint}
+          </div>
+        )}
 
         <div className="controls">
           {/* Reihe 1: Zeitwahl über die volle Breite, rechts zwei runde Knöpfe */}
@@ -743,6 +777,7 @@ export default function App() {
                 <button
                   key={m}
                   className={`seg-btn${timeMode === m ? ' on' : ''}`}
+                  aria-pressed={timeMode === m}
                   onClick={() => pickTimeMode(m)}
                 >
                   {m === 'now' ? t('now', lang) : m === 'depart' ? t('depart', lang) : t('arrive', lang)}
@@ -855,7 +890,10 @@ export default function App() {
         </div>
       )}
 
-      <section className="results">
+      {/* Die Liste füllt sich später, ohne dass sich der Fokus bewegt: „rechne
+          …", „nichts gefunden" oder die fertigen Vorschläge müssen deshalb
+          angesagt werden. `aria-busy` unterdrückt Zwischenstände. */}
+      <section className="results" aria-live="polite" aria-busy={loading}>
         {/* Ohne diesen Hinweis blieb die alte Liste kommentarlos stehen, wenn man
             im Filter etwas umstellte oder ein anderes Ziel wählte — im
             schlimmsten Fall fuhr man mit „LOS" zum vorherigen Ziel. */}
@@ -866,7 +904,7 @@ export default function App() {
           </button>
         )}
         {errorKey && (
-          <div className="msg error">
+          <div className="msg error" role="alert">
             {t(errorKey, lang)}
             <button className="retry-btn" onClick={() => search()}>{t('retry', lang)}</button>
           </div>
@@ -876,9 +914,13 @@ export default function App() {
             {t('welcomeMsg', lang)}
           </div>
         )}
-        {loading && <div className="msg">{t('calculating', lang)}</div>}
+        {loading && (
+          <div className="msg" role="status">
+            {t('calculating', lang)}
+          </div>
+        )}
         {views && views.length === 0 && (
-          <div className="msg">
+          <div className="msg" role="status">
             {t('noRoutesFound', lang)}
           </div>
         )}
