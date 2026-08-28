@@ -30,6 +30,18 @@ export function applyDocumentLang(lang: Language) {
 }
 
 /**
+ * Gebietsschema für Zahlen, Zeiten und Datumsangaben.
+ *
+ * `en-GB` und nicht `en-US`: die App bedient München, und dort ist 14:35 die
+ * Uhrzeit — auch für englischsprachige Fahrgäste steht sie so am Bahnsteig.
+ * Vorher stand überall fest `de-DE`, sodass Zeiten und Preise deutsch
+ * formatiert blieben, während die Oberfläche englisch war.
+ */
+export function locale(lang: Language): string {
+  return lang === 'en' ? 'en-GB' : 'de-DE'
+}
+
+/**
  * Alle sichtbaren Texte an einer Stelle.
  *
  * Beide Wörterbücher haben denselben Satz Schlüssel — `i18n.test.ts` prüft das,
@@ -208,6 +220,8 @@ export const dict = {
     jmFreeFloating: 'Freistehendes Rad',
     jmSwapAt: (station: string) => `Rad wechseln bei »${station}« — bleibt gratis`,
     jmReturnStation: (station: string, m: number) => `»${station}« (+${m} m)`,
+    /** Anführungszeichen um einen Namen — im Englischen sind es andere. */
+    quote: (text: string) => `»${text}«`,
     jmOnlyXofY: (got: number, need: number, art: string, e: number, c: number) =>
       `Nur ${got} von ${need} ${art} · ${e} E-Bikes, ${c} Standard in der Nähe`,
     jmPickupPlan: (need: number, art: string, plan: string) => `${need} ${art}: ${plan}`,
@@ -257,6 +271,16 @@ export const dict = {
     histToday: 'heute',
     histYesterday: 'gestern',
     histMinutesAgo: (min: number) => `vor ${min} Min`,
+    histJustNow: 'gerade eben',
+    histDay: (tag: string) => tag,
+
+    // ── Systemmeldungen (Rückgabe-Erinnerung) ──
+    // Die einzigen Texte, die bei ausgeschaltetem Bildschirm ankommen.
+    notifyWarnTitle: 'Noch 5 Minuten frei',
+    notifyWarnBody: (station: string) => `Gleich läuft das kostenlose Fenster ab.${station}`,
+    notifyDueTitle: 'Freiminuten sind um',
+    notifyDueBody: (station: string) => `Ab jetzt kostet die Ausleihe.${station}`,
+    notifyReturnAt: (station: string) => ` Rückgabe: »${station}«.`,
 
     // ── Ortseingabe ──
     myLocation: 'Mein Standort',
@@ -454,6 +478,7 @@ export const dict = {
     jmFreeFloating: 'Free-floating bike',
     jmSwapAt: (station: string) => `Swap bikes at “${station}” — stays free`,
     jmReturnStation: (station: string, m: number) => `“${station}” (+${m} m)`,
+    quote: (text: string) => `“${text}”`,
     jmOnlyXofY: (got: number, need: number, art: string, e: number, c: number) =>
       `Only ${got} of ${need} ${art} · ${e} e-bikes, ${c} standard nearby`,
     jmPickupPlan: (need: number, art: string, plan: string) => `${need} ${art}: ${plan}`,
@@ -503,6 +528,16 @@ export const dict = {
     histToday: 'today',
     histYesterday: 'yesterday',
     histMinutesAgo: (min: number) => `${min} min ago`,
+    histJustNow: 'just now',
+    histDay: (tag: string) =>
+      ({ Mo: 'Mon', Di: 'Tue', Mi: 'Wed', Do: 'Thu', Fr: 'Fri', Sa: 'Sat', So: 'Sun' })[tag] ?? tag,
+
+    // ── System notifications (return reminder) ──
+    notifyWarnTitle: '5 free minutes left',
+    notifyWarnBody: (station: string) => `The free window ends shortly.${station}`,
+    notifyDueTitle: 'Free minutes are over',
+    notifyDueBody: (station: string) => `The rental costs money from now on.${station}`,
+    notifyReturnAt: (station: string) => ` Return at “${station}”.`,
 
     // ── Place input ──
     myLocation: 'My location',

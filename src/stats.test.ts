@@ -153,6 +153,13 @@ describe('Formatierung', () => {
     expect(co2Label(380)).toBe('380 g')
     expect(co2Label(1240)).toBe('1,2 kg')
   })
+
+  it('folgt der eingestellten Sprache — Punkt statt Komma auf Englisch', () => {
+    // Vorher stand das deutsche Format fest im Code: die englische Oberfläche
+    // zeigte »1,50 €« und »1,2 kg«.
+    expect(euro(150, 'en')).toBe('1.50 €')
+    expect(co2Label(1240, 'en')).toBe('1.2 kg')
+  })
 })
 
 describe('Freiminuten hängen am ÖPNV-Abo', () => {

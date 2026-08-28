@@ -281,7 +281,13 @@ export function watchPosition(
         }
         notiere('verfolge über die Browser-Ortung')
         const webId = navigator.geolocation.watchPosition(
-          pos =>
+          // Wie im nativen Rückruf: der Wachhund muss auch hier abgeräumt
+          // werden, sonst meldet er nach 25 s „keine Messung", während der
+          // Browserweg längst Koordinaten liefert.
+          pos => (
+            (kamSchonEinFix = true),
+            taktMerken(),
+            clearTimeout(wachhund),
             onFix({
               lat: pos.coords.latitude,
               lon: pos.coords.longitude,
@@ -289,7 +295,8 @@ export function watchPosition(
               heading: pos.coords.heading ?? undefined,
               speed: pos.coords.speed ?? undefined,
               at: Date.now(),
-            }),
+            })
+          ),
           err => {
             merkeFehler(`web ${err.code}: ${err.message}`)
             onError(err.code === err.PERMISSION_DENIED ? 'denied' : 'lost')

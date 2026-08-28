@@ -231,11 +231,14 @@ export default function BikeMap({
     }
     m.on('moveend', onMoveEnd)
     map.current = m
+    // Das Set festhalten, solange der Effekt läuft: im Aufräumen zeigt das Ref
+    // womöglich schon auf ein anderes.
+    const ids = iconIds.current
     return () => {
       m.off('moveend', onMoveEnd)
       m.remove()
       map.current = null
-      iconIds.current.clear()
+      ids.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

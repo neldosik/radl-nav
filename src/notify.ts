@@ -16,6 +16,9 @@
  *     keine Nachlässigkeit.
  */
 
+import { dict } from './i18n'
+import type { Language } from './i18n'
+
 /** Kennungen, damit sich Alarme gezielt wieder abräumen lassen. */
 const ID_WARN = 4711
 const ID_DUE = 4712
@@ -81,6 +84,9 @@ export interface ReturnReminderOpts {
   warnBeforeSec?: number
   /** Name der Rückgabestation, falls bekannt — kommt in den Meldungstext. */
   stationName?: string | null
+  /** Sprache der Meldung. Sie erscheint außerhalb der App, wo `t()` sonst
+   *  nirgends hinreicht — vorher war sie immer deutsch. */
+  lang?: Language
 }
 
 /**
@@ -88,17 +94,18 @@ export interface ReturnReminderOpts {
  * Alarme — sonst sammeln sich bei jedem Etappenwechsel weitere an.
  */
 export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise<void> {
-  const { secondsLeft, warnBeforeSec = 5 * 60, stationName } = opts
+  const { secondsLeft, warnBeforeSec = 5 * 60, stationName, lang = 'de' } = opts
   await cancelReturnReminders()
   if (secondsLeft <= 0) return
   const meine = ++generation
 
-  const at = stationName ? ` Rückgabe: »${stationName}«.` : ''
+  const w = dict[lang] ?? dict.de
+  const at = stationName ? w.notifyReturnAt(stationName) : ''
   const warnIn = secondsLeft - warnBeforeSec
-  const warnTitle = 'Noch 5 Minuten frei'
-  const warnBody = `Gleich läuft das kostenlose Fenster ab.${at}`
-  const dueTitle = 'Freiminuten sind um'
-  const dueBody = `Ab jetzt kostet die Ausleihe.${at}`
+  const warnTitle = w.notifyWarnTitle
+  const warnBody = w.notifyWarnBody(at)
+  const dueTitle = w.notifyDueTitle
+  const dueBody = w.notifyDueBody(at)
 
   if (isNative()) {
     try {

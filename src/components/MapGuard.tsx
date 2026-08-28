@@ -2,6 +2,7 @@ import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
+import { hasWebGL } from '../webgl'
 
 /**
  * Schutz um jede Karte.
@@ -15,28 +16,10 @@ import type { Language } from '../i18n'
  * Alles außer der Karte hängt nicht an WebGL — Verbindungen, Abfahrtszeiten,
  * Stationsbestand, der ganze Los-Modus mit Ausnahme des Kartenbilds. Das soll
  * weiterlaufen, auch wenn die Karte nicht kann.
+ *
+ * Die Prüfung selbst steht in `src/webgl.ts` — hier hätte sie den Fast Refresh
+ * der Komponente gekostet.
  */
-
-/** Kann dieser Browser WebGL? Einmal geprüft und gemerkt. */
-let webglOk: boolean | null = null
-
-export function hasWebGL(): boolean {
-  if (webglOk !== null) return webglOk
-  try {
-    const c = document.createElement('canvas')
-    const gl =
-      c.getContext('webgl2') ||
-      c.getContext('webgl') ||
-      c.getContext('experimental-webgl')
-    webglOk = !!gl
-    // Kontext sofort wieder freigeben, es gibt nur eine Handvoll davon
-    const lose = (gl as WebGLRenderingContext | null)?.getExtension('WEBGL_lose_context')
-    lose?.loseContext()
-  } catch {
-    webglOk = false
-  }
-  return webglOk
-}
 
 function Hinweis({ lang }: { lang: Language }) {
   return (

@@ -13,10 +13,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Ziel-Remote; für Tests überschreibbar: DEPLOY_REMOTE=sandbox npm run deploy
-REMOTE="${DEPLOY_REMOTE:-origin}"
-BRANCH="gh-pages"
-WORKTREE=".gh-pages"
+# shellcheck source=scripts/gemeinsam.sh
+source "$ROOT/scripts/gemeinsam.sh"
 
 if [ ! -e "$WORKTREE/.git" ]; then
   echo "Kein gh-pages-Arbeitsverzeichnis. Einmal 'npm run deploy' laufen lassen." >&2
@@ -65,4 +63,4 @@ git -C "$WORKTREE" push "$REMOTE" "$BRANCH"
 
 echo
 echo "✓ Zurückgesetzt: $(git -C "$WORKTREE" rev-parse --short HEAD)"
-echo "  https://neldosik.github.io/radl-nav/ (GitHub Pages braucht ~1 Min)"
+echo "  $PAGES_URL/ (GitHub Pages braucht ~1 Min)"

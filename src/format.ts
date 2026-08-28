@@ -1,11 +1,21 @@
-import { t } from './i18n'
+import { dict, locale, t } from './i18n'
 import type { Language } from './i18n'
 import type { Itinerary, Leg } from './types'
 
 export const mins = (sec: number) => Math.max(1, Math.round(sec / 60))
 
-export const hm = (iso: string) =>
-  new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+export const hm = (iso: string, lang: Language = 'de') =>
+  new Date(iso).toLocaleTimeString(locale(lang), { hour: '2-digit', minute: '2-digit' })
+
+/** «2 an »A« + 1 an »B« (180 m)» — Entfernung erst ab 60 m, davor ist sie Rauschen. */
+export function pickupText(
+  picks: { station: { name: string }; dist: number; take: number }[],
+  lang: Language = 'de',
+): string {
+  return picks
+    .map(p => dict[lang].cardPickupAt(p.take, p.station.name, p.dist > 60 ? Math.round(p.dist) : null))
+    .join(' + ')
+}
 
 /** 1 Rad, 2 Räder — bzw. 1 bike, 2 bikes. */
 export const bikeWord = (n: number, lang: Language = 'de') =>

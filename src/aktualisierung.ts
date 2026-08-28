@@ -52,6 +52,18 @@ const MANIFEST_URL = 'https://neldosik.github.io/radl-nav/updates.json'
 /** Höchstens einmal pro Stunde nachsehen. */
 const PAUSE_MS = 60 * 60_000
 
+/** Nach einem Fehlschlag früher wieder nachsehen — kein Netz ist kein Grund,
+ *  eine Stunde zu warten. */
+const FEHLER_PAUSE_MS = 5 * 60_000
+
+/** Frist für das Manifest. Ohne sie hängt ein stiller Mobilfunkzugang die
+ *  Prüfung endlos auf, und die App wüsste nie, dass sie erfolglos war. */
+const MANIFEST_FRIST_MS = 10_000
+
+function manifestHolen(): Promise<Response> {
+  return fetch(MANIFEST_URL, { cache: 'no-store', signal: AbortSignal.timeout(MANIFEST_FRIST_MS) })
+}
+
 /** Was in `updates.json` steht. */
 export interface Standmeldung {
   version: string
@@ -115,16 +127,18 @@ export async function nachAktualisierungSehen(erzwingen = false): Promise<Ergebn
   if (fahrtLaeuft()) return 'aus'
   if (!erzwingen && schlechteLeitung()) return 'aus'
   if (!erzwingen && Date.now() - zuletztGesehen < PAUSE_MS) return 'aus'
+  // Sofort setzen, damit zwei Aufrufe kurz hintereinander nicht beide laufen;
+  // scheitert die Prüfung, wird die Pause unten wieder verkürzt.
   zuletztGesehen = Date.now()
 
   try {
     const { CapacitorUpdater } = await import('@capgo/capacitor-updater')
     const [antwort, jetzt, liste] = await Promise.all([
-      fetch(MANIFEST_URL, { cache: 'no-store' }),
+      manifestHolen(),
       CapacitorUpdater.current(),
       CapacitorUpdater.list().catch(() => ({ bundles: [] })),
     ])
-    if (!antwort.ok) return 'fehler'
+    if (!antwort.ok) return fehlgeschlagen()
     const meldung = (await antwort.json()) as Standmeldung
 
     const was = brauchtPaket(meldung, jetzt.bundle.version, liste.bundles)
@@ -137,8 +151,14 @@ export async function nachAktualisierungSehen(erzwingen = false): Promise<Ergebn
   } catch {
     // Kein Netz, kaputtes Manifest, fehlendes Plugin — alles derselbe Fall:
     // die App läuft mit dem Stand weiter, den sie hat.
-    return 'fehler'
+    return fehlgeschlagen()
   }
+}
+
+/** Fehlschlag vermerken und die Sperre auf die kurze Pause zurückstellen. */
+function fehlgeschlagen(): Ergebnis {
+  zuletztGesehen = Date.now() - (PAUSE_MS - FEHLER_PAUSE_MS)
+  return 'fehler'
 }
 
 /**
@@ -164,7 +184,7 @@ export async function aktualisierungBericht(): Promise<string> {
     const was = await nachAktualisierungSehen(true)
     zeilen.push(`prüfung    ${was}`)
 
-    const antwort = await fetch(MANIFEST_URL, { cache: 'no-store' })
+    const antwort = await manifestHolen()
     if (antwort.ok) {
       const m = (await antwort.json()) as Standmeldung & { commit?: string; built?: string }
       zeilen.push(`server     ${m.version}  ${m.commit ?? ''} ${m.built ?? ''}`.trimEnd())

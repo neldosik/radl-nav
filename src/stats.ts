@@ -1,3 +1,5 @@
+import { locale } from './i18n'
+import type { Language } from './i18n'
 import type { ItineraryView, Leg } from './types'
 
 /**
@@ -153,13 +155,15 @@ export function viewStats(view: ItineraryView, weightKg = DEFAULT_WEIGHT_KG, abo
   return rideStats(rideLegsOf(view), weightKg, abo)
 }
 
-/** „1,50 €" / „0 €" — deutsche Schreibweise. */
-export function euro(cent: number): string {
+/** „1,50 €" bzw. „1.50 €" — Dezimalzeichen nach Sprache. */
+export function euro(cent: number, lang: Language = 'de'): string {
   if (cent === 0) return '0 €'
-  return `${(cent / 100).toFixed(2).replace('.', ',')} €`
+  return `${(cent / 100).toLocaleString(locale(lang), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
 /** „380 g" bzw. „1,2 kg". */
-export function co2Label(grams: number): string {
-  return grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.', ',')} kg` : `${grams} g`
+export function co2Label(grams: number, lang: Language = 'de'): string {
+  if (grams < 1000) return `${grams} g`
+  const kg = (grams / 1000).toLocaleString(locale(lang), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  return `${kg} kg`
 }
