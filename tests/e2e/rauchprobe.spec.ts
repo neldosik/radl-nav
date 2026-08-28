@@ -78,6 +78,28 @@ test('zeigt das Fahrtenbuch und erlaubt die Sicherung', async ({ page }) => {
   expect((await download).suggestedFilename()).toMatch(/^radl-fahrten-\d{4}-\d{2}-\d{2}\.json$/)
 })
 
+/**
+ * maplibre 6 lädt seinen Arbeiter als eigene Datei nach. Fehlt sie im Bündel,
+ * bleibt die Karte weiß und meldet nichts — der Fehler steht nur als 404 im
+ * Netzprotokoll. Genau danach wird hier gesehen.
+ */
+test('lädt die Karte samt ihrem Arbeiter', async ({ page }, testInfo) => {
+  const eigen = new URL(testInfo.project.use.baseURL ?? 'http://localhost').origin
+  const kaputt: string[] = []
+  page.on('response', r => {
+    if (r.url().startsWith(eigen) && !r.ok()) kaputt.push(`${r.status()} ${r.url()}`)
+  })
+  page.on('requestfailed', r => {
+    if (r.url().startsWith(eigen)) kaputt.push(`${r.failure()?.errorText} ${r.url()}`)
+  })
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Räder', exact: true }).click()
+
+  await expect(page.locator('canvas').first()).toBeVisible()
+  expect(kaputt).toEqual([])
+})
+
 test('wechselt die Stadt und fragt dort keine Münchner Meldungen ab', async ({ page }) => {
   const mvg: string[] = []
   page.on('request', r => {

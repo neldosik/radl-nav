@@ -171,6 +171,11 @@ export function euro(cent: number, lang: Language = 'de'): string {
   return `${(cent / 100).toLocaleString(locale(lang), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
+/** „15,7" bzw. „15.7" — Dezimalzeichen nach Sprache. */
+export function kilometer(km: number, lang: Language = 'de'): string {
+  return km.toLocaleString(locale(lang), { maximumFractionDigits: 1 })
+}
+
 /** „380 g" bzw. „1,2 kg". */
 export function co2Label(grams: number, lang: Language = 'de'): string {
   if (grams < 1000) return `${grams} g`

@@ -10,6 +10,7 @@ import { useBackGuard } from '../hooks/useBackGuard'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
+import { kartenArbeiterEinrichten } from '../kartenarbeiter'
 
 interface Props {
   /** Kurze Bezeichnung über dem Namen: „Startpunkt" oder „Zielpunkt". */
@@ -70,6 +71,7 @@ export default function MapPicker({
 
   useEffect(() => {
     if (!canvas.current || map.current) return
+    kartenArbeiterEinrichten()
     kachelpufferEinrichten(maplibregl.addProtocol)
     const m = new maplibregl.Map({
       container: canvas.current,

@@ -27,8 +27,16 @@ const GRENZEN = {
   einstieg: 125,
   /** Der größte einzeln nachgeladene Teil (heute der Kartenstil). */
   groessterTeil: 320,
-  /** Summe über alles Gebaute. */
-  gesamt: 420,
+  /**
+   * Summe über alles Gebaute.
+   *
+   * Seit maplibre 6 steckt der Kartenarbeiter in einer eigenen Datei statt
+   * im Hauptbündel. Er bringt denselben Unterbau (`maplibre-gl-shared`) ein
+   * zweites Mal mit — anders geht es nicht, ein Worker kann sich nichts aus
+   * dem Fenster ausleihen. Rund 130 kB gzip, die erst beim Öffnen der Karte
+   * geladen und danach gepuffert werden; der Einstieg bleibt unberührt.
+   */
+  gesamt: 560,
 }
 
 const kb = (bytes) => Math.round((bytes / 1024) * 10) / 10

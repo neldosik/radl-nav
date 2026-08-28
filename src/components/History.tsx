@@ -20,7 +20,7 @@ import {
   sicherungEinlesen,
   sicherungErzeugen,
 } from '../sicherung'
-import { co2Label, preisBekannt } from '../stats'
+import { co2Label, kilometer, preisBekannt } from '../stats'
 
 interface Props {
   lang?: Language
@@ -114,7 +114,7 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
             <span className="hist-cap">{t('histBikeMin', lang)}</span>
           </div>
           <div className="hist-stat accent">
-            <span className="hist-num">{preisBekannt() ? `${s.savedEuro} €` : s.bikeKm}</span>
+            <span className="hist-num">{preisBekannt() ? `${s.savedEuro} €` : kilometer(s.bikeKm, lang)}</span>
             <span className="hist-cap">{t(preisBekannt() ? 'histSaved' : 'histKm', lang)}</span>
           </div>
         </div>
