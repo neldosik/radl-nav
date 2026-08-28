@@ -30,6 +30,8 @@ import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
 import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, RainIcon, SendIcon, SettingsIcon, ShareIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
+import { ladeStoerungen, stoerungenFuerEtappen } from './stoerungen'
+import type { Stoerung } from './stoerungen'
 import { standAusParams, suchUrl, teilen } from './verweis'
 import type { SuchStand } from './verweis'
 import type { ItineraryView, Place } from './types'
@@ -93,6 +95,7 @@ export default function App() {
   const [favRoutes, setFavRoutes] = useState<FavRoute[]>(() => loadFavRoutes())
   const [showWeatherModal, setShowWeatherModal] = useState(false)
   const [nowTick, setNowTick] = useState(Date.now())
+  const [stoerungen, setStoerungen] = useState<Stoerung[]>([])
   const [pickOnMap, setPickOnMap] = useState<'from' | 'to' | null>(null)
   /** Untere Reiter: Route (Suche), Räder (Karte), Fahrten (Verlauf) */
   const [tab, setTab] = useState<'route' | 'bikes' | 'trips'>('route')
@@ -242,6 +245,17 @@ export default function App() {
     if (!views) return
     const id = window.setInterval(() => setNowTick(Date.now()), 30000)
     return () => window.clearInterval(id)
+  }, [views])
+
+  // Störungsmeldungen erst zu den Ergebnissen holen: ohne Route gibt es keine
+  // Linie, zu der sie passen könnten.
+  useEffect(() => {
+    if (!views?.length) return
+    const ctrl = new AbortController()
+    ladeStoerungen(ctrl.signal).then(liste => {
+      if (!ctrl.signal.aborted) setStoerungen(liste)
+    })
+    return () => ctrl.abort()
   }, [views])
 
   useEffect(() => {
@@ -427,6 +441,7 @@ export default function App() {
           startedAt={startedAt}
           arrived={arrived}
           soundEnabled={soundEnabled}
+          stoerungen={stoerungen}
           lang={lang}
           routeLabel={(from ? shortPlace(from) : '') + ' → ' + (to ? shortPlace(to) : '')}
           onPrev={() => journey.goTo(journeyLeg - 1)}
@@ -941,6 +956,7 @@ export default function App() {
                   isFastest={isFastest}
                   isFree={isFree}
                   isFewestTransfers={isFewestTransfers}
+                  stoerungen={stoerungenFuerEtappen(v.it.legs, stoerungen, nowTick)}
                   lang={lang}
                   onSelect={() => setSel(i)}
                   onGo={() => {

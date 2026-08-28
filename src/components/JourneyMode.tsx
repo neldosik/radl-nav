@@ -29,6 +29,8 @@ import { playWarningSound } from '../audio'
 import { abbiegeSatz, schweigen, sprechen } from '../sprache'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
+import { stoerungenFuerEtappen } from '../stoerungen'
+import type { Stoerung } from '../stoerungen'
 
 /** So viele Messungen hintereinander, bevor der Hinweis kommt. Der Abstand
  *  selbst richtet sich nach der Genauigkeit — siehe `abseitsSchwelle`. */
@@ -69,6 +71,8 @@ interface Props {
   startedAt: number | null
   arrived: boolean
   soundEnabled: boolean
+  /** Meldungen zu den Linien dieser Route (MVG). */
+  stoerungen?: Stoerung[]
   lang?: Language
   routeLabel: string
   onPrev: () => void
@@ -129,6 +133,7 @@ export default function JourneyMode({
   startedAt,
   arrived,
   soundEnabled,
+  stoerungen = [],
   lang = 'de',
   routeLabel,
   onPrev,
@@ -610,6 +615,8 @@ export default function JourneyMode({
   /** Wie viele halbe Stunden das E-Bike bereits gekostet hat. */
   const ebikeStufen = b?.electric ? Math.floor(bikeSec / STUFE_SEC) + 1 : 0
   const isNearDropoff = isBikeLeg && distToEnd != null && distToEnd <= 250
+  /** Meldung zur laufenden Linie — die zum Rest der Route hilft unterwegs nicht. */
+  const etappenStoerung = stoerungenFuerEtappen([leg], stoerungen, now)[0] ?? null
 
   return (
     <div className="journey" ref={journeyRef}>
@@ -724,6 +731,10 @@ export default function JourneyMode({
             ) : isTransitLeg && distToEnd != null && distToEnd <= 250 ? (
               <div className="timer-banner urgent">
                 <TargetIcon size={14} /> {t('jmExitNext', lang)} {dict[lang].quote(toName)}
+              </div>
+            ) : etappenStoerung ? (
+              <div className="timer-banner urgent">
+                ⚠ {etappenStoerung.titel}
               </div>
             ) : null}
           </div>
