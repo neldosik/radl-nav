@@ -93,6 +93,20 @@ test('wechselt die Stadt und fragt dort keine Münchner Meldungen ab', async ({ 
   expect(mvg).toEqual([])
 })
 
+test('lädt beim Stadtwechsel neu und lässt keine fremde Suche stehen', async ({ page }) => {
+  await page.goto(SUCH_URL)
+  await expect(page.locator('.route').first()).toBeVisible()
+
+  await page.getByRole('button', { name: 'Hauptmenü' }).click()
+  await page.getByRole('button', { name: 'Stadt: München' }).click()
+
+  // Die Treffer gehören zur alten Stadt — nach dem Wechsel darf keiner davon
+  // stehen bleiben, und die Suche muss aus der Adresszeile verschwinden.
+  await expect(page.locator('.route')).toHaveCount(0)
+  expect(new URL(page.url()).search).toBe('')
+  await expect(page.locator('.app-footer')).toContainText('nextbike Berlin')
+})
+
 test('schaltet die Sprache auf Englisch um', async ({ page }) => {
   await seedStorage(page, { 'radl.lang': 'en' })
   await page.goto('/')

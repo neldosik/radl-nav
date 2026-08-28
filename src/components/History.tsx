@@ -20,7 +20,7 @@ import {
   sicherungEinlesen,
   sicherungErzeugen,
 } from '../sicherung'
-import { co2Label } from '../stats'
+import { co2Label, preisBekannt } from '../stats'
 
 interface Props {
   lang?: Language
@@ -78,7 +78,11 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
   // `bikeMinutes >= 120`, also zwei Stunden statt Kilometern.
   const badges = [
     { id: 'km50', label: dict[lang].histBadgeKm(50), unlocked: s.bikeKm >= 50 },
-    { id: 'save25', label: dict[lang].histBadgeSaved(25), unlocked: s.savedEuro >= 25 },
+    // Das Sparabzeichen rechnet mit dem Münchner Tarif — wo keiner hinterlegt
+    // ist, bliebe es eine erfundene Zahl.
+    ...(preisBekannt()
+      ? [{ id: 'save25', label: dict[lang].histBadgeSaved(25), unlocked: s.savedEuro >= 25 }]
+      : []),
     { id: 'eco10', label: dict[lang].histBadgeEco(10), unlocked: s.co2Grams >= 10000 },
   ]
 
@@ -110,8 +114,8 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
             <span className="hist-cap">{t('histBikeMin', lang)}</span>
           </div>
           <div className="hist-stat accent">
-            <span className="hist-num">{s.savedEuro} €</span>
-            <span className="hist-cap">{t('histSaved', lang)}</span>
+            <span className="hist-num">{preisBekannt() ? `${s.savedEuro} €` : s.bikeKm}</span>
+            <span className="hist-cap">{t(preisBekannt() ? 'histSaved' : 'histKm', lang)}</span>
           </div>
         </div>
 

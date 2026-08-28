@@ -24,7 +24,7 @@ import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
 import { useTextScale } from './hooks/useTextScale'
 import { leisteMessen } from './leiste'
-import { useBackGuard } from './hooks/useBackGuard'
+import { backGuardVerlassen, useBackGuard } from './hooks/useBackGuard'
 import { kompassFreigeben } from './kompass'
 import { einfuehrungGesehen } from './onboarding'
 import { useJourney } from './hooks/useJourney'
@@ -56,6 +56,21 @@ function sucheSchluessel(
 /** Was in der Adresszeile stand, als die Seite geladen wurde. Danach schreibt
  *  nur noch die App dorthin — ein zweites Lesen würde den eigenen Stand lesen. */
 const startStand = standAusParams(new URLSearchParams(window.location.search))
+
+/**
+ * Nach einem Stadtwechsel die App neu von vorn laden — ohne die alte Suche in
+ * der Adresszeile. Treffer, Stationen und Radbestände gehören zur alten Stadt.
+ *
+ * `location.replace` statt `reload`: die Suche muss aus der Adresse
+ * verschwinden, sonst holt sie der Start sofort wieder herein.
+ */
+function frischLaden(): void {
+  backGuardVerlassen()
+  const ziel = new URL(import.meta.env.BASE_URL, window.location.href)
+  ziel.search = ''
+  ziel.hash = ''
+  window.location.replace(ziel.href)
+}
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => loadLanguage())
@@ -166,7 +181,7 @@ export default function App() {
   function naechsteStadtWaehlen() {
     const i = STAEDTE.findIndex(s => s.id === stadt().id)
     stadtSetzen(STAEDTE[(i + 1) % STAEDTE.length].id)
-    window.location.href = import.meta.env.BASE_URL
+    frischLaden()
   }
 
   function toggleCycleLayer() {
@@ -220,7 +235,7 @@ export default function App() {
         const nah = stadtBeiPosition(pos)
         if (!stadtGewaehlt() && nah && nah.id !== stadt().id) {
           stadtSetzen(nah.id)
-          window.location.href = import.meta.env.BASE_URL
+          frischLaden()
           return
         }
         journey.setUserPos({ ...pos, at: Date.now() })
@@ -952,7 +967,7 @@ export default function App() {
         )}
         {!errorKey && !views && !loading && (
           <div className="msg">
-            {t('welcomeMsg', lang)}
+            {t(stadt().tarif ? 'welcomeMsg' : 'welcomeMsgOhneTarif', lang)}
           </div>
         )}
         {loading && (
