@@ -126,6 +126,7 @@ export const dict = {
 
     // ── Meldungen ──
     welcomeMsg: 'Wähle Start und Ziel — dann berechne ich Kombinationen aus Rad + MVV mit deinen 30 Freiminuten im Blick.',
+    welcomeMsgOhneTarif: 'Wähle Start und Ziel — dann berechne ich Kombinationen aus Leihrad und öffentlichem Verkehr.',
     calculating: 'Berechne Rad + MVV …',
     noRoutesFound: 'Keine passenden Routen gefunden — passe die Filter an.',
     networkError: 'Keine Verbindung — prüfe dein Internet.',
@@ -275,6 +276,7 @@ export const dict = {
     histMinutes: 'Minuten',
     histBikeMin: 'Min auf dem Rad',
     histSaved: 'gespart',
+    histKm: 'km auf dem Rad',
     histWeekTitle: 'Wochenübersicht (Rad-Minuten):',
     histEmpty: 'Noch keine Fahrten. Nach „Angekommen" landet jede Fahrt hier — nur auf diesem Gerät.',
     histMinPerDay: 'Min/Tag',
@@ -405,6 +407,7 @@ export const dict = {
 
     // ── Messages ──
     welcomeMsg: 'Select origin and destination — I will find combinations of bike + MVV transit keeping your 30 free minutes in mind.',
+    welcomeMsgOhneTarif: 'Select origin and destination — I will find combinations of rental bike and public transport.',
     calculating: 'Calculating bike + MVV …',
     noRoutesFound: 'No suitable routes found — try adjusting your filters.',
     networkError: 'No connection — check your internet.',
@@ -553,6 +556,7 @@ export const dict = {
     histMinutes: 'Minutes',
     histBikeMin: 'Min on bike',
     histSaved: 'saved',
+    histKm: 'km on the bike',
     histWeekTitle: 'This week (bike minutes):',
     histEmpty: 'No trips yet. After “Arrived” every trip lands here — on this device only.',
     histMinPerDay: 'min/day',

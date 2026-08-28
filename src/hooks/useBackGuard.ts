@@ -52,6 +52,17 @@ function huelleVerdrahten() {
 /** Wie viele Ansichten gerade einen Eintrag halten. */
 let offeneWaechter = 0
 
+/**
+ * Die Seite wird gerade verlassen (Stadtwechsel). Ein `history.back()` beim
+ * Aufräumen würde den angefangenen Sprung abbrechen und die alte Adresse
+ * wiederherstellen — die Wächter geben ihre Einträge dann nicht mehr zurück.
+ */
+let verlassend = false
+
+export function backGuardVerlassen(): void {
+  verlassend = true
+}
+
 export function useBackGuard(active: boolean, onBack: () => void): void {
   const zurueck = useRef(onBack)
   zurueck.current = onBack
@@ -83,7 +94,7 @@ export function useBackGuard(active: boolean, onBack: () => void): void {
       window.removeEventListener('popstate', onPop)
       // Regulär geschlossen (Kreuz, Auswahl, Reiterwechsel): den eigenen
       // Eintrag zurücknehmen, sonst verpufft der nächste Zurück-Druck.
-      if (!verbraucht.current) {
+      if (!verbraucht.current && !verlassend) {
         eigenerRuecksprung = true
         window.history.back()
       }
