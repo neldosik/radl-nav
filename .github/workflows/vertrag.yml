@@ -1,0 +1,75 @@
+name: Vertragsprüfung
+
+# Nachts gegen die *echten* Schnittstellen. Bewusst nicht bei jedem Pull
+# Request: ein Ausfall bei Transitous oder nextbike hätte sonst einen roten
+# Lauf zur Folge, der mit der Änderung nichts zu tun hat.
+#
+# Ein roter Lauf hier heißt: draußen hat sich etwas geändert — ein Feld ist
+# weg, ein Feed umgezogen, ein Anbieterkürzel umbenannt. Genau das merkt man
+# sonst erst, wenn jemand an der Haltestelle steht.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+# Der geplante Lauf soll den vorigen nicht überholen.
+concurrency:
+  group: vertrag
+  cancel-in-progress: false
+
+jobs:
+  vertrag:
+    name: Fremde Schnittstellen prüfen
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verträge prüfen
+        run: npm run test:vertrag
+
+      # Ohne das bliebe der Befund in den Aktionen liegen: geplante Läufe
+      # schickt GitHub nur an den Autor des letzten Commits, und auch das nur
+      # per E-Mail. Ein Ticket bleibt sichtbar, bis es jemand angesehen hat —
+      # und ein zweiter roter Lauf schreibt in dasselbe Ticket statt ein neues
+      # anzulegen.
+      - name: Ticket bei Vertragsbruch
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const titel = 'Vertragsprüfung fehlgeschlagen'
+            const lauf = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const body = `Die nächtliche Prüfung der fremden Schnittstellen ist rot: ${lauf}\n\nEntweder hat ein Anbieter sein Format geändert oder der Dienst war nicht erreichbar. Welcher Fall vorliegt, steht im Protokoll des Laufs.`
+            const offen = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'vertragsbruch',
+            })
+            if (offen.data.length) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: offen.data[0].number,
+                body,
+              })
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: titel,
+                labels: ['vertragsbruch'],
+                body,
+              })
+            }
