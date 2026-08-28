@@ -13,6 +13,7 @@ import { vollbildBeobachten } from './luecke'
 import { fahrtLaeuft } from './miete'
 import { istNativ } from './geolocation'
 import { aktualisierungBeobachten } from './aktualisierung'
+import { KACHEL_PUFFER } from './kachelpuffer'
 
 /**
  * In der Android-Hülle darf kein Service Worker laufen.
@@ -62,7 +63,9 @@ if (inHuelle() && 'serviceWorker' in navigator) {
       if (!regs.length) return
       await Promise.all(regs.map(r => r.unregister()))
       const namen = (await caches?.keys()) ?? []
-      await Promise.all(namen.map(n => caches.delete(n)))
+      // Der eigene Kartenpuffer der Hülle bleibt: er stammt nicht vom Worker
+      // und ist genau das, was die Karte ohne Netz noch zeichnen lässt.
+      await Promise.all(namen.filter(n => n !== KACHEL_PUFFER).map(n => caches.delete(n)))
       if (sessionStorage.getItem('huelle-entpuffert')) return
       sessionStorage.setItem('huelle-entpuffert', '1')
       window.location.reload()

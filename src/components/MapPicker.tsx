@@ -9,6 +9,7 @@ import type { LatLon, Place } from '../types'
 import { useBackGuard } from '../hooks/useBackGuard'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
+import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
 
 interface Props {
   /** Kurze Bezeichnung über dem Namen: „Startpunkt" oder „Zielpunkt". */
@@ -69,6 +70,7 @@ export default function MapPicker({
 
   useEffect(() => {
     if (!canvas.current || map.current) return
+    kachelpufferEinrichten(maplibregl.addProtocol)
     const m = new maplibregl.Map({
       container: canvas.current,
       style: mapStyleUrl(theme),
@@ -79,6 +81,7 @@ export default function MapPicker({
           : [stadt().mitte.lon, stadt().mitte.lat],
       zoom: initial || hier ? 15 : 12,
       attributionControl: { compact: true },
+      transformRequest: kartenAnfrage,
     })
     map.current = m
     const update = () => {
