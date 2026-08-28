@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:vertrag": "vitest run --config vitest.vertrag.config.ts",
     "size": "node scripts/bundelgroesse.mjs",
     "preview": "vite preview",
     "deploy": "bash scripts/deploy.sh",

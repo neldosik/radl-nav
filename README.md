@@ -52,11 +52,18 @@ npm run lint       # oxlint
 npm run build      # Produktionsbündel nach dist/
 npm run size       # Bündelgrößen gegen die Grenzen prüfen (braucht dist/)
 npm run test:e2e   # Rauchprobe im Browser (playwright, braucht Chromium)
+npm run test:vertrag # Prüfung der fremden Schnittstellen (geht ins Netz)
 ```
 
 Die Rauchprobe läuft gegen `vite preview`, also gegen das gebaute Bündel, und
 fängt alle fremden Dienste ab (`tests/e2e/mocks.ts`). Einmalig braucht sie
 `npx playwright install --with-deps chromium`.
+
+`npm run test:vertrag` geht als einziger Lauf wirklich ins Netz und prüft, ob
+Transitous, die GBFS-Feeds der eingerichteten Städte, Open-Meteo, die MVG und
+OpenFreeMap noch die Felder liefern, mit denen die App rechnet. Deshalb ist er
+nicht Teil von `npm test`, sondern läuft nachts eigenständig
+(`.github/workflows/vertrag.yml`); ein Ausfall dort ist kein Fehler im Code.
 
 ### Veröffentlichen und zurückrollen
 
