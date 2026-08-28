@@ -1,7 +1,8 @@
 /**
- * Kann dieser Browser WebGL?
+ * Kann dieser Browser WebGL 2?
  *
- * maplibre-gl braucht es. Fehlt es — altes Android, abgeschaltete
+ * maplibre-gl braucht es: seit Version 6 ist WebGL 1 raus, WebGL 2 ist
+ * Bedingung. Fehlt es — altes Android, abgeschaltete
  * Hardwarebeschleunigung, Firmenrichtlinie, manche Energiesparmodi —, wirft
  * `new maplibregl.Map()` im Effekt und React hängt den ganzen Baum aus.
  * `MapGuard` fragt vorher hier nach.
@@ -14,13 +15,10 @@ export function hasWebGL(): boolean {
   if (webglOk !== null) return webglOk
   try {
     const c = document.createElement('canvas')
-    const gl =
-      c.getContext('webgl2') ||
-      c.getContext('webgl') ||
-      c.getContext('experimental-webgl')
+    const gl = c.getContext('webgl2')
     webglOk = !!gl
     // Kontext sofort wieder freigeben, es gibt nur eine Handvoll davon
-    const lose = (gl as WebGLRenderingContext | null)?.getExtension('WEBGL_lose_context')
+    const lose = gl?.getExtension('WEBGL_lose_context')
     lose?.loseContext()
   } catch {
     webglOk = false
