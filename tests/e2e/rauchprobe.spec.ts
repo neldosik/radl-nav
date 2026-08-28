@@ -136,6 +136,31 @@ test.describe('Kartenstil', () => {
     await expect.poll(() => spaeter, { timeout: 20_000 }).toBeGreaterThan(0)
     await expect(page.locator('canvas').first()).toBeVisible()
   })
+
+  test('bietet nach einem dauerhaften Ausfall einen Knopf zum Nachladen', async ({ page }) => {
+    const stil = {
+      version: 8,
+      sources: {},
+      layers: [{ id: 'hintergrund', type: 'background', paint: { 'background-color': '#eee' } }],
+    }
+    // Diesmal bleibt das Netz weg, bis der Hinweis steht. Erst der Knopf darf
+    // die Karte zurückholen — genau der Fall, in dem sie vorher leer blieb.
+    let liefert = false
+    await page.route('**/tiles.openfreemap.org/styles/**', async route => {
+      if (!liefert) return route.abort('connectionfailed')
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stil) })
+    })
+
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Räder', exact: true }).click()
+
+    const hinweis = page.locator('.map-outage')
+    await expect(hinweis).toBeVisible({ timeout: 30_000 })
+
+    liefert = true
+    await hinweis.getByRole('button', { name: 'Erneut versuchen' }).click()
+    await expect(hinweis).toBeHidden({ timeout: 20_000 })
+  })
 })
 
 /**

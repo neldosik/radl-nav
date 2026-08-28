@@ -546,6 +546,7 @@ export default function App() {
                 userPos={userPos}
                 bikesNeeded={bikes}
                 theme={themeMode}
+                lang={lang}
                 cycleLayer={cycleLayer}
                 follow={followMe}
                 headUp={headUp}
@@ -927,6 +928,7 @@ export default function App() {
                 userPos={userPos}
                 bikesNeeded={bikes}
                 theme={themeMode}
+                lang={lang}
                 cycleLayer={cycleLayer}
               />
             </Suspense>

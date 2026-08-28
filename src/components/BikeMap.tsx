@@ -6,13 +6,14 @@ import { pickRentalUri } from '../format'
 import { BikeIcon, BoltIcon, CloseIcon, ExternalIcon, TargetIcon, WalkIcon } from '../icons'
 import { addCycleLayer, mapStyleUrl, stilAbsichern } from '../mapStyle'
 import { stadt } from '../stadt'
-import type { ThemeMode } from '../mapStyle'
+import type { StilWache, ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
 import { dict, t } from '../i18n'
 import { useBackGuard } from '../hooks/useBackGuard'
 import type { Language } from '../i18n'
 import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
 import { kartenArbeiterEinrichten } from '../kartenarbeiter'
+import MapOutage from './MapOutage'
 
 interface Props {
   userPos: LatLon | null
@@ -174,6 +175,8 @@ export default function BikeMap({
   const [supply, setSupply] = useState<Station[] | null>(null)
   const [selected, setSelected] = useState<Station | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'classic' | 'ebike'>('all')
+  const [stilWeg, setStilWeg] = useState(false)
+  const wache = useRef<StilWache | null>(null)
   // Eigener Standort: der Reiter wird auch ohne laufende Navigation geöffnet,
   // dann liefert die App keine Position — also selbst nachfragen.
   const [ownPos, setOwnPos] = useState<LatLon | null>(null)
@@ -231,7 +234,7 @@ export default function BikeMap({
     })
     // Quelle und Ebenen hängen hier an `styledata` (siehe unten) — ein zweiter
     // Stilanlauf baut sie also von selbst wieder auf.
-    stilAbsichern(m, () => mapStyleUrl(theme))
+    wache.current = stilAbsichern(m, () => mapStyleUrl(theme), { beiZustand: setStilWeg })
     // Nach jedem Schieben und Zoomen die Liste neu auf den Ausschnitt beziehen.
     const onMoveEnd = () => {
       const c = m.getCenter()
@@ -423,6 +426,7 @@ export default function BikeMap({
 
       <div className="picker-map">
         <div ref={canvas} className="picker-canvas" />
+        {stilWeg && <MapOutage lang={lang} onRetry={() => wache.current?.erneutVersuchen()} />}
         <div className="bm-summary">
           {supply == null
             ? t('bmLoading', lang)

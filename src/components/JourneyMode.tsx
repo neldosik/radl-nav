@@ -237,17 +237,23 @@ export default function JourneyMode({
     }
   }, [distToEnd, isTransitLeg])
 
-  // Systemmeldung planen, sobald eine kostenlose Radetappe beginnt. Die
-  // Warnungen unten greifen nur, solange die App im Vordergrund steht —
-  // Bildschirm aus, und die Freiminuten liefen bisher unbemerkt ab.
+  // Systemmeldung planen, sobald das Rad genommen ist. Die Warnungen unten
+  // greifen nur, solange die App im Vordergrund steht — Bildschirm aus, und
+  // die Freiminuten liefen bisher unbemerkt ab.
+  //
+  // Ausschlaggebend ist `bikeStartedAt`, nicht das Öffnen der Etappe: die Uhr
+  // startet erst auf Druck von „Rad genommen“. Vorher plante dieser Effekt
+  // schon beim Aufschlagen der Etappe — wer den Fußweg zur Station noch vor
+  // sich hatte, bekam die Warnung Minuten zu früh und zur eigentlichen Frist
+  // gar keine mehr, weil ein späterer Druck den Alarm nicht neu stellte.
   useEffect(() => {
-    if (!isBikeLeg || b?.electric || arrived || freiLimitSek() === 0) {
+    if (!isBikeLeg || b?.electric || arrived || !bikeStartedAt || freiLimitSek() === 0) {
       cancelReturnReminders()
       return
     }
     // Beim Zurückspringen auf eine laufende Etappe zählt die Restzeit, nicht
     // das volle Fenster.
-    const verstrichen = bikeStartedAt ? Math.floor((Date.now() - bikeStartedAt) / 1000) : 0
+    const verstrichen = Math.floor((Date.now() - bikeStartedAt) / 1000)
     scheduleReturnReminders({
       secondsLeft: Math.max(0, freiLimitSek() - verstrichen),
       stationName: b?.endStation?.name ?? null,
@@ -257,7 +263,7 @@ export default function JourneyMode({
       cancelReturnReminders()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legIndex, isBikeLeg, b?.electric, arrived])
+  }, [legIndex, isBikeLeg, b?.electric, arrived, bikeStartedAt])
 
   // Rückgabe-Warnung: 5 Min und 2 Min vor Ende des kostenlosen Fensters
   useEffect(() => {
