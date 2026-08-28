@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { getGeolocation, reverseGeocode } from '../api'
 import { CloseIcon, PinIcon, TargetIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'

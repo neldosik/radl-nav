@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { legKind } from '../format'
 import { legPath } from '../routing'
 import { bearing, bearingDelta, haversine, nachziehAnteil, nachziehen, planPickup, projectOnPath, smoothBearing } from '../geo'
