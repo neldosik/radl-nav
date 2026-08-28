@@ -12,6 +12,7 @@ import { dict, t } from '../i18n'
 import { useBackGuard } from '../hooks/useBackGuard'
 import type { Language } from '../i18n'
 import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
+import { kartenArbeiterEinrichten } from '../kartenarbeiter'
 
 interface Props {
   userPos: LatLon | null
@@ -218,6 +219,7 @@ export default function BikeMap({
 
   useEffect(() => {
     if (!canvas.current || map.current) return
+    kartenArbeiterEinrichten()
     kachelpufferEinrichten(maplibregl.addProtocol)
     const m = new maplibregl.Map({
       container: canvas.current,
