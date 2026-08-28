@@ -157,16 +157,17 @@ export async function mockApis(page: Page): Promise<void> {
   await page.route('**/api.open-meteo.com/**', route => {
     const u = new URL(route.request().url())
     if (u.pathname.includes('elevation')) return json(route, { elevation: [520, 522, 519] })
+    const zeiten = stunden(12)
     return json(route, {
       hourly: {
-        time: [new Date().toISOString().slice(0, 13) + ':00'],
-        temperature_2m: [18],
-        precipitation: [0],
-        precipitation_probability: [5],
-        weathercode: [1],
-        wind_speed_10m: [9],
-        wind_gusts_10m: [14],
-        wind_direction_10m: [250],
+        time: zeiten,
+        temperature_2m: zeiten.map(() => 18),
+        precipitation: zeiten.map(() => 0),
+        precipitation_probability: zeiten.map(() => 5),
+        weathercode: zeiten.map(() => 1),
+        wind_speed_10m: zeiten.map(() => 9),
+        wind_gusts_10m: zeiten.map(() => 14),
+        wind_direction_10m: zeiten.map(() => 250),
       },
     })
   })
@@ -189,6 +190,28 @@ export async function mockApis(page: Page): Promise<void> {
   // Prüfbares — die leere Antwort hält den Lauf offline und schnell.
   await page.route('**/tiles.openfreemap.org/**', route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  )
+}
+
+/**
+ * Stundenmarken wie Open-Meteo sie mit `timezone=auto` liefert: Ortszeit ohne
+ * Zeitzonenkürzel. Ein UTC-Zeitstempel wäre im Browser (Europe/Berlin) um
+ * ein bis zwei Stunden versetzt, und die App verwirft eine Vorhersage, die
+ * mehr als eine Stunde neben der Abfahrt liegt — das Wetter fiel dann still
+ * aus jedem Testlauf heraus.
+ */
+function stunden(anzahl: number): string[] {
+  const fmt = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+  })
+  return Array.from(
+    { length: anzahl },
+    (_, i) => `${fmt.format(new Date(Date.now() + i * 3_600_000)).replace(' ', 'T')}:00`,
   )
 }
 
