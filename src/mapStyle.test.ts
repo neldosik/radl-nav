@@ -39,7 +39,7 @@ describe('stilAbsichern', () => {
     vi.useFakeTimers()
     const { m, fehler, stildaten } = karte()
     const nachStil = vi.fn()
-    stilAbsichern(m, () => STIL, nachStil)
+    stilAbsichern(m, () => STIL, { nachStil })
 
     fehler(STIL)
     vi.advanceTimersByTime(700)
@@ -72,6 +72,62 @@ describe('stilAbsichern', () => {
       vi.advanceTimersByTime(10_000)
     }
     expect(setStyle).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
+  })
+
+  it('meldet die Aufgabe erst nach dem letzten Anlauf', () => {
+    vi.useFakeTimers()
+    const { m, fehler } = karte()
+    const beiZustand = vi.fn()
+    stilAbsichern(m, () => STIL, { beiZustand })
+
+    for (let i = 0; i < 3; i++) {
+      fehler(STIL)
+      vi.advanceTimersByTime(10_000)
+    }
+    expect(beiZustand).not.toHaveBeenCalled()
+    fehler(STIL)
+    expect(beiZustand).toHaveBeenCalledWith(true)
+    vi.useRealTimers()
+  })
+
+  it('nimmt die Meldung zurück, sobald ein Stil steht', () => {
+    vi.useFakeTimers()
+    let ebenen = false
+    const { m, fehler, stildaten } = karte(() => ebenen)
+    const beiZustand = vi.fn()
+    stilAbsichern(m, () => STIL, { beiZustand })
+
+    for (let i = 0; i < 4; i++) {
+      fehler(STIL)
+      vi.advanceTimersByTime(10_000)
+    }
+    expect(beiZustand).toHaveBeenLastCalledWith(true)
+
+    ebenen = true
+    stildaten()
+    expect(beiZustand).toHaveBeenLastCalledWith(false)
+    vi.useRealTimers()
+  })
+
+  it('lädt auf Knopfdruck neu und zählt die Anläufe zurück', () => {
+    vi.useFakeTimers()
+    const { m, setStyle, fehler } = karte()
+    const wache = stilAbsichern(m, () => STIL)
+
+    for (let i = 0; i < 3; i++) {
+      fehler(STIL)
+      vi.advanceTimersByTime(10_000)
+    }
+    expect(setStyle).toHaveBeenCalledTimes(3)
+
+    wache.erneutVersuchen()
+    expect(setStyle).toHaveBeenCalledTimes(4)
+
+    // Nach dem Knopf greift die selbsttätige Wiederholung wieder.
+    fehler(STIL)
+    vi.advanceTimersByTime(700)
+    expect(setStyle).toHaveBeenCalledTimes(5)
     vi.useRealTimers()
   })
 })

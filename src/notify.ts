@@ -117,14 +117,17 @@ export async function scheduleReturnReminders(opts: ReturnReminderOpts): Promise
           id: ID_WARN,
           title: warnTitle,
           body: warnBody,
-          schedule: { at: new Date(Date.now() + warnIn * 1000) },
+          // `allowWhileIdle`: Android schiebt Alarme im Doze-Modus sonst bis
+          // zum nächsten Wartungsfenster — im Zweifel eine Viertelstunde nach
+          // Ablauf der Freiminuten, also genau dann, wenn es nichts mehr nützt.
+          schedule: { at: new Date(Date.now() + warnIn * 1000), allowWhileIdle: true },
         })
       }
       notifications.push({
         id: ID_DUE,
         title: dueTitle,
         body: dueBody,
-        schedule: { at: new Date(Date.now() + secondsLeft * 1000) },
+        schedule: { at: new Date(Date.now() + secondsLeft * 1000), allowWhileIdle: true },
       })
       nativeScheduled = true
       await LocalNotifications.schedule({ notifications })

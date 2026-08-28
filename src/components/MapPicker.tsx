@@ -4,13 +4,14 @@ import { getGeolocation, reverseGeocode } from '../api'
 import { CloseIcon, PinIcon, TargetIcon } from '../icons'
 import { mapStyleUrl, stilAbsichern } from '../mapStyle'
 import { stadt } from '../stadt'
-import type { ThemeMode } from '../mapStyle'
+import type { StilWache, ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
 import { useBackGuard } from '../hooks/useBackGuard'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
 import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
 import { kartenArbeiterEinrichten } from '../kartenarbeiter'
+import MapOutage from './MapOutage'
 
 interface Props {
   /** Kurze Bezeichnung über dem Namen: „Startpunkt" oder „Zielpunkt". */
@@ -50,6 +51,8 @@ export default function MapPicker({
   const nameCtrl = useRef<AbortController | null>(null)
   const meMarker = useRef<maplibregl.Marker | null>(null)
   const [name, setName] = useState('…')
+  const [stilWeg, setStilWeg] = useState(false)
+  const wache = useRef<StilWache | null>(null)
   /** Selbst ermittelter Standort, falls die App keinen mitgibt. */
   const [ownPos, setOwnPos] = useState<LatLon | null>(null)
   const hier = userPos ?? ownPos
@@ -108,7 +111,10 @@ export default function MapPicker({
     }
     m.on('load', update)
     m.on('moveend', update)
-    stilAbsichern(m, () => mapStyleUrl(theme), update)
+    wache.current = stilAbsichern(m, () => mapStyleUrl(theme), {
+      nachStil: update,
+      beiZustand: setStilWeg,
+    })
     return () => {
       window.clearTimeout(nameTimer.current)
       nameCtrl.current?.abort()
@@ -160,6 +166,7 @@ export default function MapPicker({
         </button>
       </div>
       <div className="picker-map">
+        {stilWeg && <MapOutage lang={lang} onRetry={() => wache.current?.erneutVersuchen()} />}
         <div ref={canvas} className="picker-canvas" />
         <div className="picker-pin" />
         {hier && (

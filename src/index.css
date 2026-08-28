@@ -2952,6 +2952,25 @@ button {
   color: var(--muted);
 }
 
+/* Ausgefallener Kartenstil: der Hinweis liegt über der leeren Fläche, aber
+   unter den Bedienelementen der Karte. */
+.map-outage {
+  z-index: 4;
+}
+
+.map-outage-btn {
+  margin-top: 4px;
+  min-height: 36px;
+  padding: 8px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  font-size: calc(13px * var(--ts));
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
 /* Im Los-Modus und im Kartenwähler füllt die Karte den Bildschirm — dort darf
    der Hinweis nicht absolut über allem liegen, sondern nimmt seinen Platz ein. */
 .j-map .map-fallback,

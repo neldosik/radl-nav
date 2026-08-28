@@ -22,28 +22,71 @@ export function mapStyleUrl(theme: ThemeMode): string {
  * Deshalb: den Fehler abfangen und den Stil mit wachsendem Abstand erneut
  * anfordern. `nachStil` baut danach die eigenen Ebenen wieder auf — `setStyle`
  * räumt sie weg, und `load` kommt bei einem zweiten Anlauf nicht noch einmal.
+ *
+ * Sind die Versuche aufgebraucht, meldet `beiZustand(true)`. Ohne diese
+ * Meldung blieb eine graue Fläche stehen, die nach nichts aussieht: kein
+ * Hinweis, kein Weg zurück, obwohl ein Fingertipp nach dem Ende des Funklochs
+ * genügt. Der Aufrufer bekommt dafür `erneutVersuchen()`.
  */
+export interface StilWacheOpts {
+  /** Baut nach einem neuen Stil die eigenen Ebenen wieder auf. */
+  nachStil?: () => void
+  maxVersuche?: number
+  /** `true`: aufgegeben, `false`: Stil steht wieder. */
+  beiZustand?: (gescheitert: boolean) => void
+}
+
+export interface StilWache {
+  /** Von Hand nachladen — für den Knopf im Hinweis. */
+  erneutVersuchen: () => void
+}
+
 export function stilAbsichern(
   m: maplibregl.Map,
   stil: () => string,
-  nachStil?: () => void,
-  maxVersuche = 3,
-): void {
+  opts: StilWacheOpts = {},
+): StilWache {
+  const { nachStil, maxVersuche = 3, beiZustand } = opts
   let versuche = 0
   let geplant = false
+  const steht = () => !!m.getStyle()?.layers?.length
+
+  const laden = () => {
+    m.setStyle(stil())
+    if (nachStil) m.once('styledata', nachStil)
+  }
+
+  // Kommt der Stil doch noch, zählt die nächste Störung wieder von vorn.
+  m.on('styledata', () => {
+    if (!steht()) return
+    versuche = 0
+    beiZustand?.(false)
+  })
+
   m.on('error', e => {
     const adresse = (e.error as { url?: string } | undefined)?.url ?? ''
     if (!adresse.includes('/styles/')) return
-    if (geplant || versuche >= maxVersuche || m.getStyle()?.layers?.length) return
+    if (geplant || steht()) return
+    if (versuche >= maxVersuche) {
+      beiZustand?.(true)
+      return
+    }
     versuche++
     geplant = true
     setTimeout(() => {
       geplant = false
-      if (m.getStyle()?.layers?.length) return
-      m.setStyle(stil())
-      if (nachStil) m.once('styledata', nachStil)
+      if (steht()) return
+      laden()
     }, 700 * 2 ** (versuche - 1))
   })
+
+  return {
+    erneutVersuchen() {
+      versuche = 0
+      beiZustand?.(false)
+      if (!geplant) laden()
+    },
+  }
 }
 
 /** Kennung der Radwege-Ebene, damit sie sich gezielt an- und abschalten lässt. */

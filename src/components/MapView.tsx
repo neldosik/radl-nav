@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import { legKind } from '../format'
 import { legPath } from '../routing'
@@ -6,10 +6,12 @@ import { bearing, bearingDelta, haversine, nachziehAnteil, nachziehen, planPicku
 import { kompassStarten } from '../kompass'
 import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors, stilAbsichern } from '../mapStyle'
 import { stadt } from '../stadt'
-import type { ThemeMode } from '../mapStyle'
+import type { StilWache, ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
 import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
 import { kartenArbeiterEinrichten } from '../kartenarbeiter'
+import MapOutage from './MapOutage'
+import type { Language } from '../i18n'
 
 /** Bis zu diesem Abstand gilt der Standort als „auf der Route" und wird auf
  *  die Linie gezogen. Darüber bleibt der rohe Fix stehen — wer wirklich falsch
@@ -62,6 +64,7 @@ interface Props {
   userPos?: { lat: number; lon: number; accuracy?: number; heading?: number; speed?: number } | null
   bikesNeeded?: number
   theme?: ThemeMode
+  lang?: Language
   /** Radwege-Ebene einblenden */
   cycleLayer?: boolean
   /** Kamera folgt dem Standort (Los-Modus) */
@@ -78,6 +81,7 @@ export default function MapView({
   userPos = null,
   bikesNeeded = 1,
   theme = 'light',
+  lang = 'de',
   cycleLayer = false,
   follow = true,
   headUp = false,
@@ -119,6 +123,8 @@ export default function MapView({
   cycleRef.current = cycleLayer
   const themeRef = useRef(theme)
   themeRef.current = theme
+  const [stilWeg, setStilWeg] = useState(false)
+  const wache = useRef<StilWache | null>(null)
 
   function clear() {
     const m = map.current
@@ -221,7 +227,10 @@ export default function MapView({
       if (viewRef.current) draw(viewRef.current, activeLegRef.current)
     }
     m.on('load', aufbau)
-    stilAbsichern(m, () => mapStyleUrl(themeRef.current), aufbau)
+    wache.current = stilAbsichern(m, () => mapStyleUrl(themeRef.current), {
+      nachStil: aufbau,
+      beiZustand: setStilWeg,
+    })
     // Eigenes Ziehen/Zoomen erkennen (nicht die programmierten Kamerafahrten)
     const handPan = (e: { originalEvent?: unknown }) => {
       if (e.originalEvent && activeLegRef.current != null && followRef.current) onUserPanRef.current?.()
@@ -522,5 +531,9 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [headUp])
 
-  return <div ref={div} className="map" />
+  return (
+    <div ref={div} className="map">
+      {stilWeg && <MapOutage lang={lang} onRetry={() => wache.current?.erneutVersuchen()} />}
+    </div>
+  )
 }

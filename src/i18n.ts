@@ -137,6 +137,8 @@ export const dict = {
     // ── Karte allgemein ──
     mapUnavailable: 'Karte nicht verfügbar',
     mapUnavailableHint: 'Dieses Gerät kann kein WebGL. Verbindungen, Zeiten und Radbestand funktionieren weiterhin.',
+    mapOffline: 'Karte nicht geladen',
+    mapOfflineHint: 'Die Karte kam nicht durch. Alles andere funktioniert weiter.',
     pickStartOnMap: 'Startpunkt auf Karte wählen',
     pickDestOnMap: 'Zielpunkt auf Karte wählen',
 
@@ -418,6 +420,8 @@ export const dict = {
     // ── Map ──
     mapUnavailable: 'Map unavailable',
     mapUnavailableHint: 'This device has no WebGL. Connections, times and bike availability still work.',
+    mapOffline: 'Map not loaded',
+    mapOfflineHint: 'The map did not come through. Everything else keeps working.',
     pickStartOnMap: 'Select start on map',
     pickDestOnMap: 'Select destination on map',
 
