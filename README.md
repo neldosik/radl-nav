@@ -11,6 +11,11 @@ Weitere nextbike-Städte (Berlin, Leipzig, Karlsruhe) sind in `src/stadt.ts`
 hinterlegt und über das Hauptmenü wählbar; ohne bekannten Tarif nennt die App
 dort keine Preise und keine Freiminuten.
 
+Dazu: Los-Modus mit Etappenwechsel und Freiminuten-Uhr, Systemmeldung vor
+Ablauf der Freiminuten, Störungsmeldungen der MVG zu den gefahrenen Linien,
+teilbare Verweise auf eine Suche, Fahrtenbuch mit Sicherung (JSON) und
+GPX-Ausgabe je Fahrt, sowie eine Diagnoseansicht zum Kopieren.
+
 Privates, nicht-kommerzielles Projekt. **Kein Backend**: statische PWA, alle
 verwendeten Schnittstellen sind offen und liefern CORS `*`.
 
@@ -50,6 +55,7 @@ npm test           # Tests der Rechenlogik (vitest)
 npm run typecheck  # tsc -b, dieselbe Prüfung wie in der CI
 npm run lint       # oxlint
 npm run build      # Produktionsbündel nach dist/
+npm run preview    # http://localhost:4173/ — das gebaute Bündel; nur hier zeigen sich Karten-, Arbeiter- und Bündelfehler
 npm run size       # Bündelgrößen gegen die Grenzen prüfen (braucht dist/)
 npm run test:e2e   # Rauchprobe im Browser (playwright, braucht Chromium)
 npm run test:vertrag # Prüfung der fremden Schnittstellen (geht ins Netz)
@@ -126,7 +132,15 @@ damit kein alter Webteil gegen Plugins läuft, die er nicht kennt.
 | `src/geo.ts` | Entfernungen, nächstgelegene Stationen, Abholplanung für Gruppen, Verdichtung freier Räder |
 | `src/routing.ts` | Routenregeln: Filter (nur MyRadl, Zeitlimit, Radtyp), Rückgabestation, Suche |
 | `src/stats.ts` | Kalorien (MET), CO₂ über die Strecke, Leihkosten — getrennt für E-Bike und Standardrad |
-| `src/notify.ts` | Erinnerung „Rad zurückgeben" (LocalNotifications bzw. Notification API) |
+| `src/notify.ts` | Erinnerung „Rad zurückgeben" (LocalNotifications bzw. Notification API), geplant ab „Rad genommen" |
+| `src/miete.ts` | laufende Ausleihe übersteht ein Neuladen — Grundlage der Freiminuten-Uhr |
+| `src/stadt.ts` | Stadt, GBFS-Feed und Tarif als Konfiguration; Auswahl im Menü, Vorschlag per GPS |
+| `src/stoerungen.ts` | Meldungen der MVG zu den gefahrenen Linien (Transitous liefert für München keine) |
+| `src/verweis.ts` | Suche in der Adresszeile: teilbare Verweise, Neuladen ohne Verlust |
+| `src/sicherung.ts` | Fahrtenbuch hinaus und herein (JSON) sowie je Fahrt als GPX |
+| `src/kachelpuffer.ts` | Kartenkacheln in der Android-Hülle, wo kein Service Worker laufen darf |
+| `src/mapStyle.ts` | Kartenstil samt Wiederholungen; meldet den endgültigen Ausfall an die Ansicht |
+| `src/components/MapOutage.tsx` | Hinweis „Karte nicht geladen" mit Knopf zum Nachladen |
 | `src/api.ts` | ausschließlich Netz: Transitous, GBFS, Open-Meteo |
 | `src/history.ts` | Fahrtenbuch und Statistik (localStorage) |
 | `src/hooks/useJourney.ts` | Los-Modus: GPS, Etappenwechsel, Bildschirm wachhalten |
@@ -136,8 +150,9 @@ damit kein alter Webteil gegen Plugins läuft, die er nicht kennt.
 | `src/App.tsx` | Zusammensetzen der Ansichten und Zustand der Suche |
 
 Getestet ist die Rechenlogik (`gbfs`, `geo`, `routing`, `stats`, `notify`,
-`format`, `polyline`) — dort, wo ein Fehler nicht ins Auge fällt: Zählung der
-Räder, die 30 Freiminuten, die Routenfilter.
+`format`, `polyline`, `verweis`, `sicherung`, `stadt`, `stoerungen`, `miete`,
+`mapStyle`) — dort, wo ein Fehler nicht ins Auge fällt: Zählung der Räder, die
+30 Freiminuten, die Routenfilter.
 
 ## Datenquellen
 
@@ -199,7 +214,9 @@ Brücke. Das sieht dann aus wie ein Rechteproblem: `istNativ()` meldet falsch,
 Plugins werden nie angesprochen, es erscheint nicht einmal ein Dialog. Der
 Worker wird in der Hülle deshalb abgemeldet — erkannt an der *Herkunft*
 (`https://localhost` ohne Port), nicht an `window.Capacitor`, denn genau das
-fehlt ja. Nebenwirkung: in der Hülle gibt es dadurch keinen Kachelpuffer mehr.
+fehlt ja. Den entfallenen Kachelpuffer übernimmt in der Hülle `kachelpuffer.ts`
+(eigenes Schema `radlpuffer://` über maplibres `transformRequest`, Ablage in
+der Cache Storage, die es auch ohne Worker gibt).
 
 **`@capacitor/geolocation`: `interval` fehlt, also gilt `timeout`.** Steht
 `interval` nicht in den Optionen, setzt die Android-Seite es auf den Wert von
