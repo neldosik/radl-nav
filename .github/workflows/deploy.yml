@@ -1,0 +1,51 @@
+name: Deploy
+
+# Was in main landet, geht live — und zwar mit demselben Skript, das auch von
+# Hand läuft (`npm run deploy`). Bisher war das ein Handgriff auf genau einem
+# Rechner: wer nicht daran dachte, ließ die Nutzer und die Android-Hülle auf
+# einem alten Stand stehen, ohne dass irgendwo etwas rot geworden wäre.
+#
+# Das Skript bleibt die einzige Wahrheit — auch der Zip-Stand für die
+# Selbstaktualisierung der Hülle und das Manifest entstehen dort. Ein zweiter
+# Weg hier würde beides früher oder später auseinanderlaufen lassen.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Zwei Deployments gleichzeitig würden sich auf gh-pages gegenseitig
+# überschreiben; laufende nicht abbrechen, sonst bleibt ein halber Stand liegen.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Auf GitHub Pages veröffentlichen
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Volle Historie: die Paketnummer zählt die Commits (1.0.<n>), bei einem
+      # flachen Klon käme jedes Deployment als 1.0.1 heraus und kein Gerät
+      # würde die Aktualisierung je holen.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Absender für den Deploy-Commit setzen
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Bauen und veröffentlichen
+        run: npm run deploy

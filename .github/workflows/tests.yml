@@ -33,6 +33,44 @@ jobs:
       - name: Produktionsbündel bauen
         run: npm run build
 
+      # Der Kartenteil wiegt allein rund 270 kB gzip. Rutscht er durch einen
+      # beiläufigen statischen Import in den Einstieg, lädt die App am Handy
+      # spürbar länger — auffallen würde das sonst niemandem.
+      - name: Bündelgröße prüfen
+        run: npm run size
+
+  rauchprobe:
+    name: Rauchprobe im Browser
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Browser holen
+        run: npx playwright install --with-deps chromium
+
+      - name: Bündel bauen
+        run: npm run build
+
+      # Alle fremden Dienste sind abgefangen (tests/e2e/mocks.ts): der Lauf
+      # prüft die App, nicht die Verfügbarkeit von Transitous und nextbike.
+      - name: Rauchprobe
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-bericht
+          path: playwright-report
+          retention-days: 7
+
   android:
     name: Android-Hülle bauen
     runs-on: ubuntu-latest
