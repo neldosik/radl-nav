@@ -29,7 +29,9 @@ import { einfuehrungGesehen } from './onboarding'
 import { useJourney } from './hooks/useJourney'
 import { addFavRoute, loadFavRoutes, loadSaved, PRESET_SLOTS, removeFavRoute, removeSaved, shortPlace, upsertSaved } from './places'
 import type { FavRoute, SavedPlace } from './places'
-import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, RainIcon, SendIcon, SettingsIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
+import { BikeIcon, BoltIcon, BookmarkIcon, ChevronDown, CloseIcon, LogoMark, RainIcon, SendIcon, SettingsIcon, ShareIcon, SlotIcon, SunIcon, SwapIcon } from './icons'
+import { standAusParams, suchUrl, teilen } from './verweis'
+import type { SuchStand } from './verweis'
 import type { ItineraryView, Place } from './types'
 import { applyDocumentLang, dict, loadLanguage, saveLanguage, t } from './i18n'
 import type { Language } from './i18n'
@@ -48,28 +50,36 @@ function sucheSchluessel(
   return `${ort(from)}|${ort(to)}|${maxBike}|${bikeType}|${bikes}`
 }
 
+/** Was in der Adresszeile stand, als die Seite geladen wurde. Danach schreibt
+ *  nur noch die App dorthin — ein zweites Lesen würde den eigenen Stand lesen. */
+const startStand = standAusParams(new URLSearchParams(window.location.search))
+
 export default function App() {
   const [lang, setLang] = useState<Language>(() => loadLanguage())
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => localStorage.getItem('radl.sound') !== 'false')
 
-  const [from, setFrom] = useState<Place | null>(null)
-  const [to, setTo] = useState<Place | null>(null)
+  // Ein geteilter Link gewinnt gegen die gemerkten Einstellungen: wer ihn
+  // öffnet, will die Suche sehen, die darin steht.
+  const [from, setFrom] = useState<Place | null>(startStand.from ?? null)
+  const [to, setTo] = useState<Place | null>(startStand.to ?? null)
   /** Gruppenfahrt: wie viele Räder auf einmal geholt werden sollen. */
   const [bikes, setBikes] = useState(() => {
+    if (startStand.bikes) return startStand.bikes
     const saved = Number(localStorage.getItem('radl.bikes'))
     return saved >= 1 && saved <= MAX_BIKES_PER_ACCOUNT ? saved : 1
   })
   const [maxBike, setMaxBike] = useState(() => {
+    if (startStand.maxBike) return startStand.maxBike
     const saved = Number(localStorage.getItem('radl.maxbike'))
     // 30 wie die Freiminuten. Mit 20 blendete die Voreinstellung Routen aus,
     // die vollständig kostenlos gewesen wären — das Gegenteil des Zwecks.
     return [10, 15, 20, 30, 9999].includes(saved) ? saved : 30
   })
-  const [bikeType, setBikeType] = useState<'classic' | 'any'>(() =>
-    localStorage.getItem('radl.biketype') === 'any' ? 'any' : 'classic',
+  const [bikeType, setBikeType] = useState<'classic' | 'any'>(
+    () => startStand.bikeType ?? (localStorage.getItem('radl.biketype') === 'any' ? 'any' : 'classic'),
   )
-  const [timeMode, setTimeMode] = useState<'now' | 'depart' | 'arrive'>('now')
-  const [timeVal, setTimeVal] = useState('')
+  const [timeMode, setTimeMode] = useState<'now' | 'depart' | 'arrive'>(startStand.timeMode ?? 'now')
+  const [timeVal, setTimeVal] = useState(startStand.timeVal ?? '')
 
   const [views, setViews] = useState<ItineraryView[] | null>(null)
   /** Suchfeld ausgeklappt; nach einem Treffer klappt es zu, damit die Liste Platz hat */
@@ -153,6 +163,18 @@ export default function App() {
     applyDocumentLang(lang)
   }, [lang])
 
+  const suchStand: SuchStand = { from, to, timeMode, timeVal, maxBike, bikeType, bikes }
+
+  // Die Suche in der Adresszeile mitführen: Neuladen verliert sie damit nicht,
+  // ein Lesezeichen taugt etwas, und der Teilen-Knopf hat überhaupt erst etwas
+  // zu teilen. `replaceState` — jede Feldänderung als eigener Schritt in der
+  // Verlaufsliste würde die Zurück-Taste unbrauchbar machen.
+  useEffect(() => {
+    const url = suchUrl(suchStand, window.location.href)
+    if (url !== window.location.href) window.history.replaceState(window.history.state, '', url)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to, timeMode, timeVal, maxBike, bikeType, bikes])
+
   useEffect(() => {
     if (!presetHint) return
     const id = window.setTimeout(() => setPresetHint(null), 3000)
@@ -187,6 +209,13 @@ export default function App() {
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Ein geteilter Link soll die Verbindung zeigen, nicht ein ausgefülltes
+  // Formular: die Suche läuft ohne weiteren Druck auf „Route".
+  useEffect(() => {
+    if (startStand.from && startStand.to) search(startStand.from, startStand.to)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Los-Modus: Zurück beendet die Navigation, nicht die App.
   useBackGuard(journeyLeg != null, () => journey.exit())
 
@@ -340,6 +369,18 @@ export default function App() {
     setFrom(to)
     setTo(tmp)
     if (tmp && from) search(to, tmp)
+  }
+
+  async function strecketeilen() {
+    if (!from || !to) return
+    const ergebnis = await teilen(
+      suchUrl(suchStand, window.location.href),
+      `${shortPlace(from)} → ${shortPlace(to)}`,
+    )
+    // Beim Systemdialog sieht der Nutzer selbst, was passiert — eine Meldung
+    // gäbe es nur doppelt.
+    if (ergebnis === 'kopiert') setPresetHint(t('shareCopied', lang))
+    if (ergebnis === 'fehler') setPresetHint(t('shareFailed', lang))
   }
 
   function runFav(f: Place, tPl: Place) {
@@ -733,6 +774,17 @@ export default function App() {
                 title={t('saveRoute', lang)}
               >
                 <BookmarkIcon size={15} />
+              </button>
+            )}
+
+            {from && to && (
+              <button
+                className="fav-chip save"
+                onClick={strecketeilen}
+                aria-label={t('shareRoute', lang)}
+                title={t('shareRoute', lang)}
+              >
+                <ShareIcon size={15} />
               </button>
             )}
           </div>

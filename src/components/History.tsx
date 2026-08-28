@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   exactWhen,
   loadTrips,
@@ -9,9 +9,17 @@ import {
   weeklyChartData,
   whenLabel,
 } from '../history'
-import { BikeIcon, BookmarkIcon, CloseIcon, TrashIcon } from '../icons'
+import type { TripRecord } from '../history'
+import { BikeIcon, BookmarkIcon, CloseIcon, ShareIcon, TrashIcon } from '../icons'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
+import {
+  dateiName,
+  dateiSpeichern,
+  gpxErzeugen,
+  sicherungEinlesen,
+  sicherungErzeugen,
+} from '../sicherung'
 import { co2Label } from '../stats'
 
 interface Props {
@@ -26,10 +34,40 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
   const [trips, setTrips] = useState(() => loadTrips())
   /** angetippter Balken der Wochenübersicht */
   const [pickedDay, setPickedDay] = useState<string | null>(null)
+  /** Kurze Rückmeldung zu Sichern/Einlesen — sonst passiert scheinbar nichts. */
+  const [hinweis, setHinweis] = useState<string | null>(null)
+  const dateiFeld = useRef<HTMLInputElement>(null)
   const s = tripStats(trips)
   const chartData = weeklyChartData(trips)
   const avgMins = weeklyAverage(chartData)
   const favorite = topRoute(trips)
+
+  useEffect(() => {
+    if (!hinweis) return
+    const id = window.setTimeout(() => setHinweis(null), 4000)
+    return () => window.clearTimeout(id)
+  }, [hinweis])
+
+  function sichern() {
+    dateiSpeichern(dateiName('radl-fahrten', 'json'), sicherungErzeugen(trips), 'application/json')
+    setHinweis(t('histExported', lang))
+  }
+
+  async function einlesen(datei: File) {
+    const ergebnis = sicherungEinlesen(await datei.text())
+    if (!ergebnis.ok) {
+      setHinweis(t(ergebnis.grund === 'leer' ? 'histImportEmpty' : 'histImportBroken', lang))
+      return
+    }
+    setTrips(loadTrips())
+    setHinweis(dict[lang].histImported(ergebnis.added ?? 0))
+  }
+
+  function gpxSichern(trip: TripRecord) {
+    const gpx = gpxErzeugen(trip)
+    if (!gpx) return
+    dateiSpeichern(dateiName(`radl-${trip.id}`, 'gpx'), gpx, 'application/gpx+xml')
+  }
 
   const maxMins = Math.max(1, ...chartData.map(c => c.mins))
   // ohne Antippen bleibt sonst kein einziger Wert sichtbar
@@ -132,6 +170,31 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
           </>
         )}
 
+        {/* Das Fahrtenbuch liegt nur in diesem Browser — mit den Browserdaten
+            ist es sonst ersatzlos weg. */}
+        <div className="hist-backup">
+          <button className="hist-backup-btn" onClick={sichern} disabled={!trips.length}>
+            {t('histExport', lang)}
+          </button>
+          <button className="hist-backup-btn" onClick={() => dateiFeld.current?.click()}>
+            {t('histImport', lang)}
+          </button>
+          <input
+            ref={dateiFeld}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            onChange={e => {
+              const datei = e.target.files?.[0]
+              // Zurücksetzen: dieselbe Datei ein zweites Mal löste sonst kein
+              // `change` mehr aus.
+              e.target.value = ''
+              if (datei) einlesen(datei)
+            }}
+          />
+        </div>
+        {hinweis && <div className="preset-hint">{hinweis}</div>}
+
         {trips.length === 0 ? (
           <div className="msg">
             {t('histEmpty', lang)}
@@ -159,9 +222,20 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
                     {tRec.electric && ' · E-Bike'}
                   </div>
                 </div>
+                {tRec.track && tRec.track.length >= 2 && (
+                  <button
+                    className="hist-del gpx"
+                    title={t('histGpx', lang)}
+                    aria-label={t('histGpx', lang)}
+                    onClick={() => gpxSichern(tRec)}
+                  >
+                    <ShareIcon size={13} />
+                  </button>
+                )}
                 <button
                   className="hist-del"
                   title={t('histDeleteTrip', lang)}
+                  aria-label={t('histDeleteTrip', lang)}
                   onClick={() => setTrips(removeTrip(tRec.id))}
                 >
                   <TrashIcon size={14} />
