@@ -29,6 +29,28 @@ const MAX_SHELL = 150
  *  Ohne Frist hing ein schwaches Netz bis zum Browser-Standard (~1 Minute) —
  *  in der Zeit sah der Nutzer eine weiße Seite, obwohl die Hülle im Puffer lag. */
 const NAV_TIMEOUT_MS = 3000
+/** Frist für alles Übrige — Dateien der Hülle und Kartenkacheln.
+ *
+ *  Ohne Frist hängt eine Anfrage so lange, wie das Netz sie hängen lässt. Beim
+ *  Reiter „Fahrten" war das über eine Minute lang „Berechne …": der
+ *  nachgeladene Teil kam nie an, und ein zweites `import()` hilft nicht — der
+ *  Browser gibt dieselbe, weiterhin hängende Zusage zurück. Also hier
+ *  abschneiden und einmal neu anfragen; das kostet im schlechten Fall ein paar
+ *  Sekunden, im guten rettet es die Ansicht. */
+const NETZ_TIMEOUT_MS = 10000
+
+/** Holen mit Frist und einem zweiten Anlauf. */
+async function holen(request, versuche = 2) {
+  let letzter
+  for (let i = 0; i < versuche; i++) {
+    try {
+      return await fetch(request, { signal: AbortSignal.timeout(NETZ_TIMEOUT_MS) })
+    } catch (e) {
+      letzter = e
+    }
+  }
+  throw letzter
+}
 
 /**
  * Beim Einrichten die Hülle einmal aktiv holen.
@@ -204,7 +226,7 @@ async function cacheFirst(request, cacheName, max) {
   const cache = await caches.open(cacheName)
   const hit = await cache.match(request)
   if (hit) return hit
-  const res = await fetch(request)
+  const res = await holen(request)
   if (res && res.status === 200) {
     await cache.put(request, res.clone())
     if (max) await trim(cache, max, cacheName)
@@ -254,7 +276,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       caches.open(SHELL_CACHE).then(async cache => {
         const hit = await cache.match(req)
-        const frisch = fetch(req)
+        const frisch = holen(req)
           .then(res => {
             if (res && res.status === 200) cache.put(req, res.clone()).then(() => trim(cache, MAX_SHELL, SHELL_CACHE))
             return res
@@ -273,16 +295,20 @@ self.addEventListener('fetch', event => {
     caches.open(TILE_CACHE).then(async cache => {
       const cached = await cache.match(req)
       if (cached) {
-        // Sofort ausliefern, im Hintergrund auffrischen
-        fetch(req)
-          .then(res => {
-            if (res && res.status === 200) cache.put(req, res).then(() => trim(cache, MAX_TILES, TILE_CACHE, MAX_TILE_BYTES))
-          })
-          .catch(() => {})
+        // Sofort ausliefern, im Hintergrund auffrischen. `waitUntil` hält den
+        // Worker so lange am Leben — sonst bricht das Auffrischen ab, sobald
+        // der Browser ihn nach der Antwort schlafen legt.
+        event.waitUntil(
+          holen(req, 1)
+            .then(res => {
+              if (res && res.status === 200) return cache.put(req, res).then(() => trim(cache, MAX_TILES, TILE_CACHE, MAX_TILE_BYTES))
+            })
+            .catch(() => {}),
+        )
         return cached
       }
       try {
-        const res = await fetch(req)
+        const res = await holen(req)
         if (res && res.status === 200) {
           await cache.put(req, res.clone())
           await trim(cache, MAX_TILES, TILE_CACHE, MAX_TILE_BYTES)

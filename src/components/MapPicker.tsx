@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import { getGeolocation, reverseGeocode } from '../api'
 import { CloseIcon, PinIcon, TargetIcon } from '../icons'
-import { mapStyleUrl } from '../mapStyle'
+import { mapStyleUrl, stilAbsichern } from '../mapStyle'
 import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
@@ -108,6 +108,7 @@ export default function MapPicker({
     }
     m.on('load', update)
     m.on('moveend', update)
+    stilAbsichern(m, () => mapStyleUrl(theme), update)
     return () => {
       window.clearTimeout(nameTimer.current)
       nameCtrl.current?.abort()

@@ -4,7 +4,7 @@ import { legKind } from '../format'
 import { legPath } from '../routing'
 import { bearing, bearingDelta, haversine, nachziehAnteil, nachziehen, planPickup, projectOnPath, smoothBearing } from '../geo'
 import { kompassStarten } from '../kompass'
-import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
+import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors, stilAbsichern } from '../mapStyle'
 import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
@@ -214,12 +214,14 @@ export default function MapView({
       attributionControl: { compact: true },
       transformRequest: kartenAnfrage,
     })
-    m.on('load', () => {
+    const aufbau = () => {
       addRouteLayers(m, themeRef.current)
       addCycleLayer(m, cycleRef.current)
       ready.current = true
       if (viewRef.current) draw(viewRef.current, activeLegRef.current)
-    })
+    }
+    m.on('load', aufbau)
+    stilAbsichern(m, () => mapStyleUrl(themeRef.current), aufbau)
     // Eigenes Ziehen/Zoomen erkennen (nicht die programmierten Kamerafahrten)
     const handPan = (e: { originalEvent?: unknown }) => {
       if (e.originalEvent && activeLegRef.current != null && followRef.current) onUserPanRef.current?.()
