@@ -42,17 +42,26 @@ es für diese Zeile nicht.
 ```bash
 npm install
 npm run dev        # http://localhost:5173/
-npm test           # 273 Tests der Rechenlogik (vitest)
+npm test           # Tests der Rechenlogik (vitest)
 npm run typecheck  # tsc -b, dieselbe Prüfung wie in der CI
 npm run lint       # oxlint
 npm run build      # Produktionsbündel nach dist/
+npm run size       # Bündelgrößen gegen die Grenzen prüfen (braucht dist/)
+npm run test:e2e   # Rauchprobe im Browser (playwright, braucht Chromium)
 ```
+
+Die Rauchprobe läuft gegen `vite preview`, also gegen das gebaute Bündel, und
+fängt alle fremden Dienste ab (`tests/e2e/mocks.ts`). Einmalig braucht sie
+`npx playwright install --with-deps chromium`.
 
 ### Veröffentlichen und zurückrollen
 
 `gh-pages` hängt als eigenes Arbeitsverzeichnis (`git worktree`) unter
 `.gh-pages/`. Jedes Deployment ist ein normaler Commit obendrauf, der Push
 kommt ohne `-f` aus, die Historie bleibt erhalten.
+
+Auf `main` passiert das von allein: `.github/workflows/deploy.yml` ruft nach
+jedem Push dasselbe Skript auf. Von Hand geht es weiter genauso.
 
 ```bash
 npm run deploy                    # bauen und veröffentlichen
