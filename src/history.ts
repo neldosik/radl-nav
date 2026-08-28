@@ -59,6 +59,22 @@ export function clearTrips(): void {
   localStorage.removeItem(KEY)
 }
 
+/**
+ * Fahrten aus einer Sicherung dazunehmen. Gleiche `id` heißt dieselbe Fahrt —
+ * dasselbe Backup zweimal eingelesen verdoppelt also nichts. Es bleiben die
+ * jüngsten `MAX` Fahrten; eine sehr alte Sicherung kann damit hinten
+ * abgeschnitten werden.
+ */
+export function mergeTrips(fremde: TripRecord[]): { trips: TripRecord[]; added: number } {
+  const bekannt = new Set(loadTrips().map(t => t.id))
+  const neu = fremde.filter(t => !bekannt.has(t.id))
+  const next = [...loadTrips(), ...neu]
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, MAX)
+  localStorage.setItem(KEY, JSON.stringify(next))
+  return { trips: next, added: neu.length }
+}
+
 /** Einzelne Fahrt löschen — vorher ging nur „alles löschen". */
 export function removeTrip(id: string): TripRecord[] {
   const next = loadTrips().filter(t => t.id !== id)

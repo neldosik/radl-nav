@@ -45,6 +45,16 @@ export const SendIcon = ({ size = 16 }: P) => (
   </svg>
 )
 
+/** Drei verbundene Knoten — das gewohnte Zeichen fürs Teilen. */
+export const ShareIcon = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="M8.6 10.6 15.4 6.4M8.6 13.4l6.8 4.2" />
+  </svg>
+)
+
 export const SwapIcon = ({ size = 18 }: P) => (
   <svg {...base(size)}>
     <path d="m21 16-4 4-4-4M17 20V4M3 8l4-4 4 4M7 4v16" />
