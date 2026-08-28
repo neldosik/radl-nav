@@ -11,6 +11,7 @@ import type { LatLon, Place, Station } from '../types'
 import { dict, t } from '../i18n'
 import { useBackGuard } from '../hooks/useBackGuard'
 import type { Language } from '../i18n'
+import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
 
 interface Props {
   userPos: LatLon | null
@@ -217,12 +218,14 @@ export default function BikeMap({
 
   useEffect(() => {
     if (!canvas.current || map.current) return
+    kachelpufferEinrichten(maplibregl.addProtocol)
     const m = new maplibregl.Map({
       container: canvas.current,
       style: mapStyleUrl(theme),
       center: [center.lon, center.lat],
       zoom: 14.5,
       attributionControl: { compact: true },
+      transformRequest: kartenAnfrage,
     })
     // Nach jedem Schieben und Zoomen die Liste neu auf den Ausschnitt beziehen.
     const onMoveEnd = () => {

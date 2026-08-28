@@ -8,6 +8,7 @@ import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapS
 import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
+import { kachelpufferEinrichten, kartenAnfrage } from '../kachelpuffer'
 
 /** Bis zu diesem Abstand gilt der Standort als „auf der Route" und wird auf
  *  die Linie gezogen. Darüber bleibt der rohe Fix stehen — wer wirklich falsch
@@ -202,12 +203,14 @@ export default function MapView({
 
   useEffect(() => {
     if (!div.current || map.current) return
+    kachelpufferEinrichten(maplibregl.addProtocol)
     const m = new maplibregl.Map({
       container: div.current,
       style: mapStyleUrl(themeRef.current),
       center: [stadt().mitte.lon, stadt().mitte.lat],
       zoom: 11.5,
       attributionControl: { compact: true },
+      transformRequest: kartenAnfrage,
     })
     m.on('load', () => {
       addRouteLayers(m, themeRef.current)
