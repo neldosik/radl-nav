@@ -43,7 +43,7 @@ function planAntwort() {
   }
 
   const bahn = {
-    mode: 'SUBWAY',
+    mode: 'SUBURBAN',
     from: { name: 'Isartor', lat: 48.1341, lon: 11.5866, departure: t(11) },
     to: { name: 'Ostbahnhof', lat: ZIEL.lat, lon: ZIEL.lon, arrival: t(16) },
     duration: 5 * 60,
@@ -170,6 +170,20 @@ export async function mockApis(page: Page): Promise<void> {
       },
     })
   })
+
+  await page.route('**/www.mvg.de/api/**', route =>
+    json(route, [
+      {
+        title: 'S1: Verspätungen',
+        description: '<p>Wegen einer Signalstörung kommt es zu <b>Verspätungen</b>.</p>',
+        type: 'INCIDENT',
+        validFrom: Date.now() - 3600_000,
+        validTo: Date.now() + 3600_000,
+        lines: [{ label: 'S1', transportType: 'SBAHN' }],
+        links: [{ text: 'Mehr', url: 'https://www.mvg.de/meldung' }],
+      },
+    ]),
+  )
 
   // Kacheln und Kartenstil: in Chrome ohne GPU rendert MapLibre ohnehin nichts
   // Prüfbares — die leere Antwort hält den Lauf offline und schnell.

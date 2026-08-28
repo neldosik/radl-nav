@@ -34,6 +34,16 @@ test('findet aus einem geteilten Verweis eine Route', async ({ page }) => {
   await expect(karte).toContainText('S1')
 })
 
+test('meldet Störungen der gefahrenen Linie', async ({ page }) => {
+  await page.goto(SUCH_URL)
+
+  const karte = page.locator('.results-list .route').first()
+  await expect(karte).toBeVisible({ timeout: 20_000 })
+  await expect(karte.locator('.badge-highlight.stoerung')).toContainText('1 Störung')
+  await expect(karte.locator('.stoerung-titel')).toContainText('S1: Verspätungen')
+  await expect(karte.locator('.stoerung-text')).toContainText('Signalstörung')
+})
+
 test('behält die Suche in der Adresszeile', async ({ page }) => {
   await page.goto(SUCH_URL)
   await expect(page.locator('.results-list .route').first()).toBeVisible({ timeout: 20_000 })

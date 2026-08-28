@@ -9,6 +9,7 @@ import { fetchElevationProfile } from '../api'
 import type { ElevationProfile } from '../api'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
+import type { Stoerung } from '../stoerungen'
 
 /** Einmal geholte Höhenprofile behalten. Beim Durchtippen der Routen wurde
  *  sonst für dieselbe Etappe immer wieder dieselbe Anfrage gestellt. */
@@ -54,6 +55,8 @@ interface Props {
   isFastest?: boolean
   isFree?: boolean
   isFewestTransfers?: boolean
+  /** Meldungen zu den Linien dieser Verbindung (MVG). */
+  stoerungen?: Stoerung[]
   lang?: Language
   onSelect: () => void
   onGo: () => void
@@ -83,6 +86,7 @@ export default function ItineraryCard({
   isFastest = false,
   isFree = false,
   isFewestTransfers = false,
+  stoerungen = [],
   lang = 'de',
   onSelect,
   onGo,
@@ -145,8 +149,13 @@ export default function ItineraryCard({
           )
         })}
       </div>
-      {(isFastest || isFree || isFewestTransfers) && (
+      {(isFastest || isFree || isFewestTransfers || stoerungen.length > 0) && (
         <div className="route-badges-row">
+          {stoerungen.length > 0 && (
+            <span className="badge-highlight stoerung">
+              ⚠ {dict[lang].stoerungTag(stoerungen.length)}
+            </span>
+          )}
           {isFastest && (
             <span className="badge-highlight fastest">{t('cardFastest', lang)}</span>
           )}
@@ -292,6 +301,29 @@ export default function ItineraryCard({
               </div>
             )
           })}
+
+          {stoerungen.length > 0 && (
+            <div className="stoerungen" role="note" aria-label={t('stoerungTitel', lang)}>
+              <div className="stoerungen-kopf">⚠ {t('stoerungTitel', lang)}</div>
+              {stoerungen.map(s => (
+                <div key={s.id} className={`stoerung${s.typ === 'plan' ? ' plan' : ''}`}>
+                  <div className="stoerung-titel">
+                    {s.typ === 'plan' && (
+                      <span className="stoerung-art">{t('stoerungPlan', lang)} · </span>
+                    )}
+                    {s.titel}
+                  </div>
+                  {s.text && <div className="stoerung-text">{s.text}</div>}
+                  {s.link && (
+                    <a href={s.link} target="_blank" rel="noreferrer" className="leg-link">
+                      <ExternalIcon size={12} /> {t('stoerungMehr', lang)}
+                    </a>
+                  )}
+                </div>
+              ))}
+              <div className="stoerung-quelle">{t('stoerungQuelle', lang)}</div>
+            </div>
+          )}
 
           <button className="btn-block btn-go" onClick={onGo}>
             <SendIcon size={15} /> {t('cardStartNav', lang)}

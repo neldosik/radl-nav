@@ -1113,6 +1113,56 @@ button {
   color: var(--muted);
 }
 
+.badge-highlight.stoerung {
+  background: var(--alert-soft);
+  color: var(--alert);
+}
+
+.stoerungen {
+  border: 1px solid var(--alert-soft);
+  border-left: 3px solid var(--alert);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stoerungen-kopf {
+  font-size: calc(13px * var(--ts));
+  font-weight: 700;
+  color: var(--alert);
+}
+
+.stoerung-titel {
+  font-size: calc(13px * var(--ts));
+  font-weight: 600;
+}
+
+.stoerung.plan .stoerung-titel {
+  font-weight: 500;
+}
+
+.stoerung-art {
+  color: var(--muted);
+}
+
+.stoerung-text {
+  font-size: calc(12px * var(--ts));
+  color: var(--muted);
+  /* Lange Bautexte sollen die Karte nicht sprengen — Rest per Meldungslink. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.stoerung-quelle {
+  font-size: calc(11px * var(--ts));
+  color: var(--muted);
+}
+
 .pickup-info {
   font-size: calc(13px * var(--ts));
   color: var(--muted);
