@@ -1,5 +1,6 @@
 import { locale } from './i18n'
 import type { Language } from './i18n'
+import { MUENCHEN, stadt } from './stadt'
 import type { ItineraryView, Leg } from './types'
 
 /**
@@ -27,14 +28,16 @@ export const CAR_CO2_PER_KM = 148
 /** Herstellung/Betrieb des Leihrads — grob, aber nicht null. */
 export const BIKE_CO2_PER_KM = 5
 
-/** Ohne Abo: jede angefangene halbe Stunde 1 € auf dem Standardrad. */
-export const CLASSIC_RATE_CENT = 100
-/** E-Bike kostet auch mit Abo: 1,50 € je angefangene halbe Stunde. */
-export const EBIKE_RATE_CENT = 150
-/** Tageskappe MyRadl. */
-export const DAY_CAP_CENT = 900
-/** Freiminuten je Ausleihe auf dem Standardrad (nur mit ÖPNV-Abo). */
-export const FREE_MINUTES = 30
+/** Preise der eingestellten Stadt — oder null, wenn der Betreiber keinen
+ *  belastbaren Tarif veröffentlicht (siehe `stadt.ts`). Dann rechnet die App
+ *  nicht und die Oberfläche zeigt statt einer Zahl gar nichts. */
+const tarif = () => stadt().tarif
+
+/** Münchner Tarif als benannte Werte — der Standardfall der App. */
+export const CLASSIC_RATE_CENT = MUENCHEN.tarif.klassischCent
+export const EBIKE_RATE_CENT = MUENCHEN.tarif.elektroCent
+export const DAY_CAP_CENT = MUENCHEN.tarif.tagesdeckelCent
+export const FREE_MINUTES = MUENCHEN.tarif.freiminutenAbo
 
 /**
  * Hat der Nutzer ein ÖPNV-Abo?
@@ -50,7 +53,12 @@ export const FREE_MINUTES = 30
  * eine Zahl auf dem Bildschirm eine Zusage ist.
  */
 export function freiminuten(abo: boolean): number {
-  return abo ? FREE_MINUTES : 0
+  return abo ? (tarif()?.freiminutenAbo ?? 0) : 0
+}
+
+/** Kennt die App den Tarif der eingestellten Stadt? */
+export function preisBekannt(): boolean {
+  return tarif() !== null
 }
 
 export interface RideLeg {
@@ -75,6 +83,9 @@ export interface RideStats {
   co2Grams: number
   /** Leihkosten in Cent — je nach Abo mit oder ohne Freiminuten. */
   costCent: number
+  /** Falsch, wenn für die Stadt kein Tarif hinterlegt ist: `costCent` ist
+   *  dann keine Aussage über Geld, sondern nur eine Null. */
+  costKnown: boolean
 }
 
 /** Kalorien einer einzelnen Etappe. */
@@ -89,20 +100,18 @@ export function legKcal(minutes: number, electric: boolean, weightKg = DEFAULT_W
  * E-Bike: von der ersten Minute an 1,50 € je angefangene halbe Stunde.
  */
 export function legCostCent(minutes: number, electric: boolean, abo = true): number {
-  if (minutes <= 0) return 0
-  if (electric) return Math.ceil(minutes / 30) * EBIKE_RATE_CENT
-  const paid = Math.max(0, minutes - freiminuten(abo))
-  return Math.ceil(paid / 30) * CLASSIC_RATE_CENT
+  return legCostCentFromSec(minutes * 60, electric, abo)
 }
 
 /** Wie `legCostCent`, aber aus Sekunden — ohne die Rundung, die eine
  *  Gebührenstufe verschlucken kann. */
 export function legCostCentFromSec(seconds: number, electric: boolean, abo = true): number {
-  if (seconds <= 0) return 0
+  const t = tarif()
+  if (!t || seconds <= 0) return 0
   const min = seconds / 60
-  if (electric) return Math.ceil(min / 30) * EBIKE_RATE_CENT
+  if (electric) return Math.ceil(min / t.taktMin) * t.elektroCent
   const paid = Math.max(0, min - freiminuten(abo))
-  return Math.ceil(paid / 30) * CLASSIC_RATE_CENT
+  return Math.ceil(paid / t.taktMin) * t.klassischCent
 }
 
 /** Summe über alle Radetappen; Kosten auf die Tageskappe begrenzt. */
@@ -125,7 +134,8 @@ export function rideStats(legs: RideLeg[], weightKg = DEFAULT_WEIGHT_KG, abo = t
     bikeKm: Math.round(bikeKm * 10) / 10,
     kcal,
     co2Grams: Math.round(bikeKm * (CAR_CO2_PER_KM - BIKE_CO2_PER_KM)),
-    costCent: Math.min(costCent, DAY_CAP_CENT),
+    costCent: Math.min(costCent, tarif()?.tagesdeckelCent ?? 0),
+    costKnown: preisBekannt(),
   }
 }
 

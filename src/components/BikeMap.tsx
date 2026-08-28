@@ -5,6 +5,7 @@ import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { pickRentalUri } from '../format'
 import { BikeIcon, BoltIcon, CloseIcon, ExternalIcon, TargetIcon, WalkIcon } from '../icons'
 import { addCycleLayer, mapStyleUrl } from '../mapStyle'
+import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
 import { dict, t } from '../i18n'
@@ -24,7 +25,6 @@ interface Props {
   onClose: () => void
 }
 
-const MUNICH: LatLon = { lat: 48.137, lon: 11.575 }
 const RADIUS_M = 2500
 /** So viele gezeichnete Pillen bleiben vorrätig, auch wenn sie gerade nicht
  *  zu sehen sind — Zurückschieben nutzt sie dann wieder. */
@@ -185,7 +185,7 @@ export default function BikeMap({
    *  Radzahl, E-Bike-Zahl, Filter und Auswahl erzeugt eine eigene Grafik von
    *  gut 26 kB; ohne Freigabe wuchs der Atlas über die ganze Sitzung an. */
   const iconIds = useRef<Set<string>>(new Set())
-  const home = here ?? MUNICH
+  const home = here ?? stadt().mitte
   const center = mapCenter ?? home
 
   useEffect(() => {

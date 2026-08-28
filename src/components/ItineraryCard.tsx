@@ -10,6 +10,7 @@ import type { ElevationProfile } from '../api'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
 import type { Stoerung } from '../stoerungen'
+import { stadt } from '../stadt'
 
 /** Einmal geholte Höhenprofile behalten. Beim Durchtippen der Routen wurde
  *  sonst für dieselbe Etappe immer wieder dieselbe Anfrage gestellt. */
@@ -102,8 +103,9 @@ export default function ItineraryCard({
   const short = pickups.find(p => p.pk.got < bikesNeeded)
   const minGot = pickups.length ? Math.min(...pickups.map(p => p.pk.got)) : null
 
+  const tarifBekannt = stadt().tarif !== null
   let tagKind = 'ok'
-  let tagText = t('cardFreeWithAbo', lang)
+  let tagText = tarifBekannt ? t('cardFreeWithAbo', lang) : t('cardOhneTarif', lang)
   if (view.warnReturn) {
     // Ohne erreichbare Station endet die Fahrt mit 20 € Strafe — das schlägt
     // jede andere Meldung.
@@ -116,7 +118,7 @@ export default function ItineraryCard({
       bikesNeeded,
       short.b.electric ? t('ebikeMany', lang) : t('bikeMany', lang),
     )
-  } else if (view.hasElectric) {
+  } else if (view.hasElectric && tarifBekannt) {
     tagKind = 'warn'
     tagText = t('cardEbikePrice', lang)
   } else if (view.warnLong) {
@@ -126,7 +128,9 @@ export default function ItineraryCard({
     tagKind = 'alert'
     tagText = dict[lang].cardHighDemand(minGot, bikeWord(minGot, lang))
   } else if (minGot != null) {
-    tagText = dict[lang].cardFreeWithBikes(minGot, bikeWord(minGot, lang))
+    tagText = tarifBekannt
+      ? dict[lang].cardFreeWithBikes(minGot, bikeWord(minGot, lang))
+      : dict[lang].cardRaederFrei(minGot, bikeWord(minGot, lang))
   }
 
   const stripLegs = it.legs.filter(l => !(l.mode === 'WALK' && l.duration < 90))
@@ -159,7 +163,7 @@ export default function ItineraryCard({
           {isFastest && (
             <span className="badge-highlight fastest">{t('cardFastest', lang)}</span>
           )}
-          {isFree && (
+          {isFree && tarifBekannt && (
             <span className="badge-highlight free">
               <BikeIcon size={11} /> {t('cardFree100', lang)}
             </span>
@@ -276,7 +280,9 @@ export default function ItineraryCard({
                                 bike.startStation.maxChargePercent,
                                 bike.startStation.rangeKm ?? 25,
                               )
-                            : t('cardEbikeNoBattery', lang)}
+                            : tarifBekannt
+                              ? t('cardEbikeNoBattery', lang)
+                              : ''}
                         </div>
                       )}
                       {bike.tooLong && (

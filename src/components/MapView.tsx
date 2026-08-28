@@ -5,6 +5,7 @@ import { legPath } from '../routing'
 import { bearing, bearingDelta, haversine, nachziehAnteil, nachziehen, planPickup, projectOnPath, smoothBearing } from '../geo'
 import { kompassStarten } from '../kompass'
 import { addCycleLayer, addRouteLayers, mapStyleUrl, routeColors } from '../mapStyle'
+import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { ItineraryView, Leg } from '../types'
 
@@ -204,7 +205,7 @@ export default function MapView({
     const m = new maplibregl.Map({
       container: div.current,
       style: mapStyleUrl(themeRef.current),
-      center: [11.575, 48.137],
+      center: [stadt().mitte.lon, stadt().mitte.lat],
       zoom: 11.5,
       attributionControl: { compact: true },
     })

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { BikeIcon, BoltIcon, CloseIcon } from '../icons'
 import { t } from '../i18n'
 import type { Language } from '../i18n'
+import { stadt } from '../stadt'
 
 /** MyRadl gibt höchstens vier Räder pro Konto aus (AGB nextbike). */
 export const MAX_BIKES_PER_ACCOUNT = 4
@@ -77,7 +78,9 @@ export default function FilterModal({
             >
               <div className="ft-icon"><BikeIcon size={20} /></div>
               <div className="ft-name">Standard</div>
-              <div className="ft-sub">{t('standardSub', lang)}</div>
+              <div className="ft-sub">
+                {t(stadt().tarif ? 'standardSub' : 'standardSubOhneTarif', lang)}
+              </div>
               <div className="ft-mark">✓</div>
             </button>
 

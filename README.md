@@ -7,6 +7,10 @@ Multimodaler Routenplaner für München: verbindet **Fußweg → MyRadl-Rad → 
 zu einer durchgehenden Route, mit Live-Verfügbarkeit der Räder und einem Blick
 auf die 30 Freiminuten. Diese Kombination bieten weder Google Maps noch MVGO.
 
+Weitere nextbike-Städte (Berlin, Leipzig, Karlsruhe) sind in `src/stadt.ts`
+hinterlegt und über das Hauptmenü wählbar; ohne bekannten Tarif nennt die App
+dort keine Preise und keine Freiminuten.
+
 Privates, nicht-kommerzielles Projekt. **Kein Backend**: statische PWA, alle
 verwendeten Schnittstellen sind offen und liefern CORS `*`.
 

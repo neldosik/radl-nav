@@ -1,3 +1,4 @@
+import { stadt } from './stadt'
 import type { Leg } from './types'
 
 /**
@@ -89,6 +90,9 @@ let laufend: Promise<Stoerung[]> | null = null
 /** Alle aktuellen Meldungen; bei Netzfehler eine leere Liste — die Route soll
  *  auch ohne Meldungsdienst angezeigt werden. */
 export async function ladeStoerungen(signal?: AbortSignal): Promise<Stoerung[]> {
+  // Außerhalb Münchens gibt es keinen offenen Meldungsdienst — Münchner
+  // Meldungen wären dort schlicht falsch.
+  if (stadt().meldungen !== 'mvg') return []
   if (puffer && Date.now() - puffer.at < PUFFER_MS) return puffer.werte
   if (laufend) return laufend
 
