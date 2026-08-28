@@ -8,6 +8,7 @@ import {
   ortungsTakt,
 } from '../geolocation'
 import { aktualisierungBericht } from '../aktualisierung'
+import { inZwischenablage } from '../zwischenablage'
 
 /**
  * Messwerte des Geräts, damit Layoutfehler nicht aus Bildschirmfotos geraten
@@ -77,6 +78,30 @@ export default function Diag({ onClose }: { onClose: () => void }) {
   const [ort, setOrt] = useState('noch nicht geprüft')
   const [rechte, setRechte] = useState('wird geprüft …')
   const [stand, setStand] = useState('noch nicht geprüft')
+  const [kopiert, setKopiert] = useState('')
+
+  /**
+   * Alles auf einmal in die Zwischenablage — Messwerte, Ortungsversuch und
+   * Aktualisierungsstand.
+   *
+   * Bisher kamen die Zahlen als Bildschirmfoto zurück: abgeschnitten,
+   * unlesbar, nicht durchsuchbar. Ein Textblock lässt sich in jede Nachricht
+   * kleben, und der Nutzer sieht vorher, was er verschickt.
+   */
+  async function alleskopieren() {
+    const bericht = [
+      ...text,
+      '',
+      `ortung     ${ort}`,
+      '',
+      `aktualisierung ${stand}`,
+      `browser    ${navigator.userAgent}`,
+      `sprachen   ${navigator.languages?.join(',') ?? navigator.language}`,
+      `zeit       ${new Date().toISOString()}`,
+    ].join('\n')
+    setKopiert((await inZwischenablage(bericht)) ? 'kopiert' : 'geht nicht — Text markieren')
+    window.setTimeout(() => setKopiert(''), 3000)
+  }
 
   /**
    * Selbstaktualisierung prüfen — erzwungen, ohne die Stundenpause.
@@ -150,7 +175,13 @@ ${ortungsProtokoll().join('\n') || '(kein einziger Schritt begonnen)'}`)
 
   return (
     <div className="diag" onClick={onClose}>
-      <div className="diag-box" onClick={e => e.stopPropagation()}>
+      <div
+        className="diag-box"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Diagnose"
+        onClick={e => e.stopPropagation()}
+      >
         <pre>{text.join('\n')}</pre>
         <button className="diag-btn" onClick={ortPruefen}>
           Ortung testen
@@ -160,6 +191,12 @@ ${ortungsProtokoll().join('\n') || '(kein einziger Schritt begonnen)'}`)
           Aktualisierung prüfen
         </button>
         <pre className="diag-ort">{stand}</pre>
+        <button className="diag-btn" onClick={alleskopieren}>
+          Diagnose kopieren
+        </button>
+        <div className="diag-hinweis" role="status" aria-live="polite">
+          {kopiert}
+        </div>
       </div>
     </div>
   )

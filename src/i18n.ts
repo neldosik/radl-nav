@@ -59,6 +59,8 @@ export const dict = {
     // ── Kopfzeile und Menü ──
     appSub: 'MyRadl + MVV · München',
     menuTitle: 'Hauptmenü',
+    // Nur für Vorleseprogramme: die Leiste selbst zeigt schon Symbole.
+    tabbarLabel: 'Bereiche',
     tabRoute: 'Route',
     tabBikes: 'Räder',
     tabTrips: 'Fahrten',
@@ -332,6 +334,7 @@ export const dict = {
     // ── Header and menu ──
     appSub: 'MyRadl + MVV · Munich',
     menuTitle: 'Main menu',
+    tabbarLabel: 'Sections',
     tabRoute: 'Route',
     tabBikes: 'Bikes',
     tabTrips: 'Trips',

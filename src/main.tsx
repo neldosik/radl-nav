@@ -81,8 +81,13 @@ if (inHuelle() && 'serviceWorker' in navigator) {
    * geladen, denn da ist der Stand ohnehin frisch.
    */
   let neuGeladen = false
+  // Beim allerersten Besuch steuert noch niemand die Seite. Der Worker meldet
+  // sich Sekunden später über `clients.claim`, und `controller` ist dann
+  // gesetzt — die alte Abfrage traf also genau den Fall, den sie ausschließen
+  // sollte, und jeder neue Besucher lud die Seite einmal umsonst neu.
+  const hatteSteuerung = !!navigator.serviceWorker.controller
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (neuGeladen || !navigator.serviceWorker.controller) return
+    if (neuGeladen || !hatteSteuerung) return
     // Nicht mitten in der Fahrt. Der Neustart setzte den Los-Modus zurück,
     // und mit ihm die Uhr der laufenden Ausleihe — ausgerechnet die
     // Bequemlichkeit, dass ein Deployment sofort ankommt, kostete dann Geld.

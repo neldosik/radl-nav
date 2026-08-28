@@ -184,6 +184,10 @@ export default function History({ lang = 'de', embedded = false, onClose }: Prop
             type="file"
             accept="application/json,.json"
             className="sr-only"
+            // Das Feld ist versteckt, steht aber im Baum: ohne Namen meldet
+            // ein Vorleseprogramm nur „Auswahl Datei".
+            aria-label={t('histImport', lang)}
+            tabIndex={-1}
             onChange={e => {
               const datei = e.target.files?.[0]
               // Zurücksetzen: dieselbe Datei ein zweites Mal löste sonst kein

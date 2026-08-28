@@ -684,7 +684,12 @@ export default function JourneyMode({
               </div>
             )}
           </div>
-          <button className="j-end" onClick={onExit} title={t('jmEnd', lang)}>
+          <button
+            className="j-end"
+            onClick={onExit}
+            aria-label={t('jmEnd', lang)}
+            title={t('jmEnd', lang)}
+          >
             <CloseIcon size={20} />
           </button>
         </div>
@@ -692,7 +697,9 @@ export default function JourneyMode({
         {/* Meldung und Rad-Uhr teilen sich eine Zeile unter der Kopfkarte:
             zuoberst ragte das Band in die Karte, darunter hing es unter der Uhr. */}
         <div className="j-status-row">
-          <div className="j-status-msg">
+          {/* Unterwegs schaut niemand dauernd hin: Umleitung, verlorene Ortung
+              oder „aussteigen" müssen auch angesagt werden. */}
+          <div className="j-status-msg" role="status" aria-live="assertive">
             {rerouting ? (
               <div className="timer-banner off-route">
                 <span>
