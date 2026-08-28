@@ -3,6 +3,7 @@ import * as maplibregl from 'maplibre-gl'
 import { getGeolocation, reverseGeocode } from '../api'
 import { CloseIcon, PinIcon, TargetIcon } from '../icons'
 import { mapStyleUrl } from '../mapStyle'
+import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place } from '../types'
 import { useBackGuard } from '../hooks/useBackGuard'
@@ -75,7 +76,7 @@ export default function MapPicker({
         ? [initial.lon, initial.lat]
         : hier
           ? [hier.lon, hier.lat]
-          : [11.575, 48.137],
+          : [stadt().mitte.lon, stadt().mitte.lat],
       zoom: initial || hier ? 15 : 12,
       attributionControl: { compact: true },
     })

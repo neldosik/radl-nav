@@ -22,13 +22,14 @@ import { fahrtMelden, mieteBeenden, mieteBeginnFuer, mieteMerken } from '../miet
 import type { TripStatus } from '../api'
 import { abseitsSchwelle, haversine, planPickup, projectOnPath } from '../geo'
 import { nextTurn, turnsFromPath } from '../turns'
-import { FREE_LIMIT_SEC, legPath } from '../routing'
+import { freiLimitSek, legPath } from '../routing'
 import { co2Label, euro, viewStats } from '../stats'
 import { cancelReturnReminders, scheduleReturnReminders } from '../notify'
 import { playWarningSound } from '../audio'
 import { abbiegeSatz, schweigen, sprechen } from '../sprache'
 import { dict, t } from '../i18n'
 import type { Language } from '../i18n'
+import { stadt } from '../stadt'
 import { stoerungenFuerEtappen } from '../stoerungen'
 import type { Stoerung } from '../stoerungen'
 
@@ -240,7 +241,7 @@ export default function JourneyMode({
   // Warnungen unten greifen nur, solange die App im Vordergrund steht —
   // Bildschirm aus, und die Freiminuten liefen bisher unbemerkt ab.
   useEffect(() => {
-    if (!isBikeLeg || b?.electric || arrived) {
+    if (!isBikeLeg || b?.electric || arrived || freiLimitSek() === 0) {
       cancelReturnReminders()
       return
     }
@@ -248,7 +249,7 @@ export default function JourneyMode({
     // das volle Fenster.
     const verstrichen = bikeStartedAt ? Math.floor((Date.now() - bikeStartedAt) / 1000) : 0
     scheduleReturnReminders({
-      secondsLeft: Math.max(0, FREE_LIMIT_SEC - verstrichen),
+      secondsLeft: Math.max(0, freiLimitSek() - verstrichen),
       stationName: b?.endStation?.name ?? null,
       lang,
     })
@@ -261,12 +262,14 @@ export default function JourneyMode({
   // Rückgabe-Warnung: 5 Min und 2 Min vor Ende des kostenlosen Fensters
   useEffect(() => {
     if (!isBikeLeg) return
-    if (bikeSec >= FREE_LIMIT_SEC - 5 * 60 && bikeSec < FREE_LIMIT_SEC - 2 * 60 && !warned5Min.current) {
+    const grenze = freiLimitSek()
+    if (grenze === 0) return
+    if (bikeSec >= grenze - 5 * 60 && bikeSec < grenze - 2 * 60 && !warned5Min.current) {
       warned5Min.current = true
       if (soundEnabled) playWarningSound()
       if (navigator.vibrate) navigator.vibrate([300, 100, 300])
     }
-    if (bikeSec >= FREE_LIMIT_SEC - 2 * 60 && !warned2Min.current) {
+    if (bikeSec >= grenze - 2 * 60 && !warned2Min.current) {
       warned2Min.current = true
       if (soundEnabled) playWarningSound()
       if (navigator.vibrate) navigator.vibrate([400, 100, 400])
@@ -524,7 +527,7 @@ export default function JourneyMode({
               <span>CO₂</span>
             </div>
             <div className="arrive-stat">
-              <b>{euro(stats.costCent, lang)}</b>
+              <b>{stats.costKnown ? euro(stats.costCent, lang) : '—'}</b>
               <span>{t('jmCost', lang)}</span>
             </div>
           </div>
@@ -607,10 +610,13 @@ export default function JourneyMode({
    * ist die Uhr dort nicht überflüssig, sondern besonders nützlich; sie fehlte
    * bisher ganz.
    */
-  const STUFE_SEC = 30 * 60
+  const geldTarif = stadt().tarif
+  const STUFE_SEC = (geldTarif?.taktMin ?? 30) * 60
   const remainingSec = b?.electric
     ? STUFE_SEC - (bikeSec % STUFE_SEC)
-    : Math.max(0, FREE_LIMIT_SEC - bikeSec)
+    : Math.max(0, freiLimitSek() - bikeSec)
+  /** Ohne bekannten Tarif ist jede Uhr eine Behauptung über Geld — dann keine. */
+  const zeigeGelduhr = geldTarif !== null
   const remainingMins = Math.ceil(remainingSec / 60)
   /** Wie viele halbe Stunden das E-Bike bereits gekostet hat. */
   const ebikeStufen = b?.electric ? Math.floor(bikeSec / STUFE_SEC) + 1 : 0
@@ -739,6 +745,7 @@ export default function JourneyMode({
             ) : null}
           </div>
           {isBikeLeg &&
+            zeigeGelduhr &&
             (bikeStartedAt ? (
               <span
                 className={`j-biketimer${remainingMins <= 5 ? ' urgent' : ''}${b?.electric ? ' ebike' : ''}`}

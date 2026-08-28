@@ -1,13 +1,16 @@
 import { plan } from './api'
 import type { PlanOpts } from './api'
 import { haversine, nearbyStations, nearestStation } from './geo'
+import { stadt } from './stadt'
 import { decodePolyline } from './polyline'
 import type { BikeLegInfo, Itinerary, ItineraryView, LatLon, Leg, Place, Station } from './types'
 
-/** 28 statt 30 Min — Puffer für Stationssuche und Abstellen. */
-export const FREE_LIMIT_SEC = 28 * 60
-
-const MYRADL_SYSTEM_ID = 'nextbike_ml'
+/** Zwei Minuten unter den Freiminuten der Stadt — Puffer für Stationssuche
+ *  und Abstellen. Ohne Freiminuten (Tarif unbekannt) gibt es keine Frist. */
+export function freiLimitSek(): number {
+  const frei = stadt().tarif?.freiminutenAbo ?? 0
+  return frei > 2 ? (frei - 2) * 60 : 0
+}
 /** Umkreis, in dem Räder für eine Gruppe eingesammelt werden dürfen. */
 const PICKUP_RADIUS_M = 600
 /** Umkreis für die Wechselstation beim „Rad-Marathon". */
@@ -123,6 +126,7 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
   let hasElectric = false
   let warnReturn = false
   let extraSec = 0
+  const grenzeSek = freiLimitSek()
 
   for (let i = 0; i < it.legs.length; i++) {
     const leg = it.legs[i]
@@ -139,7 +143,7 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
       const info: BikeLegInfo = {
         startStation: null,
         endStation,
-        tooLong: leg.duration + detourSec > FREE_LIMIT_SEC,
+        tooLong: grenzeSek > 0 && leg.duration + detourSec > grenzeSek,
         electric: false,
         freeFloating: false,
         ownBike: true,
@@ -160,10 +164,11 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
     if (leg.mode !== 'RENTAL') continue
 
     // Nur MyRadl: Dott (Scooter UND Räder) ist kostenpflichtig — Route verwerfen.
-    const isMyRadl =
-      leg.rental?.systemId === MYRADL_SYSTEM_ID ||
-      (leg.rental?.systemName ?? '').toLowerCase().includes('myradl')
-    if (!isMyRadl) return null
+    const heimat = stadt()
+    const eigenesSystem =
+      leg.rental?.systemId === heimat.systemId ||
+      (leg.rental?.systemName ?? '').toLowerCase().includes(heimat.radName.toLowerCase())
+    if (!eigenesSystem) return null
 
     // E-Bike kostet immer; im Standard-Modus rausfiltern (Absicherung zum Serverfilter).
     const electric = !!leg.rental?.propulsionType && leg.rental.propulsionType !== 'HUMAN'
@@ -193,7 +198,7 @@ export function buildView(it: Itinerary, opts: BuildOpts): ItineraryView | null 
     const info: BikeLegInfo = {
       startStation: freeFloating ? null : nearestStation(leg.from, stations),
       endStation,
-      tooLong: !electric && rideSec > FREE_LIMIT_SEC,
+      tooLong: !electric && grenzeSek > 0 && rideSec > grenzeSek,
       electric,
       freeFloating,
       ownBike: false,

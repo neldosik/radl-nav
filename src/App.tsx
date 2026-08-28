@@ -19,6 +19,7 @@ import type { WeatherAtTime } from './api'
 import { clusterFreeBikes } from './geo'
 import { searchRoutes, viewDuration } from './routing'
 import { rideLegsOf, viewStats } from './stats'
+import { STAEDTE, stadt, stadtBeiPosition, stadtGewaehlt, stadtSetzen } from './stadt'
 import { ensureNotificationPermission } from './notify'
 import { useTheme } from './hooks/useTheme'
 import { useTextScale } from './hooks/useTextScale'
@@ -155,6 +156,19 @@ export default function App() {
     localStorage.setItem('radl.sound', String(next))
   }
 
+  /**
+   * Nächste eingerichtete Stadt.
+   *
+   * Danach wird die Seite frisch geladen: Stationen, Radbestände, Treffer und
+   * die Suche in der Adresszeile gehören alle zur alten Stadt — Haltestellen
+   * aus München in einer Berliner Suche wären schlicht falsch.
+   */
+  function naechsteStadtWaehlen() {
+    const i = STAEDTE.findIndex(s => s.id === stadt().id)
+    stadtSetzen(STAEDTE[(i + 1) % STAEDTE.length].id)
+    window.location.href = import.meta.env.BASE_URL
+  }
+
   function toggleCycleLayer() {
     const next = !cycleLayer
     setCycleLayer(next)
@@ -201,6 +215,14 @@ export default function App() {
   useEffect(() => {
     getGeolocation()
       .then(async pos => {
+        // Wer die App in Leipzig zum ersten Mal öffnet, soll nicht auf
+        // Münchner Stationen schauen. Eine selbst gewählte Stadt bleibt.
+        const nah = stadtBeiPosition(pos)
+        if (!stadtGewaehlt() && nah && nah.id !== stadt().id) {
+          stadtSetzen(nah.id)
+          window.location.href = import.meta.env.BASE_URL
+          return
+        }
         journey.setUserPos({ ...pos, at: Date.now() })
         const name = await reverseGeocode(pos.lat, pos.lon).catch(() => null)
         setFrom(f => f ?? { name: name ?? t('myLocation', lang), lat: pos.lat, lon: pos.lon })
@@ -664,6 +686,7 @@ export default function App() {
               </button>
               <button
                 className="header-menu-item"
+                hidden={stadt().tarif === null}
                 onClick={() =>
                   setHatAbo(a => {
                     localStorage.setItem('radl.abo', String(!a))
@@ -672,6 +695,9 @@ export default function App() {
                 }
               >
                 {t(hatAbo ? 'aboAn' : 'aboAus', lang)}
+              </button>
+              <button className="header-menu-item" onClick={naechsteStadtWaehlen}>
+                {dict[lang].stadtWechseln(stadt().name)}
               </button>
               <button className="header-menu-item" onClick={() => setShowDiag(true)}>
                 Diagnose
@@ -984,7 +1010,7 @@ export default function App() {
         )}
 
         <footer className="app-footer">
-          Made with ❤️ by <b>NELD</b> · {t('appSub', lang)}
+          Made with ❤️ by <b>NELD</b> · {dict[lang].appSub(stadt().radName, stadt().name)}
           <br />
           <a href="https://transitous.org" target="_blank" rel="noreferrer">
             Transitous

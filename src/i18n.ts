@@ -57,7 +57,8 @@ export function locale(lang: Language): string {
 export const dict = {
   de: {
     // ── Kopfzeile und Menü ──
-    appSub: 'MyRadl + MVV · München',
+    appSub: (rad: string, ort: string) => `${rad} + ÖPNV · ${ort}`,
+    stadtWechseln: (ort: string) => `Stadt: ${ort}`,
     menuTitle: 'Hauptmenü',
     // Nur für Vorleseprogramme: die Leiste selbst zeigt schon Symbole.
     tabbarLabel: 'Bereiche',
@@ -115,6 +116,8 @@ export const dict = {
     filterTitle: 'Rad-Filter & Zeitlimit',
     bikeTypeLabel: 'Fahrrad-Typ',
     standardSub: '30 Min. frei mit Abo',
+    // Ohne hinterlegten Tarif nennt die App keine Minuten und keinen Preis.
+    standardSubOhneTarif: 'Preise beim Betreiber',
     ebikeSub: 'Alle Radtypen erlaubt',
     maxBikeTime: 'Max. Fahrzeit pro Etappe',
     bikeCount: 'Anzahl Räder',
@@ -261,6 +264,8 @@ export const dict = {
     cardOnlyXofY: (got: number, need: number, art: string) => `Nur ${got} von ${need} ${art} in der Nähe`,
     cardHighDemand: (n: number, wort: string) => `Hohe Nachfrage: nur noch ${n} ${wort} frei`,
     cardFreeWithBikes: (n: number, wort: string) => `0 € mit Deutschlandticket · ${n} ${wort} frei`,
+    cardRaederFrei: (n: number, wort: string) => `${n} ${wort} frei`,
+    cardOhneTarif: 'Preis beim Betreiber',
     cardPickupAt: (n: number, station: string, dist: number | null) =>
       `${n} an »${station}«${dist != null ? ` (${dist} m)` : ''}`,
 
@@ -337,7 +342,8 @@ export const dict = {
 
   en: {
     // ── Header and menu ──
-    appSub: 'MyRadl + MVV · Munich',
+    appSub: (rad: string, ort: string) => `${rad} + transit · ${ort}`,
+    stadtWechseln: (ort: string) => `City: ${ort}`,
     menuTitle: 'Main menu',
     tabbarLabel: 'Sections',
     tabRoute: 'Route',
@@ -390,6 +396,7 @@ export const dict = {
     filterTitle: 'Bike filter & time limit',
     bikeTypeLabel: 'Bike type',
     standardSub: '30 min free with subscription',
+    standardSubOhneTarif: 'See operator for prices',
     ebikeSub: 'All bike types allowed',
     maxBikeTime: 'Max riding time per leg',
     bikeCount: 'Number of bikes',
@@ -535,6 +542,8 @@ export const dict = {
     cardOnlyXofY: (got: number, need: number, art: string) => `Only ${got} of ${need} ${art} nearby`,
     cardHighDemand: (n: number, wort: string) => `High demand: only ${n} ${wort} left`,
     cardFreeWithBikes: (n: number, wort: string) => `0 € with subscription · ${n} ${wort} free`,
+    cardRaederFrei: (n: number, wort: string) => `${n} ${wort} free`,
+    cardOhneTarif: 'See operator for price',
     cardPickupAt: (n: number, station: string, dist: number | null) =>
       `${n} at “${station}”${dist != null ? ` (${dist} m)` : ''}`,
 

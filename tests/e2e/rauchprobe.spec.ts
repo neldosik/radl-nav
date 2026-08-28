@@ -78,6 +78,21 @@ test('zeigt das Fahrtenbuch und erlaubt die Sicherung', async ({ page }) => {
   expect((await download).suggestedFilename()).toMatch(/^radl-fahrten-\d{4}-\d{2}-\d{2}\.json$/)
 })
 
+test('wechselt die Stadt und fragt dort keine Münchner Meldungen ab', async ({ page }) => {
+  const mvg: string[] = []
+  page.on('request', r => {
+    if (r.url().includes('mvg.de')) mvg.push(r.url())
+  })
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Hauptmenü' }).click()
+  await page.getByRole('button', { name: 'Stadt: München' }).click()
+
+  await expect(page.locator('.app-footer')).toContainText('Berlin')
+  await expect(page.locator('.app-footer')).toContainText('nextbike Berlin')
+  expect(mvg).toEqual([])
+})
+
 test('schaltet die Sprache auf Englisch um', async ({ page }) => {
   await seedStorage(page, { 'radl.lang': 'en' })
   await page.goto('/')

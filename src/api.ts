@@ -1,6 +1,7 @@
 import { currentPosition } from './geolocation'
 import { bestandAusStatus, parseFreeBikes, parseStations } from './gbfs'
 import type { GbfsFreeBike, GbfsStationInfo, GbfsStationStatus, GbfsVehicleType } from './gbfs'
+import { stadt } from './stadt'
 import type { FreeBike, GeocodeMatch, LatLon, PlanResponse, Station } from './types'
 
 /**
@@ -29,8 +30,6 @@ function asApiError(e: unknown, was: string): never {
 }
 
 const MOTIS = 'https://api.transitous.org/api'
-const GBFS = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_ml/de'
-const MUNICH_CENTER = '48.137,11.575'
 
 /** Netzaufruf mit Zeitgrenze. Ohne sie blieb der Ladezustand hängen, wenn ein
  *  Dienst nicht antwortet — abgebrochen wird auch weiterhin über `signal`. */
@@ -48,7 +47,8 @@ export async function geocode(text: string, signal?: AbortSignal): Promise<Geoco
   const u = new URL(`${MOTIS}/v1/geocode`)
   u.searchParams.set('text', text)
   u.searchParams.set('language', 'de')
-  u.searchParams.set('place', MUNICH_CENTER)
+  const mitte = stadt().mitte
+  u.searchParams.set('place', `${mitte.lat},${mitte.lon}`)
   u.searchParams.set('placeBias', '3') // ohne dies schlägt Duisburg Münchner Haltestellen
   let r: Response
   try {
@@ -215,8 +215,6 @@ export function getGeolocation(): Promise<{ lat: number; lon: number }> {
   return currentPosition()
 }
 
-/** providerId MyRadl in Transitous (siehe /api/v1/rentals); systemId `nextbike_ml` Filter akzeptiert NICHT. */
-const MYRADL_PROVIDER = 'de-MyRadlMunich'
 
 export interface PlanOpts {
   walkOnly?: boolean
@@ -263,9 +261,12 @@ export async function plan(from: LatLon, to: LatLon, opts: PlanOpts = {}, signal
     u.searchParams.set('postTransitModes', 'WALK,RENTAL')
     u.searchParams.set('directModes', 'WALK,RENTAL')
     // Nur MyRadl: sonst steckt MOTIS Dott (Scooter UND Räder) in jede Route
-    u.searchParams.set('preTransitRentalProviders', MYRADL_PROVIDER)
-    u.searchParams.set('postTransitRentalProviders', MYRADL_PROVIDER)
-    u.searchParams.set('directRentalProviders', MYRADL_PROVIDER)
+    // Anbieterkennung aus /api/v1/rentals; die systemId des GBFS-Feeds
+    // akzeptiert der Filter NICHT.
+    const anbieter = stadt().provider
+    u.searchParams.set('preTransitRentalProviders', anbieter)
+    u.searchParams.set('postTransitRentalProviders', anbieter)
+    u.searchParams.set('directRentalProviders', anbieter)
     u.searchParams.set('preTransitRentalFormFactors', 'BICYCLE')
     u.searchParams.set('postTransitRentalFormFactors', 'BICYCLE')
     u.searchParams.set('directRentalFormFactors', 'BICYCLE')
@@ -325,7 +326,11 @@ const feedInFlight = new Map<string, Promise<unknown>>()
 
 /** Holt einen GBFS-Feed; bei Fehler null statt Exception. */
 async function gbfs(feed: string): Promise<unknown> {
-  const cached = feedCache.get(feed)
+  const heimat = stadt()
+  // Der Schlüssel trägt die Stadt: nach einem Wechsel wären die Stationen der
+  // alten Stadt sonst noch eine halbe Stunde lang „aktuell".
+  const schluessel = `${heimat.id}/${feed}`
+  const cached = feedCache.get(schluessel)
   const ttl = STATISCHE_FEEDS.has(feed)
     ? STATIC_TTL_MS
     : feed === 'free_bike_status'
@@ -333,23 +338,23 @@ async function gbfs(feed: string): Promise<unknown> {
       : FEED_TTL_MS
   if (cached && Date.now() - cached.at < ttl) return cached.value
 
-  const running = feedInFlight.get(feed)
+  const running = feedInFlight.get(schluessel)
   if (running) return running
 
   const task = (async () => {
     try {
-      const r = await fetch(`${GBFS}/${feed}.json`, { signal: AbortSignal.timeout(20_000) })
+      const r = await fetch(`${heimat.gbfs}/${feed}.json`, { signal: AbortSignal.timeout(20_000) })
       const value = r.ok ? await r.json() : null
-      if (value != null) feedCache.set(feed, { at: Date.now(), value })
+      if (value != null) feedCache.set(schluessel, { at: Date.now(), value })
       return value
     } catch {
       return null
     } finally {
-      feedInFlight.delete(feed)
+      feedInFlight.delete(schluessel)
     }
   })()
 
-  feedInFlight.set(feed, task)
+  feedInFlight.set(schluessel, task)
   return task
 }
 
@@ -393,7 +398,7 @@ export async function stationBestand(stationId: string): Promise<{ bikes: number
   }
 }
 
-const STATIONS_CACHE_KEY = 'radl.stations_cache'
+const stationsPufferSchluessel = () => `radl.stations_cache.${stadt().id}`
 /** Wie alt der Offline-Stand höchstens sein darf. Radzahlen von gestern sind
  *  eine Vermutung, die von letzter Woche eine Falschaussage — und die App
  *  zeigte sie ohne Vorbehalt als Live-Bestand an. */
@@ -418,7 +423,7 @@ export async function loadStations(): Promise<Station[]> {
 
     if (parsed.length > 0) {
       try {
-        localStorage.setItem(STATIONS_CACHE_KEY, JSON.stringify({ at: Date.now(), data: parsed }))
+        localStorage.setItem(stationsPufferSchluessel(), JSON.stringify({ at: Date.now(), data: parsed }))
       } catch {}
       return parsed
     }
@@ -427,7 +432,7 @@ export async function loadStations(): Promise<Station[]> {
   }
 
   try {
-    const cached = localStorage.getItem(STATIONS_CACHE_KEY)
+    const cached = localStorage.getItem(stationsPufferSchluessel())
     if (cached) {
       // `at` wurde beim Schreiben immer mitgespeichert, beim Lesen aber nie
       // ausgewertet — beliebig alte Bestände galten als aktuell.

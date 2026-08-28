@@ -84,7 +84,15 @@ describe('rideStats', () => {
 
   it('bleibt bei leerer Liste bei null', () => {
     const s = rideStats([])
-    expect(s).toEqual({ bikeMinutes: 0, electricMinutes: 0, bikeKm: 0, kcal: 0, co2Grams: 0, costCent: 0 })
+    expect(s).toEqual({
+      bikeMinutes: 0,
+      electricMinutes: 0,
+      bikeKm: 0,
+      kcal: 0,
+      co2Grams: 0,
+      costCent: 0,
+      costKnown: true,
+    })
   })
 })
 
