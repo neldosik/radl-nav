@@ -101,6 +101,44 @@ test('lädt die Karte samt ihrem Arbeiter', async ({ page }, testInfo) => {
 })
 
 /**
+ * Der Kartenstil ist eine einzelne Anfrage ohne zweiten Anlauf: fällt sie aus,
+ * blieb die Karte für den Rest der Sitzung weiß — im Testlauf gleich dreimal
+ * gesehen, während dieselbe Adresse per `curl` antwortete. Hier scheitert der
+ * erste Versuch absichtlich; die Karte muss sich davon allein erholen.
+ */
+test.describe('Kartenstil', () => {
+  // Ohne das beantwortet der Service Worker die Stilanfrage selbst; `page.route`
+  // sieht sie dann nie und der erste Versuch scheitert gar nicht erst.
+  test.use({ serviceWorkers: 'block' })
+
+  test('holt den Kartenstil nach einem Fehlschlag nach', async ({ page }) => {
+    const stil = {
+      version: 8,
+      sources: {},
+      layers: [{ id: 'hintergrund', type: 'background', paint: { 'background-color': '#eee' } }],
+    }
+    // Das Netz fällt für zweieinhalb Sekunden komplett aus. Danach legt keine
+    // neue Karte mehr los — jede weitere Stilanfrage kann also nur aus einem
+    // zweiten Anlauf stammen. Ohne den bleibt die Zahl bei null.
+    const AUSFALL_MS = 2500
+    let ende = Number.POSITIVE_INFINITY
+    let spaeter = 0
+    await page.route('**/tiles.openfreemap.org/styles/**', async route => {
+      if (Date.now() < ende) return route.abort('connectionfailed')
+      spaeter++
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stil) })
+    })
+
+    await page.goto('/')
+    ende = Date.now() + AUSFALL_MS
+    await page.getByRole('button', { name: 'Räder', exact: true }).click()
+
+    await expect.poll(() => spaeter, { timeout: 20_000 }).toBeGreaterThan(0)
+    await expect(page.locator('canvas').first()).toBeVisible()
+  })
+})
+
+/**
  * Die Wetterplakette gehört in die untere rechte Ecke der Übersichtskarte.
  * Eine zweite `.weather`-Regel hatte ihr `position: absolute` überschrieben —
  * damit rutschte sie unter die Karte, links, und wurde vom `overflow: hidden`

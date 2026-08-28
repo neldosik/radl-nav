@@ -4,7 +4,7 @@ import { getGeolocation, loadFreeBikes, loadStations } from '../api'
 import { clusterFreeBikes, haversine, nearbyStations } from '../geo'
 import { pickRentalUri } from '../format'
 import { BikeIcon, BoltIcon, CloseIcon, ExternalIcon, TargetIcon, WalkIcon } from '../icons'
-import { addCycleLayer, mapStyleUrl } from '../mapStyle'
+import { addCycleLayer, mapStyleUrl, stilAbsichern } from '../mapStyle'
 import { stadt } from '../stadt'
 import type { ThemeMode } from '../mapStyle'
 import type { LatLon, Place, Station } from '../types'
@@ -229,6 +229,9 @@ export default function BikeMap({
       attributionControl: { compact: true },
       transformRequest: kartenAnfrage,
     })
+    // Quelle und Ebenen hängen hier an `styledata` (siehe unten) — ein zweiter
+    // Stilanlauf baut sie also von selbst wieder auf.
+    stilAbsichern(m, () => mapStyleUrl(theme))
     // Nach jedem Schieben und Zoomen die Liste neu auf den Ausschnitt beziehen.
     const onMoveEnd = () => {
       const c = m.getCenter()

@@ -9,6 +9,43 @@ export function mapStyleUrl(theme: ThemeMode): string {
     : 'https://tiles.openfreemap.org/styles/liberty'
 }
 
+/**
+ * Der Stil ist der einzige Fehlschlag, von dem sich die Karte nicht erholt.
+ *
+ * Kacheln holt maplibre bei Bedarf erneut; die Stildatei dagegen fordert es
+ * genau einmal an. Fällt diese eine Anfrage aus — ein Funkloch von zwei
+ * Sekunden beim Öffnen der Karte reicht —, bleibt die Fläche für immer leer:
+ * kein `load`, keine Ebenen, keine Meldung. Im Testlauf war das dreimal zu
+ * sehen, jedes Mal mit `AJAXError: Failed to fetch (0)` auf der Stiladresse,
+ * während dieselbe Adresse per `curl` sofort antwortete.
+ *
+ * Deshalb: den Fehler abfangen und den Stil mit wachsendem Abstand erneut
+ * anfordern. `nachStil` baut danach die eigenen Ebenen wieder auf — `setStyle`
+ * räumt sie weg, und `load` kommt bei einem zweiten Anlauf nicht noch einmal.
+ */
+export function stilAbsichern(
+  m: maplibregl.Map,
+  stil: () => string,
+  nachStil?: () => void,
+  maxVersuche = 3,
+): void {
+  let versuche = 0
+  let geplant = false
+  m.on('error', e => {
+    const adresse = (e.error as { url?: string } | undefined)?.url ?? ''
+    if (!adresse.includes('/styles/')) return
+    if (geplant || versuche >= maxVersuche || m.getStyle()?.layers?.length) return
+    versuche++
+    geplant = true
+    setTimeout(() => {
+      geplant = false
+      if (m.getStyle()?.layers?.length) return
+      m.setStyle(stil())
+      if (nachStil) m.once('styledata', nachStil)
+    }, 700 * 2 ** (versuche - 1))
+  })
+}
+
 /** Kennung der Radwege-Ebene, damit sie sich gezielt an- und abschalten lässt. */
 export const CYCLE_LAYER = 'cyclosm-radwege'
 const CYCLE_SOURCE = 'cyclosm'
