@@ -924,11 +924,9 @@ button {
   border: 0;
 }
 
-/* Auch die Wetterplakette wird angetippt (öffnet den Regenverlauf). */
-.weather {
-  position: relative;
-}
-
+/* Auch die Wetterplakette wird angetippt (öffnet den Regenverlauf); die
+   Vergrößerung des Fingerziels hängt an der Plakette selbst, die dafür schon
+   durch `position: absolute` oben ihr eigener Bezugsrahmen ist. */
 .weather::after {
   content: '';
   position: absolute;

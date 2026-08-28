@@ -100,6 +100,29 @@ test('lädt die Karte samt ihrem Arbeiter', async ({ page }, testInfo) => {
   expect(kaputt).toEqual([])
 })
 
+/**
+ * Die Wetterplakette gehört in die untere rechte Ecke der Übersichtskarte.
+ * Eine zweite `.weather`-Regel hatte ihr `position: absolute` überschrieben —
+ * damit rutschte sie unter die Karte, links, und wurde vom `overflow: hidden`
+ * des Kartenfelds fast vollständig abgeschnitten.
+ */
+test('hält die Wetterplakette in der Karte', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto(SUCH_URL)
+
+  const karte = page.locator('.results-map')
+  const plakette = page.locator('.weather')
+  await expect(plakette).toBeVisible({ timeout: 20_000 })
+
+  const k = (await karte.boundingBox())!
+  const p = (await plakette.boundingBox())!
+  expect(p.x).toBeGreaterThanOrEqual(k.x)
+  expect(p.x + p.width).toBeLessThanOrEqual(k.x + k.width + 1)
+  expect(p.y + p.height).toBeLessThanOrEqual(k.y + k.height + 1)
+  // rechte Ecke, nicht linke
+  expect(p.x).toBeGreaterThan(k.x + k.width / 2)
+})
+
 test('wechselt die Stadt und fragt dort keine Münchner Meldungen ab', async ({ page }) => {
   const mvg: string[] = []
   page.on('request', r => {
